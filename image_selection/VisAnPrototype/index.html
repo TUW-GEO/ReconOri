@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <!-- <meta name="viewport" content="width=device-width, initial-scale=1.0"> -->
+    <title>DoRIAH</title>
+    
+    
+    <!-- wk adapt the javascript environment such that the old WebKit version serves the needs of current p5.js -->
+    <script type="text/javascript">
+        window.DeviceMotionEvent = undefined;
+        HTMLCollection.prototype[Symbol.iterator] = Array.prototype[Symbol.iterator];
+    </script>
+    
+    
+    <script src="js/p5.js" type="text/javascript"></script>
+    <script src="commons.js" type="text/javascript"></script>
+    <script src="sketch.1.js" type="text/javascript"></script>
+
+
+    <style>
+      body {
+        padding: 0;
+        margin: 0;
+        background-color: rgb(255, 255, 255);
+        font-family: Noto Sans JP;
+        color: black;
+        text-align: center;
+      }
+      .recipe {
+        color:black;
+        padding: 10px;
+        border: 2px solid #000;
+        background-color: white;
+        border-radius: 15px;
+        -moz-border-radius: 15px;
+      }
+      .canvas {}
+      .fixedContainer {
+        position: fixed;
+        left: 80%;
+        top: 50%;
+        transform: translate(-50%, -80%);
+      }
+      #menu {
+        text-align: center;
+        padding: 10px;
+      }
+      .button {
+        background-color: transparent;
+        border: none;
+        color: white;
+        padding: 5px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 14px;
+        font-style: italic;
+      }
+      .button:hover {
+        text-decoration: underline;
+      }
+      #display {
+        padding: 0px;
+        transform: translate(100%,0%);
+        width: 35%;
+        text-align: left;
+      }
+      #contact {
+        top: 40px;
+      }
+      #copyright {
+        padding: 20px;
+      }
+    </style>
+  </head>
+  <body>
+  
+
+  <!-- wk an exemplary link. If clicked, the PlugIn will be informed -->
+  <a href='http://p5js.org/'>
+    this is a link
+  </a>
+  
+  
+  </body>
+</html>

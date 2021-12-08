@@ -27,8 +27,6 @@ from qgis.gui import QgisInterface
 import importlib
 import logging
 from pathlib import Path
-import shutil
-import sys
 import time
 from typing import Callable, Optional
 
@@ -41,17 +39,6 @@ importlib.import_module('..resources', __name__)
 
 from .dialog import ImageSelectionDialog
 from . import getLoggerAndFileHandler
-
-if True and 'debugpy' not in sys.modules:
-    # Must not call debugpy.listen twice in the same process.
-    # Note that QGIS' Plugin reloader does not create a new process.
-    # There seems to be no official way to ask debugpy if *listen* has been called already.
-    import debugpy
-    # otherwise, debugpy uses sys.executable, which is e.g. qgis.exe!
-    debugpy.configure(python=shutil.which("python"))
-    debugpy.listen(('localhost', 5678))
-
-# debugpy.wait_for_client()  # blocks execution until client is attached    
 
 
 logger = logging.getLogger(__name__)

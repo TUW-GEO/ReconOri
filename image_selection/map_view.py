@@ -1,6 +1,6 @@
 from qgis.PyQt.QtCore import Qt, QEvent, QLineF, QPoint, QPointF, QRect, QRectF, pyqtSignal
-from qgis.PyQt.QtGui import QBrush, QHelpEvent, QImage, QKeyEvent, QPainter, QPaintEvent, QPen, QWheelEvent
-from qgis.PyQt.QtWidgets import QGraphicsView, QGraphicsScene, QScrollBar
+from qgis.PyQt.QtGui import QBrush, QImage, QKeyEvent, QPainter, QPaintEvent, QPen, QWheelEvent
+from qgis.PyQt.QtWidgets import QGraphicsView, QGraphicsScene, QMessageBox, QScrollBar
 from qgis.PyQt import sip
 
 import logging
@@ -30,8 +30,11 @@ class NoWheelScrollBar(QScrollBar):
 class MapView(QGraphicsView):
 
     reportResponseTime = pyqtSignal(float)
+
     newImage = pyqtSignal()
+    
     isReading = pyqtSignal(bool)
+    
     datasetResolution = pyqtSignal(float)
 
 
@@ -179,6 +182,19 @@ class MapView(QGraphicsView):
         wcsRightBot = QPointF(*gdal.ApplyGeoTransform(wcsFromPx, self.__readThread.dataset.RasterXSize, self.__readThread.dataset.RasterYSize))
         wcsRect = QRectF(wcsLeftTop, wcsRightBot)
         sceneRectF = QRectF(wcsRect.x(), -wcsRect.y(), wcsRect.width(), -wcsRect.height())
+
+        # terrestris.de reports extents far north of the north pole, and far south of the south pole.
+        # Zooming that far out would result in integer overflow.
+        # Hence, limit the scene rectangle by the bounding rectangle of the scene CRS.
+        wgs84geog = osr.SpatialReference()
+        wgs84geog.ImportFromEPSG(4326)
+        areaOfUse = sceneCs.GetAreaOfUse()
+        wgs2wcs = osr.CoordinateTransformation(wgs84geog, sceneCs)
+        leftTop = wgs2wcs.TransformPoint(areaOfUse.north_lat_degree, areaOfUse.west_lon_degree)
+        rightBot = wgs2wcs.TransformPoint(areaOfUse.south_lat_degree, areaOfUse.east_lon_degree)
+        wcsBWin = QRectF(QPointF(*leftTop[:2]), QPointF(*rightBot[:2]))
+        sceneRectF &= QRectF(wcsBWin.x(), -wcsBWin.y(), wcsBWin.width(), -wcsBWin.height())
+
         self.setSceneRect(sceneRectF)
         if not self.mapToScene(self.viewport().rect()).boundingRect().intersects(sceneRectF):
             self.ensureVisible(sceneRectF, 0, 0)
@@ -191,6 +207,12 @@ class MapView(QGraphicsView):
         #self.invalidateScene(self.scene().sceneRect(), QGraphicsScene.BackgroundLayer)
         self.resetCachedContent()
         #self.zoom(0) # dataset resolution may have changed -> maybe zoom out.
+
+        itemsBoundingRect = self.scene().itemsBoundingRect()
+        if not itemsBoundingRect.isNull() and not sceneRectF.contains(itemsBoundingRect):
+            QMessageBox.warning(self, 'Items outside map',
+                                "Items lie outside of map's bounding rectangle and will become invisible<br/>"
+                                'Choose a different map with larger coverage to view them, again.')
 
 
     def unload(self):

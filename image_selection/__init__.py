@@ -25,6 +25,9 @@
 from qgis.gui import QgisInterface
 
 import enum
+import shutil
+import sys
+
 
 # WMTS opens a WMS dataset for each overview level, passing timeout as option.
 # But GDALWMSDataset::Initialize uses atoi, and Curl interprets 0 as 'no timeout'.
@@ -107,5 +110,22 @@ def classFactory(iface: QgisInterface):
     # gdal.SetConfigOption('GDAL_HTTP_TIMEOUT', '1') # [s]
     # gdal.SetConfigOption('GDAL_HTTP_LOW_SPEED_LIMIT', '1024')  # bytes per second
     # gdal.SetConfigOption('GDAL_HTTP_LOW_SPEED_TIME', '1')  # seconds
+
+    if 'debugpy' not in sys.modules:
+        # Must not call debugpy.listen twice in the same process.
+        # Note that QGIS' Plugin reloader does not create a new process.
+        # There seems to be no official way to ask debugpy if *listen* has been called already.
+        try:
+            import debugpy
+        except ImportError:
+            pass
+        else:
+            # otherwise, debugpy uses sys.executable, which is e.g. qgis.exe!
+            debugpy.configure(python=shutil.which("python"))
+            port = 5678
+            debugpy.listen(('localhost', port))
+            _logger.info(f'Debug adapter listening on port {port}.')
+
+    # debugpy.wait_for_client()  # blocks execution until client is attached    
 
     return ImageSelection(iface)

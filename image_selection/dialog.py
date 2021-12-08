@@ -26,6 +26,7 @@ from qgis.PyQt.uic import loadUiType
 
 import logging
 from pathlib import Path
+import traceback
 
 from osgeo import gdal
 
@@ -172,11 +173,17 @@ class ImageSelectionDialog(QMainWindow):
 
 
     def unload(self) -> None:
-        self.ui.webView.unload()
-        self.ui.mapView.unload()
-        self.ui.mapView.scene().unload()
-        packageLogger, _ = getLoggerAndFileHandler()
-        packageLogger.removeHandler(self.__statusBarLogHandler)
+        try:
+            self.ui.webView.unload()
+            self.ui.mapView.unload()
+            self.ui.mapView.scene().unload()
+        except Exception as ex:
+            logger.exception('Unloading failed.', exc_info=ex)
+        try:
+            packageLogger, _ = getLoggerAndFileHandler()
+            packageLogger.removeHandler(self.__statusBarLogHandler)
+        except:
+            traceback.print_exc()
 
 
     def timerEvent(self, event) -> None:

@@ -26,9 +26,9 @@ However, this sounds slow.
  """
 
 from qgis.PyQt.QtCore import QEvent, QObject, QPointF, Qt
-from qgis.PyQt.QtGui import QBrush, QCursor, QFocusEvent, QImage, QKeyEvent, QPen, QPainter, QPixmap, QTransform
-from qgis.PyQt.QtWidgets import (QGraphicsEllipseItem, QGraphicsItem, QMenu, QGraphicsPixmapItem, QGraphicsScene,
-                                 QGraphicsSceneContextMenuEvent, QGraphicsSceneMouseEvent,
+from qgis.PyQt.QtGui import QBrush, QColor, QCursor, QFocusEvent, QImage, QKeyEvent, QPen, QPainter, QPixmap, QTransform
+from qgis.PyQt.QtWidgets import (QGraphicsDropShadowEffect, QGraphicsEffect, QGraphicsEllipseItem, QGraphicsItem, QMenu,
+                                 QGraphicsPixmapItem, QGraphicsScene, QGraphicsSceneContextMenuEvent, QGraphicsSceneMouseEvent,
                                  QGraphicsSceneWheelEvent, QStyleOptionGraphicsItem, QWhatsThis, QWidget)
 
 import numpy as np
@@ -143,6 +143,13 @@ def _missingAerialPixMap(size: int) -> QPixmap:
     img.fill(Qt.gray)
     return QPixmap.fromImage(img)
 
+def _focusEffect() -> QGraphicsEffect:
+    focusEffect = QGraphicsDropShadowEffect()
+    focusEffect.setOffset(0)
+    focusEffect.setBlurRadius(20.)
+    focusEffect.setColor(QColor(255, 255, 255, 255))
+    return focusEffect
+
 
 class AerialImage(QGraphicsPixmapItem):
 
@@ -153,6 +160,9 @@ class AerialImage(QGraphicsPixmapItem):
     __transparencyCursor = QCursor(QPixmap(':/plugins/image_selection/eye.png'))
 
     __threadPool: Optional[concurrent.futures.ThreadPoolExecutor] = None
+
+    __focusEffect: QGraphicsEffect = _focusEffect()
+
 
     @staticmethod
     def unload():
@@ -187,9 +197,11 @@ class AerialImage(QGraphicsPixmapItem):
                                                          trafo TEXT NOT NULL)''')
         row = db.execute('SELECT status, scenePos, trafo FROM aerials WHERE imgFn == ?', [imgId] ).fetchone()
         if row is None:
+            mat = np.eye(3)
+            mat[0, 0] = mat[1, 1] = self.__radiusBild / (__class__.__missingPixMap.width() / 2)
             db.execute(
                 'INSERT INTO aerials (imgFn, status, scenePos, trafo) VALUES(?, ?, ?, ?)',
-                [imgId, int(self.__status), json.dumps([pos.x(), pos.y()]), json.dumps(np.eye(3).ravel().tolist())] )
+                [imgId, int(self.__status), json.dumps([pos.x(), pos.y()]), json.dumps(mat.ravel().tolist())] )
             self.setPos(pos)
         else:
             self.__setStatus(Status(row[0]))
@@ -331,11 +343,14 @@ Double-click to close.<br/>
     def focusInEvent(self, event: QFocusEvent) -> None:
         self.__zValue = self.zValue()
         self.setZValue(3)
+        __class__.__focusEffect.setColor(colorFromStatus[self.__status])
+        self.setGraphicsEffect(__class__.__focusEffect)
         super().focusInEvent(event)
 
 
     def focusOutEvent(self, event: QFocusEvent) -> None:
         self.setZValue(self.__zValue)
+        #self.setGraphicsEffect(None)
         super().focusOutEvent(event)
 
 
@@ -363,8 +378,8 @@ Double-click to close.<br/>
 
         super().paint(painter, option, widget)
         painter.save()
-        pen = QPen(colorFromStatus[self.__status])
-        pen.setWidth(0)
+        #pen = QPen(colorFromStatus[self.__status], 0, Qt.DashLine if option.state & QStyle.State_HasFocus else Qt.SolidLine)
+        pen = QPen(colorFromStatus[self.__status], 0, Qt.SolidLine)
         painter.setPen(pen)
         painter.drawRect(self.boundingRect())
         painter.restore()
@@ -457,4 +472,3 @@ def _getPixMap(imgPath: Path, width: int, contrastStretch: ContrastStretching):
         arr[:, :, :3] = transformed[:, :, None]
 
     return QPixmap.fromImage(img)
-

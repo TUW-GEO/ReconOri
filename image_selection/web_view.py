@@ -13,7 +13,7 @@ import threading
 import urllib.request
 from pathlib import Path
 
-showWeb = True
+showWeb = False
 
 logger = logging.getLogger(__name__)
 httpdLogger = logging.getLogger(__name__ + '.httpd')

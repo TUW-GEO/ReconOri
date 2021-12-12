@@ -18,5 +18,6 @@
         <file alias="target">resources/target.png</file>
         <file alias="arrow-resize-090">resources/arrow-resize-090.png</file>
         <file alias="chart">resources/chart.png</file>
+        <file alias="layer-shape-polygon">resources/layer-shape-polygon.png</file>
     </qresource>
 </RCC>

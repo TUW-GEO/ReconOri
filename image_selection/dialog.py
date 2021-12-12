@@ -127,10 +127,11 @@ class ImageSelectionDialog(QMainWindow):
             button.setText('')
             button.pressed.connect(func)
 
-        films = QIcon(':/plugins/image_selection/films')
+        ui.loadAoi.setIcon(QIcon(':/plugins/image_selection/layer-shape-polygon'))
+        ui.loadAoi.clicked.connect(mapView.scene().selectAoiFile)
 
-        ui.loadProject.setIcon(films)
-        ui.loadProject.clicked.connect(mapView.scene().selectProjectFile)
+        ui.loadAerials.setIcon(QIcon(':/plugins/image_selection/films'))
+        ui.loadAerials.clicked.connect(mapView.scene().selectAerialsFile)
 
         ui.aerialsContrastStretch.setIcon(QIcon(':/plugins/image_selection/contrast-stretch'))
         menu = QMenu(self)
@@ -145,7 +146,7 @@ class ImageSelectionDialog(QMainWindow):
         ui.aerialsContrastStretch.setMenu(menu)
         ui.aerialsContrastStretch.toggled.connect(self.onContrastStretchToggled)
 
-        mapView.scene().projectLoaded.connect(lambda: ui.aerialsContrastStretch.setEnabled(True))
+        mapView.scene().aerialsLoaded.connect(lambda: ui.aerialsContrastStretch.setEnabled(True))
 
         target = QIcon(':/plugins/image_selection/target')
         picture = QIcon(':/plugins/image_selection/picture')
@@ -163,12 +164,12 @@ class ImageSelectionDialog(QMainWindow):
             asImage.setCheckable(True)
             button.setMenu(menu)
 
-            mapView.scene().projectLoaded.connect(lambda button=button: button.setEnabled(True))
+            mapView.scene().aerialsLoaded.connect(lambda button=button: button.setEnabled(True))
 
         ui.aerialsFreeze.setIcon(QIcon(':/plugins/image_selection/freeze'))
         ui.aerialsFreeze.toggled.connect(lambda checked: mapView.setInteractive(not checked))
 
-        #ui.mapView.scene().loadProjectFile(Path(r'P:\Projects\19_DoRIAH\07_Work_Data\OwnCloud\Projekte LBDB\Meeting_2021-06-10_Testprojekte\Testprojekt1\Recherche_Metadaten_Testprojekt1.xls'))
+        #ui.mapView.scene().loadAerialsFile(Path(r'P:\Projects\19_DoRIAH\07_Work_Data\OwnCloud\Projekte LBDB\Meeting_2021-06-10_Testprojekte\Testprojekt1\Recherche_Metadaten_Testprojekt1.xls'))
         
 
 

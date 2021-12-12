@@ -162,6 +162,10 @@ In OSGeo4W shell:
 pip3 install debugpy
 ```
 
+### PyCharm
+
+Remote debugging with PyCharm requires the professional edition.
+
 ### Using Visual Studio 2019
 
 Debug -> Attach to Process:
@@ -174,4 +178,10 @@ Unfortunately, Python support within Visual Studio is still buggy.
 ### Using VS Code
 
 https://gist.github.com/AsgerPetersen/2000eb6f3e3307bd25190b19493dd9a3
+
+## Icons
+
+Icons are from https://p.yusukekamiyamane.com/
+
+Cursors are based on other online sources.
 

@@ -1,8 +1,9 @@
 from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, Qt, QPointF
-from qgis.PyQt.QtWidgets import QFileDialog, QGraphicsScene, QMessageBox
+from qgis.PyQt.QtGui import QPen, QPolygonF
+from qgis.PyQt.QtWidgets import QFileDialog, QGraphicsPolygonItem, QGraphicsScene, QMessageBox
 
 import pandas as pd
-from osgeo import osr
+from osgeo import ogr, osr
 import sqlite3
 
 import glob
@@ -22,7 +23,7 @@ def _truncateMsg(msg: str, maxLen = 500):
 
 class MapScene(QGraphicsScene):
 
-    projectLoaded = pyqtSignal()
+    aerialsLoaded = pyqtSignal()
     
     contrastStretch = pyqtSignal(ContrastStretching)
 
@@ -33,13 +34,21 @@ class MapScene(QGraphicsScene):
         self.__wcs = osr.SpatialReference()
         self.__wcs.ImportFromEPSG(epsg)
         self.__db = None
+        self.__aoi = None
 
 
     @pyqtSlot()
-    def selectProjectFile(self):
+    def selectAoiFile(self):
+        fileName = QFileDialog.getOpenFileName(None, "Open the area of interest as a polygon", "", "Polygon formats (*.kml;*.shp);;Any type (*.*)")[0]
+        if fileName:
+            self.loadAoiFile(Path(fileName))
+
+
+    @pyqtSlot()
+    def selectAerialsFile(self):
         fileName = QFileDialog.getOpenFileName(None, "Open DB query result", "", "Excel sheets (*.xls);;Any type (*.*)")[0]
         if fileName:
-            self.loadProjectFile(Path(fileName))
+            self.loadAerialsFile(Path(fileName))
 
 
     @pyqtSlot(ContrastStretching)
@@ -58,8 +67,48 @@ class MapScene(QGraphicsScene):
             self.__db.close()
 
 
-    def loadProjectFile(self, fileName: Path) -> None:
-        logger.info(f'Project file to load: {fileName}')
+    def loadAoiFile(self, fileName: Path) -> None:
+        logger.info(f'File with the area of interest to load: {fileName}')
+        ds = ogr.Open(str(fileName))
+        if ds.GetLayerCount() > 1:
+            logger.warning('Data source has multiple layers. Will use the first one.')
+        layer = ds.GetLayer(0)
+        if layer.GetFeatureCount() != 1:
+            return logger.error('First layer does not have a single feature. Choose another file.')
+        # For both KML and Shape, layer.GetFeatureCount() reports 1.
+        # For KML, GetFeature(1) returns the only feature, while for Shape it must be GetFeature(0).
+        # Hence, do not rely on GetFeature(idx), but on iteration, which works for both.
+        feature, = layer
+        geom = feature.GetGeometryRef()
+        geom.FlattenTo2D()
+        if geom.GetGeometryType() != ogr.wkbPolygon:
+            return logger.error(f"First layer's first feature is not a polygon, but a {geom.GetGeometryName()}. Choose another file.")
+        if not geom.IsSimple():
+            return logger.error("First layer's first feature is not a simple polygon. Choose another file.")
+        geom.TransformTo(self.__wcs)
+        assert geom.GetGeometryCount() >= 1
+        outerRing = geom.GetGeometryRef(0)
+        pts = outerRing.GetPoints()
+        scenePos = QPointF(pts[0][0], -pts[0][1])
+        qPts = []
+        for pt in pts:
+            qPts.append(QPointF(pt[0], -pt[1]) - scenePos)
+        polyg = QGraphicsPolygonItem(QPolygonF(qPts))
+        polyg.setPos(scenePos)
+        pen = QPen(Qt.magenta)
+        pen.setWidth(5)
+        pen.setCosmetic(True)
+        polyg.setPen(pen)
+        if self.__aoi is not None:
+            self.removeItem(self.__aoi)
+        self.addItem(polyg)
+        self.__aoi = polyg
+        for view in self.views():
+            view.fitInView(self.itemsBoundingRect(), Qt.KeepAspectRatio)
+
+
+    def loadAerialsFile(self, fileName: Path) -> None:
+        logger.info(f'Spread sheet with image meta data to load: {fileName}')
         if self.__db is not None:
             self.__db.close()
         dbPath = fileName.with_suffix('.sqlite')
@@ -75,6 +124,8 @@ class MapScene(QGraphicsScene):
       
 
         self.clear()
+        if self.__aoi is not None:
+            self.addItem(self.__aoi)
         imgDir = fileName.parent / 'Bilder'
         imgExt = '.ecw'
         fsImgFiles = set(Path(el) for el in glob.iglob(str(imgDir / ('*' + imgExt))))
@@ -132,7 +183,7 @@ class MapScene(QGraphicsScene):
         aerialImgs = [el for el in self.items() if isinstance(el, AerialImage)]
         logger.info('{} of {} images available.'.format(sum(el.status() > Status.missing for el in aerialImgs), len(aerialImgs)))
 
-        self.projectLoaded.emit()
+        self.aerialsLoaded.emit()
 
 
     def __cleanData(self, df: pd.DataFrame, sheet_name: str) -> bool:

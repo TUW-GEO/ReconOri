@@ -369,7 +369,7 @@ Double-click to close.<br/>
         pm = None
         with self.__futurePixmapLock:
             if self.__futurePixmap is not None:
-                pm = self.__futurePixmap.result()  # Note: result() might raise in the wanted thread.
+                pm = self.__futurePixmap.result()  # Note: result() might raise here, in the wanted thread.
                 self.__futurePixmap = None
 
         if pm is not None:

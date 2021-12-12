@@ -26,6 +26,6 @@ There are two ways to make the PlugIn accessible to the *QGIS PlugIn manager*:
 
 2. Before starting QGIS, set the environment variable `QGIS_PLUGINPATH` to the path of the parent directory of the PlugIn folder, wherever that is.
 
-Activate the PlugIn in the QGIS PlugIn manager: menu `PlugIns` ➡ entry `Manage and install plugins` ➡ tab `Installed` ➡ Check `DoRIAH Image Selection`.
+Activate the PlugIn in the QGIS PlugIn manager: menu `PlugIns` → entry `Manage and install plugins` → tab `Installed` → Check `DoRIAH Image Selection`.
 
-You should now see the PlugIn icon in the QGIS main window. If not: menu `View` ➡ entry `Tool boxes` ➡ check `PlugIn tool box`.
+You should now see the PlugIn icon in the QGIS main window. If not: menu `View` → entry `Tool boxes` → check `PlugIn tool box`.

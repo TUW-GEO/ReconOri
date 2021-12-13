@@ -26,10 +26,10 @@ However, this sounds slow.
  """
 
 from qgis.PyQt.QtCore import QEvent, QObject, QPointF, Qt
-from qgis.PyQt.QtGui import QBrush, QColor, QCursor, QFocusEvent, QImage, QKeyEvent, QPen, QPainter, QPixmap, QTransform
+from qgis.PyQt.QtGui import QBrush, QCursor, QFocusEvent, QImage, QKeyEvent, QPen, QPainter, QPixmap, QTransform
 from qgis.PyQt.QtWidgets import (QGraphicsDropShadowEffect, QGraphicsEffect, QGraphicsEllipseItem, QGraphicsItem, QMenu,
                                  QGraphicsPixmapItem, QGraphicsScene, QGraphicsSceneContextMenuEvent, QGraphicsSceneMouseEvent,
-                                 QGraphicsSceneWheelEvent, QStyleOptionGraphicsItem, QWhatsThis, QWidget)
+                                 QGraphicsSceneWheelEvent, QStyle, QStyleOptionGraphicsItem, QWhatsThis, QWidget)
 
 import numpy as np
 from osgeo import gdal
@@ -143,12 +143,12 @@ def _missingAerialPixMap(size: int) -> QPixmap:
     img.fill(Qt.gray)
     return QPixmap.fromImage(img)
 
-def _focusEffect() -> QGraphicsEffect:
-    focusEffect = QGraphicsDropShadowEffect()
-    focusEffect.setOffset(0)
-    focusEffect.setBlurRadius(20.)
-    focusEffect.setColor(QColor(255, 255, 255, 255))
-    return focusEffect
+
+# def _focusEffect() -> QGraphicsEffect:
+#     focusEffect = QGraphicsDropShadowEffect()
+#     focusEffect.setOffset(0)
+#     focusEffect.setBlurRadius(20.)
+#     return focusEffect
 
 
 class AerialImage(QGraphicsPixmapItem):
@@ -161,7 +161,7 @@ class AerialImage(QGraphicsPixmapItem):
 
     __threadPool: Optional[concurrent.futures.ThreadPoolExecutor] = None
 
-    __focusEffect: QGraphicsEffect = _focusEffect()
+    # __focusEffect: QGraphicsEffect = _focusEffect()
 
 
     @staticmethod
@@ -343,14 +343,17 @@ Double-click to close.<br/>
     def focusInEvent(self, event: QFocusEvent) -> None:
         self.__zValue = self.zValue()
         self.setZValue(3)
-        __class__.__focusEffect.setColor(colorFromStatus[self.__status])
-        self.setGraphicsEffect(__class__.__focusEffect)
+        # Using a graphics effect does not fully work:
+        # while the effect is displayed as wanted,
+        # calling self.update() in self.__pixMapReady() will no longer call self.paint.
+        # Hence, when the pixmap is ready, it will not be shown until some mouse click et al.
+        #__class__.__focusEffect.setColor(colorFromStatus[self.__status])
+        #self.setGraphicsEffect(__class__.__focusEffect)
         super().focusInEvent(event)
 
 
     def focusOutEvent(self, event: QFocusEvent) -> None:
         self.setZValue(self.__zValue)
-        #self.setGraphicsEffect(None)
         super().focusOutEvent(event)
 
 
@@ -378,8 +381,12 @@ Double-click to close.<br/>
 
         super().paint(painter, option, widget)
         painter.save()
-        #pen = QPen(colorFromStatus[self.__status], 0, Qt.DashLine if option.state & QStyle.State_HasFocus else Qt.SolidLine)
-        pen = QPen(colorFromStatus[self.__status], 0, Qt.SolidLine)
+        # Qt 5.15 docs for QGraphicsItem::paint say:
+        #   QGraphicsItem does not support use of cosmetic pens with a non-zero width.
+        # But obviously, it does support them - which is very welcome.
+        width = 3 if option.state & QStyle.State_HasFocus else 0
+        pen = QPen(colorFromStatus[self.__status], width, Qt.SolidLine)
+        pen.setCosmetic(True)
         painter.setPen(pen)
         painter.drawRect(self.boundingRect())
         painter.restore()
@@ -403,7 +410,7 @@ Double-click to close.<br/>
     def __pixMapReady(self, future) -> None:
         with self.__futurePixmapLock:
             self.__futurePixmap = future
-            self.update()
+        self.update()
 
 
     def setContrastStretch(self, stretch: ContrastStretching):
@@ -444,14 +451,15 @@ def _getPixMap(imgPath: Path, width: int, contrastStretch: ContrastStretching):
     gdalPushLogHandler()
     try:
         ds = gdal.Open(str(imgPath))
-        assert ds.RasterCount == 1
         height = round(ds.RasterYSize / ds.RasterXSize * width)
         img = QImage(width, height, QImage.Format_RGBA8888)
         img.fill(Qt.white)
         ptr = img.scanLine(0)
         ptr.setsize(img.sizeInBytes())
+        assert ds.RasterCount in (1, 3)
+        iBands = [1] * 3 if ds.RasterCount == 1 else [1, 2, 3]
         ds.ReadRaster1(0, 0, ds.RasterXSize, ds.RasterYSize,
-                    width, height, gdal.GDT_Byte, [1] * 3,
+                    width, height, gdal.GDT_Byte, iBands,
                     buf_pixel_space=4, buf_line_space=width * 4, buf_band_space=1,
                     resample_alg=gdal.GRIORA_Gauss,
                     inputOutputBuf=ptr)

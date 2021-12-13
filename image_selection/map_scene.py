@@ -95,8 +95,8 @@ class MapScene(QGraphicsScene):
             qPts.append(QPointF(pt[0], -pt[1]) - scenePos)
         polyg = QGraphicsPolygonItem(QPolygonF(qPts))
         polyg.setPos(scenePos)
-        pen = QPen(Qt.magenta)
-        pen.setWidth(5)
+        polyg.setZValue(10)
+        pen = QPen(Qt.magenta, 3)
         pen.setCosmetic(True)
         polyg.setPen(pen)
         if self.__aoi is not None:
@@ -108,7 +108,7 @@ class MapScene(QGraphicsScene):
 
 
     def loadAerialsFile(self, fileName: Path) -> None:
-        logger.info(f'Spread sheet with image meta data to load: {fileName}')
+        logger.info(f'Spreadsheet with image meta data to load: {fileName}')
         if self.__db is not None:
             self.__db.close()
         dbPath = fileName.with_suffix('.sqlite')
@@ -122,13 +122,15 @@ class MapScene(QGraphicsScene):
                 dbPath.unlink()
         self.__db = sqlite3.connect(dbPath, isolation_level=None)
       
-
+        if self.__aoi is not None:
+            self.removeItem(self.__aoi)
         self.clear()
         if self.__aoi is not None:
             self.addItem(self.__aoi)
-        imgDir = fileName.parent / 'Bilder'
+
+        imgDir = fileName.parent / 'Images'
         imgExt = '.ecw'
-        fsImgFiles = set(Path(el) for el in glob.iglob(str(imgDir / ('*' + imgExt))))
+        fsImgFiles = set(Path(el) for el in glob.iglob(str(imgDir / ('**/*' + imgExt)), recursive=True))
         sheet_name='Geo_Abfrage_SQL'
         df = pd.read_excel(fileName, sheet_name=sheet_name, usecols=':O', true_values=['Ja'], false_values=['Nein'])
         if not self.__cleanData(df, sheet_name):
@@ -138,8 +140,10 @@ class MapScene(QGraphicsScene):
         shouldBeMissing = []
         shouldBeThere = []
         for row in df.itertuples(index=False):
-            fn = f'{row.Datum.year}-{row.Datum.month:02}-{row.Datum.day:02}_{row.Sortie}_{row.Bildnr}' + imgExt
-            imgFilePath = imgDir / fn
+            #fn = f'{row.Datum.year}-{row.Datum.month:02}-{row.Datum.day:02}_{row.Sortie}_{row.Bildnr}' + imgExt
+            #imgFilePath = imgDir / fn
+            imgId = Path(row.Sortie) / f'{row.Bildnr}{imgExt}'
+            imgFilePath = imgDir / imgId
             if not row.LBDB and imgFilePath in fsImgFiles:
                 shouldBeMissing.append(imgFilePath.name)
             elif row.LBDB and imgFilePath not in fsImgFiles:
@@ -147,13 +151,13 @@ class MapScene(QGraphicsScene):
             xlsImgFiles.append(imgFilePath)
             csDb = osr.SpatialReference()
             csDb.ImportFromEPSG(row.EPSG_Code)
-            assert csDb.IsProjected()
+            assert csDb.IsProjected() or csDb.IsGeographic()
             db2wcs = osr.CoordinateTransformation(csDb, self.__wcs)
             x, y = row.x, row.y
-            if csDb.EPSGTreatsAsNorthingEasting():
+            if csDb.EPSGTreatsAsNorthingEasting() or csDb.EPSGTreatsAsLatLong():
                 x, y = y, x
             wcsCtr = db2wcs.TransformPoint(x, y)
-            Aerial(self, QPointF(wcsCtr[0], -wcsCtr[1]), imgFilePath, row, self.__db, fn)
+            Aerial(self, QPointF(wcsCtr[0], -wcsCtr[1]), imgFilePath, row, self.__db, str(imgId))
 
             #if len(self.items()) > 10:
             #    break
@@ -187,20 +191,31 @@ class MapScene(QGraphicsScene):
 
 
     def __cleanData(self, df: pd.DataFrame, sheet_name: str) -> bool:
+        def error(msg):
+            logger.error(msg)
+            QMessageBox.critical(None, "Erroneous Coordinate Reference System", msg)
+            return False
+
         df['Datum'] = df['Datum'].dt.date  # strip time of day
 
         # EPSG codes' column seems to be named either 'EPSG-Code', or 'EPSGCode'.
         # Standardize the name into a Python identifier.
         iEpsgs = [idx for idx, el in enumerate(df.columns) if 'epsg' in el.lower()]
-        if not iEpsgs:
-            msg = 'No column in {} seems to provide an EPSG code. Columns are: {}'.format(sheet_name, ', '.join(df.columns))
-            logger.error(msg)
-            QMessageBox.critical(None, "Missing Coordinate Reference System", msg)
-            return False
-        if len(iEpsgs) > 1:
-            msg = 'Multiple columns in {} seem to provide an EPSG code: {}'.format(sheet_name, ', '.join(df.columns[iEpsg] for iEpsg in iEpsgs))
-            logger.error(msg)
-            QMessageBox.critical(None, "Ambiguous Coordinate Reference System", msg)
-            return False
-        df.rename(columns={df.columns[iEpsgs[0]]: "EPSG_Code"}, inplace=True)
+        iXWgs84s = [idx for idx, el in enumerate(df.columns) if 'xwgs84' in el.lower()]
+        iYWgs84s = [idx for idx, el in enumerate(df.columns) if 'ywgs84' in el.lower()]
+        for idxs, name in [(iEpsgs, 'EPSG code'), (iXWgs84s, 'WGS84 longitude'), (iYWgs84s, 'WGS84 latitude')]:
+            if len(idxs) > 1:
+                return error('Multiple columns in {} seem to provide {}: {}.'.format(sheet_name, name, ', '.join(df.columns[idx] for idx in idxs)))
+        if iEpsgs and (iXWgs84s or iYWgs84s):
+            return error(f'{sheet_name} defines columns both for EPSG code and WGS84 coordinates.')
+        if iEpsgs:
+            df.rename(columns={df.columns[iEpsgs[0]]: "EPSG_Code"}, inplace=True)
+        elif iXWgs84s or iYWgs84s:
+            if not (iXWgs84s and iYWgs84s):
+                return error(f'{sheet_name} defines only one WGS84 coordinate.')
+            #series = pd.Series([4326] * len(df))
+            df['EPSG_Code'] = [4326] * len(df)
+            df.rename(columns={df.columns[iXWgs84s[0]]: "x", df.columns[iYWgs84s[0]]: "y"}, inplace=True)
+        else:
+            return error(f"{sheet_name} seems to provide no information on coordinate system. Columns are: {', '.join(df.columns)}")
         return True

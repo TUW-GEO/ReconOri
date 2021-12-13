@@ -122,31 +122,31 @@ class ImageSelectionDialog(QMainWindow):
         for button, icon, func in ((ui.mapZoomIn , 'zoom-in' , lambda: mapView.zoom(+1, False)),
                                    (ui.mapZoomOut, 'zoom-out', lambda: mapView.zoom(-1, False)),
                                    (ui.mapZoomNative, 'zoom-native', lambda: mapView.zoom(None, False)),
-                                   (ui.mapZoomFit, 'zoom-fit', lambda: mapView.fitInView(mapView.scene().itemsBoundingRect(), Qt.KeepAspectRatio))):
+                                   (ui.mapZoomFit, 'zoom-fit', lambda: mapView.fitInView(scene.itemsBoundingRect(), Qt.KeepAspectRatio))):
             button.setIcon(QIcon(f':/plugins/image_selection/{icon}'))
             button.setText('')
             button.pressed.connect(func)
 
         ui.loadAoi.setIcon(QIcon(':/plugins/image_selection/layer-shape-polygon'))
-        ui.loadAoi.clicked.connect(mapView.scene().selectAoiFile)
+        ui.loadAoi.clicked.connect(scene.selectAoiFile)
 
         ui.loadAerials.setIcon(QIcon(':/plugins/image_selection/films'))
-        ui.loadAerials.clicked.connect(mapView.scene().selectAerialsFile)
+        ui.loadAerials.clicked.connect(scene.selectAerialsFile)
 
         ui.aerialsContrastStretch.setIcon(QIcon(':/plugins/image_selection/contrast-stretch'))
         menu = QMenu(self)
         group = QActionGroup(menu)
         arrowResize090 = QIcon(':/plugins/image_selection/arrow-resize-090')
-        minMax = group.addAction(menu.addAction(arrowResize090, 'MinMax', lambda: mapView.scene().setContrastStretch(ContrastStretching.minMax)))
+        minMax = group.addAction(menu.addAction(arrowResize090, 'MinMax', lambda: scene.setContrastStretch(ContrastStretching.minMax)))
         minMax.setCheckable(True)
         chart = QIcon(':/plugins/image_selection/chart')
-        histogram = group.addAction(menu.addAction(chart, 'Histogram', lambda: mapView.scene().setContrastStretch(ContrastStretching.histogram)))
+        histogram = group.addAction(menu.addAction(chart, 'Histogram', lambda: scene.setContrastStretch(ContrastStretching.histogram)))
         histogram.setCheckable(True)
         histogram.setChecked(True)
         ui.aerialsContrastStretch.setMenu(menu)
         ui.aerialsContrastStretch.toggled.connect(self.onContrastStretchToggled)
 
-        mapView.scene().aerialsLoaded.connect(lambda: ui.aerialsContrastStretch.setEnabled(True))
+        scene.aerialsLoaded.connect(lambda: ui.aerialsContrastStretch.setEnabled(True))
 
         target = QIcon(':/plugins/image_selection/target')
         picture = QIcon(':/plugins/image_selection/picture')
@@ -157,19 +157,19 @@ class ImageSelectionDialog(QMainWindow):
             button.toggled.connect(lambda checked, button=button, status=status: self.onStatusToggled(button, status, checked))
             menu = QMenu(self)
             group = QActionGroup(menu)
-            asPoints = group.addAction(menu.addAction(target, 'as points', lambda status=status: mapView.scene().setVisualizationByStatus(status, Visualization.asPoint)))
+            asPoints = group.addAction(menu.addAction(target, 'as points', lambda status=status: scene.setVisualizationByStatus(status, Visualization.asPoint)))
             asPoints.setCheckable(True)
             asPoints.setChecked(True)
-            asImage = group.addAction(menu.addAction(picture, 'as images', lambda status=status: mapView.scene().setVisualizationByStatus(status, Visualization.asImage)))
+            asImage = group.addAction(menu.addAction(picture, 'as images', lambda status=status: scene.setVisualizationByStatus(status, Visualization.asImage)))
             asImage.setCheckable(True)
             button.setMenu(menu)
 
-            mapView.scene().aerialsLoaded.connect(lambda button=button: button.setEnabled(True))
+            scene.aerialsLoaded.connect(lambda button=button: button.setEnabled(True))
 
         ui.aerialsFreeze.setIcon(QIcon(':/plugins/image_selection/freeze'))
         ui.aerialsFreeze.toggled.connect(lambda checked: mapView.setInteractive(not checked))
 
-        #ui.mapView.scene().loadAerialsFile(Path(r'P:\Projects\19_DoRIAH\07_Work_Data\OwnCloud\Projekte LBDB\Meeting_2021-06-10_Testprojekte\Testprojekt1\Recherche_Metadaten_Testprojekt1.xls'))
+        #ui.scene.loadAerialsFile(Path(r'P:\Projects\19_DoRIAH\07_Work_Data\OwnCloud\Projekte LBDB\Meeting_2021-06-10_Testprojekte\Testprojekt1\Recherche_Metadaten_Testprojekt1.xls'))
         
 
 

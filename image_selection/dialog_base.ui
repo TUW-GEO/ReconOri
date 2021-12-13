@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1027</width>
+    <width>1072</width>
     <height>1032</height>
    </rect>
   </property>
@@ -207,7 +207,7 @@
              <item>
               <widget class="QToolButton" name="loadAerials">
                <property name="toolTip">
-                <string>Load a spread sheet with aerial image meta data</string>
+                <string>Load a spreadsheet with aerial image meta data</string>
                </property>
                <property name="text">
                 <string>Aerials</string>

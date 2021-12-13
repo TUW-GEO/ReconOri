@@ -37,7 +37,7 @@ from typing import Callable, Optional
 # Hence, better use importlib to do a relative import without importing anything from it.
 importlib.import_module('..resources', __name__)
 
-from .dialog import ImageSelectionDialog
+from .main_window import ImageSelectionDialog
 from . import getLoggerAndFileHandler
 
 

@@ -36,7 +36,7 @@ from .map_scene import ContrastStretching, MapScene, Status, Visualization
 gdal.UseExceptions()
 
 # This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
-Form, _ = loadUiType(Path(__file__).parent / 'dialog_base.ui')
+Form, _ = loadUiType(Path(__file__).parent / 'main_window_base.ui')
 
 logger = logging.getLogger(__name__)
 

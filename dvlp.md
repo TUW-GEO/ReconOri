@@ -150,7 +150,7 @@ Only necessary when introducing an .ui-file other than the main one, or if a res
 ... image_selection>%APPDATA%\Python\Python39\Scripts\pb_tool.exe compile
 ```
 
-Or call `pyrcc5 -o resources.py resources.qrc` directly.
+Or call `pyrcc5 -o resources_rc.py resources.qrc` directly.
 
 ## Debugging the PlugIn
 
@@ -166,7 +166,7 @@ pip3 install debugpy
 
 Remote debugging with PyCharm requires the professional edition.
 
-### Using Visual Studio 2019
+### Visual Studio 2019
 
 Debug -> Attach to Process:
 
@@ -175,7 +175,9 @@ Debug -> Attach to Process:
 
 Unfortunately, Python support within Visual Studio is still buggy.
 
-### Using VS Code
+### VS Code
+
+Recommended!
 
 https://gist.github.com/AsgerPetersen/2000eb6f3e3307bd25190b19493dd9a3
 
@@ -184,4 +186,87 @@ https://gist.github.com/AsgerPetersen/2000eb6f3e3307bd25190b19493dd9a3
 Icons are from https://p.yusukekamiyamane.com/
 
 Cursors are based on other online sources.
+
+## States of Aerials
+
+At all times, each aerial is in exactly one state of each of the 3 following categories. All categories are orthogonal to each other. Each category must be displayed by different means, to allow for displaying all combinations.
+
+Just as much is stored in the DB as is necessary to re-open the image selection tool later on, and resume work where it had ended, assuming that the image and preview folders are unchanged. Hence, store everything needed except for what can be derived from the spread sheet and file system. Additionally, all spread sheet information is written to (but never read back here) in `aerials.meta`, to make it available for geo-referencing and decide only there, which of this information to use.
+
+### Availability state
+
+1. `missing`: no image, and no preview available. Still, if no better alternatives are found, then this image may be selected in the end for further processing (and hence, for purchase).
+2. `findPreview`: no image available, but at least the folder of previews for its sortie exists, but preview-file und -rectangle are yet to be determined.
+3. `preview`: only a preview is available, whose -file and -rectangle have been determined.
+4. `image`: an image is available.
+
+#### Display
+
+- When minimized (shown as disc), use brush color as indication. 1: grey. 2: purple; 3: red; 4: yellow.
+- When maximized (shown as image), use the same brush color to draw the image or preview border.
+
+#### Interaction
+
+When an image in states 2 or 3 is maximized, users may access the dialog to (re-) locate the preview. If that dialog is accepted, the state changes to 3. If not, the state remains unchanged.
+
+#### DB storage
+
+The state is not stored explicitly, because it can be derived from the file system and other DB columns:
+
+- if `aerials.imgPath` is Null:
+  - if the sortie's preview folder does not exist: state 1.
+  - Otherwise: state 2.
+- Otherwise:
+  - if `aerials.previewRect` is Null: state 4.
+  - Otherwise: state 3.
+
+### Usage state
+
+1. `unset`: neither explicitly selected, nor discarded.
+2. `selected`: the image or preview has been selected for further processing i.e. geo-referencing and image analysis. If the image is unavailable, then this image will need to be purchased.
+3. `discarded`: image or preview has been discarded from consideration (e.g. outside project area, cloudy, etc.). This helps the user to remember to not inspect it, again - unless run out of better options.
+
+#### Display
+
+- When minimized and state is not `unset`, then draw a green check mark or black X on top, according to state.
+- When maximized, draw this check mark or X in an image corner.
+
+#### Interaction
+
+When an image in any state is maximized, users may freely set any different state.
+
+#### DB storage
+
+Stored in its own column.
+
+### Transformation state
+
+1. `original`: the transform is the one derived from the spread sheet.
+2. `changed`: the transform has been altered manually, which indicates to the user that the image has been inspected more closely and that its footprint is probably quite accurate.
+
+#### Display
+
+- When minimized, use pen line style as indication (original: dashed; changed: solid).
+- When maximized, use the same line style to draw the border.
+
+#### Interaction
+
+When an image with state 2 is maximized, users may re-set the transformation, resulting in state 1. Any manually applied transform results in state 2.
+
+#### DB storage
+
+None. The image selection tool compares the stored transformation with the one derived from the spread sheet. Geo-referencing shall derive the quality of transform from availability: the transform of available images is assumed to be best, the one of previews with a valid previewRect worse, and non-located previews and missing images worst.
+
+## DB layout
+
+The DB table `aerials` has 6 entries that are important for the image selection tool itself. Together, they must be able to store user decisions (that of course cannot be derived from the spread sheet and file system).  Additionally, it stores the whole `meta` data, to be used by fine geo-referencing:
+
+- `imgId`: primary key. The relative file path to the image, which may not exist: `<sortie-folder>/<#img>.ecw`. Alternatively, `aerials` may store `sortie` and `<#img>` in separate columns and use their combination as primary key.
+- `selected`: selection state.
+- `scenePos`: the position of the whole image or preview rectangle within the scene.
+- `trafo`: the transform of the whole image or preview rectangle within the scene.
+- `imgPath`: the actual relative path to the image or preview file. Must exist unless NULL. If the image file according to `imgId` exists, then this is set immediately. Otherwise, this is set once the preview file and rectangle have been determined.
+- `previewRect`: if not NULL: the rectangle within `imgPath` that covers the image content of this preview. Set when the preview file and rectangle have been determined. If not NULL, then imgPath must not be NULL, either.
+
+
 

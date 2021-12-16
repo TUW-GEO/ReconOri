@@ -6,11 +6,12 @@ import pandas as pd
 from osgeo import ogr, osr
 import sqlite3
 
+import configparser
 import glob
 import logging
 from pathlib import Path
 
-from .aerial_item import ContrastStretching, Aerial, AerialImage, Status, Visualization
+from .aerial_item import ContrastEnhancement, AerialItem, AerialImage, Availability, Usage, Visualization
 
 logger = logging.getLogger(__name__)
 
@@ -25,16 +26,20 @@ class MapScene(QGraphicsScene):
 
     aerialsLoaded = pyqtSignal()
     
-    contrastStretch = pyqtSignal(ContrastStretching)
+    contrastEnhancement = pyqtSignal(ContrastEnhancement)
 
-    visualizationByStatus = pyqtSignal(Status, Visualization)
+    visualizationByAvailability = pyqtSignal(Availability, Visualization, dict)
 
-    def __init__(self, *args, epsg: int, **kwargs) -> None:
+    visualizationByUsage = pyqtSignal(Usage, bool, dict)
+
+
+    def __init__(self, *args, epsg: int, config: configparser.ConfigParser, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.__wcs = osr.SpatialReference()
         self.__wcs.ImportFromEPSG(epsg)
         self.__db = None
         self.__aoi = None
+        self.__config = config
 
 
     @pyqtSlot()
@@ -51,14 +56,19 @@ class MapScene(QGraphicsScene):
             self.loadAerialsFile(Path(fileName))
 
 
-    @pyqtSlot(ContrastStretching)
-    def setContrastStretch(self, stretch):
-        self.contrastStretch.emit(stretch)
+    @pyqtSlot(ContrastEnhancement)
+    def setContrastEnhancement(self, contrastEnhancement):
+        self.contrastEnhancement.emit(contrastEnhancement)
 
 
-    @pyqtSlot(Status, Visualization)
-    def setVisualizationByStatus(self, status, visualization) -> None:
-        self.visualizationByStatus.emit(status, visualization)
+    @pyqtSlot(Availability, Visualization, dict)
+    def setVisualizationByAvailability(self, availability, visualization, usages) -> None:
+        self.visualizationByAvailability.emit(availability, visualization, usages)
+
+
+    @pyqtSlot(Usage, bool, dict)
+    def setVisualizationByUsage(self, usage, checked, visualizations) -> None:
+        self.visualizationByUsage.emit(usage, checked, visualizations)
 
 
     def unload(self):
@@ -95,7 +105,7 @@ class MapScene(QGraphicsScene):
             qPts.append(QPointF(pt[0], -pt[1]) - scenePos)
         polyg = QGraphicsPolygonItem(QPolygonF(qPts))
         polyg.setPos(scenePos)
-        polyg.setZValue(10)
+        polyg.setZValue(100)
         pen = QPen(Qt.magenta, 3)
         pen.setCosmetic(True)
         polyg.setPen(pen)
@@ -128,11 +138,19 @@ class MapScene(QGraphicsScene):
         if self.__aoi is not None:
             self.addItem(self.__aoi)
 
-        imgDir = fileName.parent / 'Images'
+        AerialImage.previewRootDir = Path(self.__config['PREVIEWS']['rootDir'])
+        if not AerialImage.previewRootDir.is_absolute():
+            AerialImage.previewRootDir = fileName.parent / AerialImage.previewRootDir
+
+        imageRootDir = Path(self.__config['IMAGES']['rootDir'])
+        if not imageRootDir.is_absolute():
+            imageRootDir = fileName.parent / imageRootDir
+        AerialImage.imageRootDir = imageRootDir
         imgExt = '.ecw'
-        fsImgFiles = set(Path(el) for el in glob.iglob(str(imgDir / ('**/*' + imgExt)), recursive=True))
+
+        fsImgFiles = set(Path(el) for el in glob.iglob(str(imageRootDir / ('**/*' + imgExt)), recursive=True))
         sheet_name='Geo_Abfrage_SQL'
-        df = pd.read_excel(fileName, sheet_name=sheet_name, usecols=':O', true_values=['Ja'], false_values=['Nein'])
+        df = pd.read_excel(fileName, sheet_name=sheet_name, true_values=['Ja', 'ja'], false_values=['Nein', 'nein'])
         if not self.__cleanData(df, sheet_name):
             return
 
@@ -141,9 +159,9 @@ class MapScene(QGraphicsScene):
         shouldBeThere = []
         for row in df.itertuples(index=False):
             #fn = f'{row.Datum.year}-{row.Datum.month:02}-{row.Datum.day:02}_{row.Sortie}_{row.Bildnr}' + imgExt
-            #imgFilePath = imgDir / fn
+            #imgFilePath = imageRootDir / fn
             imgId = Path(row.Sortie) / f'{row.Bildnr}{imgExt}'
-            imgFilePath = imgDir / imgId
+            imgFilePath = imageRootDir / imgId
             if not row.LBDB and imgFilePath in fsImgFiles:
                 shouldBeMissing.append(imgFilePath.name)
             elif row.LBDB and imgFilePath not in fsImgFiles:
@@ -157,7 +175,7 @@ class MapScene(QGraphicsScene):
             if csDb.EPSGTreatsAsNorthingEasting() or csDb.EPSGTreatsAsLatLong():
                 x, y = y, x
             wcsCtr = db2wcs.TransformPoint(x, y)
-            Aerial(self, QPointF(wcsCtr[0], -wcsCtr[1]), imgFilePath, row, self.__db, str(imgId))
+            AerialItem(self, QPointF(wcsCtr[0], -wcsCtr[1]), str(imgId), row, self.__db)
 
             #if len(self.items()) > 10:
             #    break
@@ -185,7 +203,7 @@ class MapScene(QGraphicsScene):
             QMessageBox.warning(None, "Inconsistency", _truncateMsg(msg))
 
         aerialImgs = [el for el in self.items() if isinstance(el, AerialImage)]
-        logger.info('{} of {} images available.'.format(sum(el.status() > Status.missing for el in aerialImgs), len(aerialImgs)))
+        logger.info('{} of {} images available.'.format(sum(el.availability() == Availability.image for el in aerialImgs), len(aerialImgs)))
 
         self.aerialsLoaded.emit()
 

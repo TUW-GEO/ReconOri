@@ -3,11 +3,12 @@ from qgis.PyQt.QtGui import QBrush, QImage, QKeyEvent, QPainter, QPaintEvent, QP
 from qgis.PyQt.QtWidgets import QGraphicsView, QGraphicsScene, QMessageBox, QScrollBar
 from qgis.PyQt import sip
 
+from collections.abc import Callable
 import logging
 import math
 import threading
 import time
-from typing import Callable, Optional, Tuple
+from typing import Optional
 import xml.etree.ElementTree
 
 import numpy as np
@@ -211,7 +212,7 @@ class MapView(QGraphicsView):
         itemsBoundingRect = self.scene().itemsBoundingRect()
         if not itemsBoundingRect.isNull() and not sceneRectF.contains(itemsBoundingRect):
             QMessageBox.warning(self, 'Items outside map',
-                                "Items lie outside of map's bounding rectangle and will become invisible<br/>"
+                                "Items lie outside of map's bounding rectangle and will become invisible.<br/>"
                                 'Choose a different map with larger coverage to view them, again.')
 
 
@@ -292,7 +293,7 @@ class MapReadThread(threading.Thread):
             self.__cbResponseTime = cbResponseTime
             self.__cbIsReading = cbIsReading
             self.__jobCondition = threading.Condition(threading.Lock())
-            self.__job: Tuple[Optional[QRectF], Optional[float]] = None, None
+            self.__job: tuple[Optional[QRectF], Optional[float]] = None, None
             self.__exc = None
             assert self.dataset.RasterCount in (3, 4)
             assert all(self.dataset.GetRasterBand(idx + 1).DataType == gdal.GDT_Byte for idx in range(self.dataset.RasterCount))

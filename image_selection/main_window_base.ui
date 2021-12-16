@@ -13,6 +13,10 @@
   <property name="windowTitle">
    <string>DoRIAH Image Selection</string>
   </property>
+  <property name="windowIcon">
+   <iconset resource="resources.qrc">
+    <normaloff>:/plugins/image_selection/bomb</normaloff>:/plugins/image_selection/bomb</iconset>
+  </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout_2">
     <item>
@@ -130,42 +134,46 @@
               </widget>
              </item>
              <item>
-              <widget class="QPushButton" name="mapZoomIn">
+              <widget class="QToolButton" name="mapZoomIn">
                <property name="toolTip">
-                <string>Zoom map in</string>
+                <string>Zoom map in.</string>
                </property>
-               <property name="text">
-                <string>Zoom in</string>
+               <property name="icon">
+                <iconset resource="resources.qrc">
+                 <normaloff>:/plugins/image_selection/zoom-in</normaloff>:/plugins/image_selection/zoom-in</iconset>
                </property>
               </widget>
              </item>
              <item>
-              <widget class="QPushButton" name="mapZoomOut">
+              <widget class="QToolButton" name="mapZoomOut">
                <property name="toolTip">
-                <string>Zoom map out</string>
+                <string>Zoom map out.</string>
                </property>
-               <property name="text">
-                <string>Zoom out</string>
+               <property name="icon">
+                <iconset resource="resources.qrc">
+                 <normaloff>:/plugins/image_selection/zoom-out</normaloff>:/plugins/image_selection/zoom-out</iconset>
                </property>
               </widget>
              </item>
              <item>
-              <widget class="QPushButton" name="mapZoomNative">
+              <widget class="QToolButton" name="mapZoomNative">
                <property name="toolTip">
-                <string>Zoom to native map resolution</string>
+                <string>Zoom to native map resolution.</string>
                </property>
-               <property name="text">
-                <string>Zoom native</string>
+               <property name="icon">
+                <iconset resource="resources.qrc">
+                 <normaloff>:/plugins/image_selection/zoom-native</normaloff>:/plugins/image_selection/zoom-native</iconset>
                </property>
               </widget>
              </item>
              <item>
-              <widget class="QPushButton" name="mapZoomFit">
+              <widget class="QToolButton" name="mapZoomFit">
                <property name="toolTip">
-                <string>Zoom map to aerials</string>
+                <string>Zoom map to aerials.</string>
                </property>
-               <property name="text">
-                <string>Zoom fit</string>
+               <property name="icon">
+                <iconset resource="resources.qrc">
+                 <normaloff>:/plugins/image_selection/zoom-fit</normaloff>:/plugins/image_selection/zoom-fit</iconset>
                </property>
               </widget>
              </item>
@@ -197,33 +205,55 @@
              <item>
               <widget class="QToolButton" name="loadAoi">
                <property name="toolTip">
-                <string>Load the area of interest</string>
+                <string>Load the area of interest.</string>
                </property>
                <property name="text">
-                <string>AoI</string>
+                <string/>
+               </property>
+               <property name="icon">
+                <iconset resource="resources.qrc">
+                 <normaloff>:/plugins/image_selection/layer-shape-polygon</normaloff>:/plugins/image_selection/layer-shape-polygon</iconset>
                </property>
               </widget>
              </item>
              <item>
               <widget class="QToolButton" name="loadAerials">
                <property name="toolTip">
-                <string>Load a spreadsheet with aerial image meta data</string>
+                <string>Load a spread sheet with aerial image meta data.</string>
                </property>
                <property name="text">
-                <string>Aerials</string>
+                <string/>
+               </property>
+               <property name="icon">
+                <iconset resource="resources.qrc">
+                 <normaloff>:/plugins/image_selection/films</normaloff>:/plugins/image_selection/films</iconset>
                </property>
               </widget>
              </item>
              <item>
-              <widget class="QToolButton" name="aerialsContrastStretch">
+              <widget class="Line" name="line">
+               <property name="frameShadow">
+                <enum>QFrame::Raised</enum>
+               </property>
+               <property name="orientation">
+                <enum>Qt::Vertical</enum>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QToolButton" name="aerialsContrastEnhancement">
                <property name="enabled">
                 <bool>false</bool>
                </property>
                <property name="toolTip">
-                <string>Stretch contrast of aerials</string>
+                <string>Enhance the contrast of aerials.</string>
                </property>
                <property name="text">
-                <string>Stretch contrast of aerials</string>
+                <string>Contrast</string>
+               </property>
+               <property name="icon">
+                <iconset resource="resources.qrc">
+                 <normaloff>:/plugins/image_selection/contrast-stretch</normaloff>:/plugins/image_selection/contrast-stretch</iconset>
                </property>
                <property name="checkable">
                 <bool>true</bool>
@@ -237,15 +267,29 @@
               </widget>
              </item>
              <item>
-              <widget class="QToolButton" name="aerialsRed">
+              <widget class="Line" name="line_4">
+               <property name="frameShadow">
+                <enum>QFrame::Raised</enum>
+               </property>
+               <property name="orientation">
+                <enum>Qt::Vertical</enum>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QToolButton" name="aerialsGray">
                <property name="enabled">
                 <bool>false</bool>
                </property>
                <property name="toolTip">
-                <string>Show red aerials</string>
+                <string>Show missing aerials</string>
                </property>
                <property name="text">
-                <string>Show red</string>
+                <string>Gray</string>
+               </property>
+               <property name="icon">
+                <iconset resource="resources.qrc">
+                 <normaloff>:/plugins/image_selection/flag-gray</normaloff>:/plugins/image_selection/flag-gray</iconset>
                </property>
                <property name="checkable">
                 <bool>true</bool>
@@ -259,15 +303,19 @@
               </widget>
              </item>
              <item>
-              <widget class="QToolButton" name="aerialsYellow">
+              <widget class="QToolButton" name="aerialsBlue">
                <property name="enabled">
                 <bool>false</bool>
                </property>
                <property name="toolTip">
-                <string>Show yellow aerials</string>
+                <string>Show not yet determined previews</string>
                </property>
                <property name="text">
-                <string>Show yellow</string>
+                <string>Blue</string>
+               </property>
+               <property name="icon">
+                <iconset resource="resources.qrc">
+                 <normaloff>:/plugins/image_selection/flag-blue</normaloff>:/plugins/image_selection/flag-blue</iconset>
                </property>
                <property name="checkable">
                 <bool>true</bool>
@@ -289,10 +337,14 @@
                 <bool>false</bool>
                </property>
                <property name="toolTip">
-                <string>Show green aerials</string>
+                <string>Show previews</string>
                </property>
                <property name="text">
-                <string>Show green</string>
+                <string>Green</string>
+               </property>
+               <property name="icon">
+                <iconset resource="resources.qrc">
+                 <normaloff>:/plugins/image_selection/flag-green</normaloff>:/plugins/image_selection/flag-green</iconset>
                </property>
                <property name="checkable">
                 <bool>true</bool>
@@ -306,12 +358,131 @@
               </widget>
              </item>
              <item>
+              <widget class="QToolButton" name="aerialsYellow">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
+               <property name="toolTip">
+                <string>Show images</string>
+               </property>
+               <property name="text">
+                <string>Yellow</string>
+               </property>
+               <property name="icon">
+                <iconset resource="resources.qrc">
+                 <normaloff>:/plugins/image_selection/flag-yellow</normaloff>:/plugins/image_selection/flag-yellow</iconset>
+               </property>
+               <property name="checkable">
+                <bool>true</bool>
+               </property>
+               <property name="checked">
+                <bool>true</bool>
+               </property>
+               <property name="popupMode">
+                <enum>QToolButton::MenuButtonPopup</enum>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="Line" name="line_2">
+               <property name="frameShadow">
+                <enum>QFrame::Raised</enum>
+               </property>
+               <property name="orientation">
+                <enum>Qt::Vertical</enum>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QToolButton" name="usageUnset">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
+               <property name="toolTip">
+                <string>Show aerials with unset usage.</string>
+               </property>
+               <property name="text">
+                <string>unset</string>
+               </property>
+               <property name="icon">
+                <iconset resource="resources.qrc">
+                 <normaloff>:/plugins/image_selection/selection</normaloff>:/plugins/image_selection/selection</iconset>
+               </property>
+               <property name="checkable">
+                <bool>true</bool>
+               </property>
+               <property name="checked">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QToolButton" name="usageSelected">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
+               <property name="toolTip">
+                <string>Show selected aerials.</string>
+               </property>
+               <property name="text">
+                <string>Selected</string>
+               </property>
+               <property name="icon">
+                <iconset resource="resources.qrc">
+                 <normaloff>:/plugins/image_selection/tick</normaloff>:/plugins/image_selection/tick</iconset>
+               </property>
+               <property name="checkable">
+                <bool>true</bool>
+               </property>
+               <property name="checked">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QToolButton" name="usageDiscarded">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
+               <property name="toolTip">
+                <string>Show discarded aerials.</string>
+               </property>
+               <property name="text">
+                <string>Discarded</string>
+               </property>
+               <property name="icon">
+                <iconset resource="resources.qrc">
+                 <normaloff>:/plugins/image_selection/cross</normaloff>:/plugins/image_selection/cross</iconset>
+               </property>
+               <property name="checkable">
+                <bool>true</bool>
+               </property>
+               <property name="checked">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="Line" name="line_3">
+               <property name="frameShadow">
+                <enum>QFrame::Raised</enum>
+               </property>
+               <property name="orientation">
+                <enum>Qt::Vertical</enum>
+               </property>
+              </widget>
+             </item>
+             <item>
               <widget class="QToolButton" name="aerialsFreeze">
                <property name="toolTip">
-                <string>Freeze the scene</string>
+                <string>Freeze the scene.</string>
                </property>
                <property name="text">
                 <string>Freeze</string>
+               </property>
+               <property name="icon">
+                <iconset resource="resources.qrc">
+                 <normaloff>:/plugins/image_selection/freeze</normaloff>:/plugins/image_selection/freeze</iconset>
                </property>
                <property name="checkable">
                 <bool>true</bool>
@@ -382,7 +553,7 @@
          </size>
         </property>
         <property name="toolTip">
-         <string>Pending image read request</string>
+         <string>Pending map read request.</string>
         </property>
         <property name="maximum">
          <number>1</number>
@@ -399,6 +570,9 @@
           <horstretch>0</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
+        </property>
+        <property name="toolTip">
+         <string>Duration of last map read request.</string>
         </property>
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
@@ -419,6 +593,9 @@
           <verstretch>0</verstretch>
          </sizepolicy>
         </property>
+        <property name="toolTip">
+         <string>Time stamp of last map read response.</string>
+        </property>
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
         </property>
@@ -437,6 +614,9 @@
           <horstretch>0</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
+        </property>
+        <property name="toolTip">
+         <string>Maximum resolution of loaded map.</string>
         </property>
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
@@ -499,6 +679,8 @@
    <header>image_selection.map_view</header>
   </customwidget>
  </customwidgets>
- <resources/>
+ <resources>
+  <include location="resources.qrc"/>
+ </resources>
  <connections/>
 </ui>

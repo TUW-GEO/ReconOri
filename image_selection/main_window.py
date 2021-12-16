@@ -21,9 +21,10 @@
 """
 from qgis.PyQt.QtCore import QElapsedTimer, Qt, pyqtSignal, pyqtSlot
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QActionGroup, QDialogButtonBox, QMainWindow, QMenu, QToolButton, QWhatsThis 
+from qgis.PyQt.QtWidgets import QActionGroup, QDialogButtonBox, QMenu, QToolButton, QWhatsThis 
 from qgis.PyQt.uic import loadUiType
 
+import configparser
 import logging
 from pathlib import Path
 import traceback
@@ -31,17 +32,17 @@ import traceback
 from osgeo import gdal
 
 from . import HttpTimeout, getLoggerAndFileHandler, gdalPushLogHandler, gdalPopLogHandler
-from .map_scene import ContrastStretching, MapScene, Status, Visualization
+from .map_scene import ContrastEnhancement, MapScene, Availability, Usage, Visualization
 
 gdal.UseExceptions()
 
-# This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
-Form, _ = loadUiType(Path(__file__).parent / 'main_window_base.ui')
+Form, FormBase = loadUiType(Path(__file__).parent / 'main_window_base.ui',
+                            from_imports=True, import_from=__name__.rpartition('.')[0])
 
 logger = logging.getLogger(__name__)
 
 
-class ImageSelectionDialog(QMainWindow):
+class MainWindow(FormBase):
 
     showLogMessage = pyqtSignal(str)
 
@@ -50,11 +51,11 @@ class ImageSelectionDialog(QMainWindow):
         super().__init__(parent)
         ui = self.ui = Form()
         ui.setupUi(self)
+        self.__config = configparser.ConfigParser()
+        with open(Path(__file__).parent / 'image_selection.cfg') as fin:
+            self.__config.read_file(fin)
         ui.splitter.setSizes([100, 500])
-        self.setWindowIcon(QIcon(':/plugins/image_selection/bomb.png'))
         ui.buttonBox.button(QDialogButtonBox.Help).setToolTip('Click here and then somewhere else to get help.')
-        #ui.buttonBox.button(QDialogButtonBox.Help).setIcon(QApplication.style().standardIcon(QStyle.SP_DialogHelpButton))
-        #ui.buttonBox.button(QDialogButtonBox.Help).setText('')
         ui.buttonBox.helpRequested.connect(QWhatsThis.enterWhatsThisMode)
 
         gdalPushLogHandler()
@@ -96,7 +97,7 @@ class ImageSelectionDialog(QMainWindow):
         maxX, maxY = 1913530, 6281290
         minX, minY =  977650, 5838030
         epsg = 3857
-        scene = MapScene(minX, -maxY, maxX - minX, maxY - minY, self, epsg=epsg)
+        scene = MapScene(minX, -maxY, maxX - minX, maxY - minY, self, epsg=epsg, config=self.__config)
         ui.mapView.epsg = epsg
         ui.mapView.setScene(scene)
         ui.mapView.fitInView(scene.sceneRect(), Qt.KeepAspectRatio)
@@ -119,54 +120,56 @@ class ImageSelectionDialog(QMainWindow):
         self.showLogMessage.connect(lambda msg: self.statusBar().showMessage(msg, 5000))
 
         mapView = ui.mapView
-        for button, icon, func in ((ui.mapZoomIn , 'zoom-in' , lambda: mapView.zoom(+1, False)),
-                                   (ui.mapZoomOut, 'zoom-out', lambda: mapView.zoom(-1, False)),
-                                   (ui.mapZoomNative, 'zoom-native', lambda: mapView.zoom(None, False)),
-                                   (ui.mapZoomFit, 'zoom-fit', lambda: mapView.fitInView(scene.itemsBoundingRect(), Qt.KeepAspectRatio))):
-            button.setIcon(QIcon(f':/plugins/image_selection/{icon}'))
-            button.setText('')
+        for button, func in ((ui.mapZoomIn , lambda: mapView.zoom(+1, False)),
+                             (ui.mapZoomOut, lambda: mapView.zoom(-1, False)),
+                             (ui.mapZoomNative, lambda: mapView.zoom(None, False)),
+                             (ui.mapZoomFit, lambda: mapView.fitInView(scene.itemsBoundingRect(), Qt.KeepAspectRatio))):
             button.pressed.connect(func)
 
-        ui.loadAoi.setIcon(QIcon(':/plugins/image_selection/layer-shape-polygon'))
         ui.loadAoi.clicked.connect(scene.selectAoiFile)
-
-        ui.loadAerials.setIcon(QIcon(':/plugins/image_selection/films'))
         ui.loadAerials.clicked.connect(scene.selectAerialsFile)
 
-        ui.aerialsContrastStretch.setIcon(QIcon(':/plugins/image_selection/contrast-stretch'))
         menu = QMenu(self)
         group = QActionGroup(menu)
         arrowResize090 = QIcon(':/plugins/image_selection/arrow-resize-090')
-        minMax = group.addAction(menu.addAction(arrowResize090, 'MinMax', lambda: scene.setContrastStretch(ContrastStretching.minMax)))
+        minMax = group.addAction(menu.addAction(arrowResize090, 'MinMax', lambda: scene.setContrastEnhancement(ContrastEnhancement.minMax)))
         minMax.setCheckable(True)
         chart = QIcon(':/plugins/image_selection/chart')
-        histogram = group.addAction(menu.addAction(chart, 'Histogram', lambda: scene.setContrastStretch(ContrastStretching.histogram)))
+        histogram = group.addAction(menu.addAction(chart, 'Histogram', lambda: scene.setContrastEnhancement(ContrastEnhancement.histogram)))
         histogram.setCheckable(True)
         histogram.setChecked(True)
-        ui.aerialsContrastStretch.setMenu(menu)
-        ui.aerialsContrastStretch.toggled.connect(self.onContrastStretchToggled)
+        ui.aerialsContrastEnhancement.setMenu(menu)
+        ui.aerialsContrastEnhancement.toggled.connect(self.__onContrastEnhancementToggled)
+        scene.aerialsLoaded.connect(lambda: ui.aerialsContrastEnhancement.setEnabled(True))
 
-        scene.aerialsLoaded.connect(lambda: ui.aerialsContrastStretch.setEnabled(True))
-
+        self.__availabilities = ((ui.aerialsGray, Availability.missing),
+                                 (ui.aerialsBlue, Availability.findPreview),
+                                 (ui.aerialsGreen, Availability.preview),
+                                 (ui.aerialsYellow, Availability.image))
         target = QIcon(':/plugins/image_selection/target')
         picture = QIcon(':/plugins/image_selection/picture')
-        for button, icon, status in ((ui.aerialsRed, 'red', Status.missing),
-                                     (ui.aerialsYellow, 'yellow', Status.available),
-                                     (ui.aerialsGreen, 'green', Status.selected)):
-            button.setIcon(QIcon(f':/plugins/image_selection/traffic-light-{icon}'))
-            button.toggled.connect(lambda checked, button=button, status=status: self.onStatusToggled(button, status, checked))
+        for button, avail in self.__availabilities:
+            func = lambda button=button, avail=avail: self.__onAvailabilityChanged(button, avail)
+            button.toggled.connect(lambda checked, func=func: func())
             menu = QMenu(self)
             group = QActionGroup(menu)
-            asPoints = group.addAction(menu.addAction(target, 'as points', lambda status=status: scene.setVisualizationByStatus(status, Visualization.asPoint)))
+            asPoints = group.addAction(menu.addAction(target, 'as points', func))
             asPoints.setCheckable(True)
             asPoints.setChecked(True)
-            asImage = group.addAction(menu.addAction(picture, 'as images', lambda status=status: scene.setVisualizationByStatus(status, Visualization.asImage)))
+            asPoints.setData(Visualization.asPoint)
+            asImage = group.addAction(menu.addAction(picture, 'as images', func))
             asImage.setCheckable(True)
+            asImage.setData(Visualization.asImage)
             button.setMenu(menu)
-
             scene.aerialsLoaded.connect(lambda button=button: button.setEnabled(True))
 
-        ui.aerialsFreeze.setIcon(QIcon(':/plugins/image_selection/freeze'))
+        self.__usages = ((ui.usageUnset, Usage.unset),
+                         (ui.usageSelected, Usage.selected),
+                         (ui.usageDiscarded, Usage.discarded))
+        for button, usage in self.__usages:
+            button.toggled.connect(lambda checked, usage=usage: self.__onUsageChanged(usage, checked))
+            scene.aerialsLoaded.connect(lambda button=button: button.setEnabled(True))
+
         ui.aerialsFreeze.toggled.connect(lambda checked: mapView.setInteractive(not checked))
 
         #ui.scene.loadAerialsFile(Path(r'P:\Projects\19_DoRIAH\07_Work_Data\OwnCloud\Projekte LBDB\Meeting_2021-06-10_Testprojekte\Testprojekt1\Recherche_Metadaten_Testprojekt1.xls'))
@@ -193,19 +196,28 @@ class ImageSelectionDialog(QMainWindow):
 
 
     @pyqtSlot(bool)
-    def onContrastStretchToggled(self, checked: bool) -> None:
+    def __onContrastEnhancementToggled(self, checked: bool) -> None:
         if not checked:
-            self.ui.mapView.scene().setContrastStretch(ContrastStretching.none)
+            self.ui.mapView.scene().setContrastEnhancement(ContrastEnhancement.none)
         else:
-            self.ui.aerialsContrastStretch.menu().actions()[0].actionGroup().checkedAction().trigger()
+            self.ui.aerialsContrastEnhancement.menu().actions()[0].actionGroup().checkedAction().trigger()
         
 
-    @pyqtSlot(QToolButton, Status, bool)
-    def onStatusToggled(self, button, status: Status, checked: bool) -> None:
-        if not checked:
-            self.ui.mapView.scene().setVisualizationByStatus(status, Visualization.none)
-        else:
-            button.menu().actions()[0].actionGroup().checkedAction().trigger()
+    @pyqtSlot(QToolButton, Availability)
+    def __onAvailabilityChanged(self, button, availability) -> None:
+        visualization = Visualization.none
+        if button.isChecked():
+            visualization = button.menu().actions()[0].actionGroup().checkedAction().data()
+        usages = {usage: button.isChecked() for button, usage in self.__usages}
+        self.ui.mapView.scene().setVisualizationByAvailability(availability, visualization, usages)
+
+
+    @pyqtSlot(Usage, bool)
+    def __onUsageChanged(self, usage, checked) -> None:
+        visualizations = {
+            avail: button.menu().actions()[0].actionGroup().checkedAction().data() if button.isChecked() else Visualization.none
+            for button, avail in self.__availabilities}
+        self.ui.mapView.scene().setVisualizationByUsage(usage, checked, visualizations)
 
 
 

@@ -1,16 +1,17 @@
 <RCC>
     <qresource prefix="/plugins/image_selection" >
-        <file alias="bomb.png">resources/bomb.png</file>
-        <file alias="rotate.png">resources/rotate.png</file>
-        <file alias="eye.png">resources/eye.png</file>
+        <file alias="bomb">resources/bomb.png</file>
+        <file alias="rotate">resources/rotate.png</file>
+        <file alias="eye">resources/eye.png</file>
         <!-- https://p.yusukekamiyamane.com/ -->
         <file alias="zoom-in">resources/magnifier-zoom-in.png</file>
         <file alias="zoom-out">resources/magnifier-zoom-out.png</file>
         <file alias="zoom-fit">resources/magnifier-zoom-fit.png</file>
         <file alias="zoom-native">resources/magnifier-zoom-actual-equal.png</file>
-        <file alias="traffic-light-red">resources/traffic-light-red.png</file>
-        <file alias="traffic-light-yellow">resources/traffic-light-yellow.png</file>
-        <file alias="traffic-light-green">resources/traffic-light-green.png</file>
+        <file alias="flag-yellow">resources/flag-yellow.png</file>
+        <file alias="flag-green">resources/flag-green.png</file>
+        <file alias="flag-blue">resources/flag-blue.png</file>
+        <file alias="flag-gray">resources/flag-gray.png</file>
         <file alias="contrast-stretch">resources/contrast.png</file>
         <file alias="films">resources/films.png</file>
         <file alias="picture">resources/picture.png</file>
@@ -19,5 +20,11 @@
         <file alias="arrow-resize-090">resources/arrow-resize-090.png</file>
         <file alias="chart">resources/chart.png</file>
         <file alias="layer-shape-polygon">resources/layer-shape-polygon.png</file>
+        <file alias="light-bulb-off">resources/light-bulb-off.png</file>
+        <file alias="selection">resources/selection.png</file>
+        <file alias="tick">resources/tick-red.png</file>
+        <file alias="cross">resources/cross.png</file>
+        <file alias="home">resources/home.png</file>
+        <file alias="image-crop">resources/image-crop.png</file>
     </qresource>
 </RCC>

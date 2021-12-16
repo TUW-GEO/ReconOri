@@ -24,11 +24,12 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QWidget, QAction
 from qgis.gui import QgisInterface
 
+from collections.abc import Callable
 import importlib
 import logging
 from pathlib import Path
 import time
-from typing import Callable, Optional
+from typing import Optional
 
 # Initialize Qt resources from file resources.py at first, so the rest can use it upon its import, already.
 # This would also import resources.qCleanupResources():
@@ -37,7 +38,7 @@ from typing import Callable, Optional
 # Hence, better use importlib to do a relative import without importing anything from it.
 importlib.import_module('..resources', __name__)
 
-from .main_window import ImageSelectionDialog
+from .main_window import MainWindow
 from . import getLoggerAndFileHandler
 
 
@@ -136,7 +137,7 @@ class ImageSelection:
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
         self.add_action(
-            ':/plugins/image_selection/bomb.png',
+            ':/plugins/image_selection/bomb',
             text=self.tr(u'Select Images'),
             callback=self.run,
             parent=self.iface.mainWindow())
@@ -162,16 +163,6 @@ class ImageSelection:
         """Run method that performs all the real work"""
 
         if self.dlg is None:
-            self.dlg = ImageSelectionDialog()
+            self.dlg = MainWindow()
 
-        # show the dialog
         self.dlg.show()
-        # Run a separate dialog event loop and wait.
-        #result = self.dlg.exec()
-        ## See if OK was pressed
-        #if result:
-        #    # Do something useful here - delete the line containing pass and
-        #    # substitute with your code.
-        #    logger.info('OK')
-
-

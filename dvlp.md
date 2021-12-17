@@ -143,14 +143,11 @@ To make the PlugIn accessible to the QGIS PlugIn manager, either
 
 ## Compiling the PlugIn
 
-Only necessary when introducing an .ui-file other than the main one, or if a resource file has changed. If so, call in OSGeo4W shell:
+Only necessary when `resources.qrc` has changed. If so, call in OSGeo4W shell:
 
 ```
-... image_selection>python -m pip install pb_tool
-... image_selection>%APPDATA%\Python\Python39\Scripts\pb_tool.exe compile
+... image_selection>pyrcc5 -o resources_rc.py resources.qrc
 ```
-
-Or call `pyrcc5 -o resources_rc.py resources.qrc` directly.
 
 ## Debugging the PlugIn
 
@@ -267,13 +264,4 @@ The DB table `aerials` has 6 entries that are important for the image selection 
 - `trafo`: the transform of the whole image or preview rectangle within the scene.
 - `imgPath`: the actual relative path to the image or preview file. Must exist unless NULL. If the image file according to `imgId` exists, then this is set immediately. Otherwise, this is set once the preview file and rectangle have been determined.
 - `previewRect`: if not NULL: the rectangle within `imgPath` that covers the image content of this preview. Set when the preview file and rectangle have been determined. If not NULL, then imgPath must not be NULL, either.
-
-
-
-## Packaging
-
-```
-set PATH=%PATH%;D:\swdvlp64_2015\external\7zip\x64
-... image_selection>%APPDATA%\Python\Python39\Scripts\pb_tool.exe zip
-```
 

@@ -269,20 +269,19 @@ class MapReadThread(threading.Thread):
         gdalPushLogHandler()
         try:
             self.dataset = gdal.Open(datasetPath)
-            if datasetPath.startswith('WMS:'):
+            if self.dataset.GetDriver().ShortName == 'WMS':
                 # Make WMS also use the file cache.
                 # Unlike with WMTS, it seems difficult to guess the right XML without opening the dataset first. Do so on demand only.
                 text = self.dataset.GetMetadataItem('XML','WMS')
                 root = xml.etree.ElementTree.fromstring(text)
                 cache = root.find('Cache')
                 timeout = root.find('Timeout')
-                if cache is None or timeout is None:
+                if not all((cache, timeout)):
                     if cache is None:
                         xml.etree.ElementTree.SubElement(root, 'Cache')
                     if timeout is None:
                         elem = xml.etree.ElementTree.SubElement(root, 'Timeout')
                         elem.text = str(HttpTimeout.seconds)
-                    print(xml.etree.ElementTree.tostring(root, encoding='unicode'))
                     self.dataset = gdal.Open(xml.etree.ElementTree.tostring(root, encoding='unicode'))
 
             

@@ -26,5 +26,8 @@
         <file alias="cross">resources/cross.png</file>
         <file alias="home">resources/home.png</file>
         <file alias="image-crop">resources/image-crop.png</file>
+        <file alias="globe-green">resources/globe-green.png</file>
+        <file alias="vienna">resources/Wien_Wappen.png</file>
+        <file alias="austria">resources/Flag_of_Austria.svg</file>
     </qresource>
 </RCC>

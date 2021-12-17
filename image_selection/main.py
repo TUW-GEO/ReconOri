@@ -51,28 +51,9 @@ class ImageSelection:
         self.iface = iface
         self.plugin_dir = Path(__file__).parent
 
-        locale = QSettings().value('locale/userLocale')[0:2]
-        locale_path = self.plugin_dir / 'i18n' / f'ImageSelection_{locale}.qm'
-        if locale_path.exists():
-            self.translator = QTranslator()
-            self.translator.load(locale_path)
-            QCoreApplication.installTranslator(self.translator)
-
         self.actions = []
-        self.menu = self.tr(u'&DoRIAH Image Selection')
+        self.menu = '&DoRIAH Image Selection'
         self.dlg = None
-
-
-    def tr(self, message: str) -> str:
-        """Get the translation for a string using Qt translation API.
-
-        We implement this ourselves since we do not inherit QObject.
-
-        :param message: String for translation.
-
-        :returns: Translated version of message.
-        """
-        return QCoreApplication.translate('ImageSelection', message)
 
 
     def add_action(
@@ -138,7 +119,7 @@ class ImageSelection:
 
         self.add_action(
             ':/plugins/image_selection/bomb',
-            text=self.tr(u'Select Images'),
+            text='Select Images',
             callback=self.run,
             parent=self.iface.mainWindow())
 
@@ -146,7 +127,7 @@ class ImageSelection:
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
-            self.iface.removePluginMenu(self.tr(u'&DoRIAH Image Selection'), action)
+            self.iface.removePluginMenu('&DoRIAH Image Selection', action)
             self.iface.removeToolBarIcon(action)
         if self.dlg is not None:
             self.dlg.unload()

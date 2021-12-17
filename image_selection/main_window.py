@@ -54,42 +54,55 @@ class MainWindow(FormBase):
         self.__config = configparser.ConfigParser()
         with open(Path(__file__).parent / 'image_selection.cfg') as fin:
             self.__config.read_file(fin)
+
         ui.splitter.setSizes([100, 500])
         ui.buttonBox.button(QDialogButtonBox.Help).setToolTip('Click here and then somewhere else to get help.')
         ui.buttonBox.helpRequested.connect(QWhatsThis.enterWhatsThisMode)
 
-        gdalPushLogHandler()
+        self.__initMap()
+        self.__initAerials()
+        self.__statusBarLogHandler = StatusBarLogHandler(logging.INFO, self.showLogMessage)
+        packageLogger, _ = getLoggerAndFileHandler()
+        packageLogger.addHandler(self.__statusBarLogHandler)
+        self.showLogMessage.connect(lambda msg: self.statusBar().showMessage(msg, 5000))
 
+        #ui.scene.loadAerialsFile(Path(r'P:\Projects\19_DoRIAH\07_Work_Data\OwnCloud\Projekte LBDB\Meeting_2021-06-10_Testprojekte\Testprojekt1\Recherche_Metadaten_Testprojekt1.xls'))
+
+
+    def __initMap(self):
+        ui = self.ui
+        gdalPushLogHandler()
+        austria = QIcon(':/plugins/image_selection/austria')
+        vienna = QIcon(':/plugins/image_selection/vienna')
+        globe = QIcon(':/plugins/image_selection/globe-green')
         # QGIS seems to set the CWD to %USERPROFILE%/Documents, and the default WMTS cache path is ./gdalwmscache
-        for prefix, url in [('', 'https://maps.wien.gv.at/basemap/1.0.0/WMTSCapabilities.xml'),
-                            ('Stadt Wien ', 'https://maps.wien.gv.at/wmts/1.0.0/WMTSCapabilities.xml')]:
+        for isWMTS, icon, prefix, url in [
+            (True, austria, '', 'https://maps.wien.gv.at/basemap/1.0.0/WMTSCapabilities.xml'),
+            (False, austria, 'BEV ', 'https://data.bev.gv.at/geoserver/BEVdataKAT/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities&CRS=EPSG:3857'),
+            (True, vienna, 'Stadt Wien ', 'https://maps.wien.gv.at/wmts/1.0.0/WMTSCapabilities.xml'),
+            (False, globe, '', 'WMS:http://ows.terrestris.de/osm/service')]:
             base = gdal.Open(url)
             for path, desc in base.GetSubDatasets():
                 desc = desc.removeprefix('Layer ')
                 if desc == 'Geoland Basemap Orthofoto':
                     defIdx = ui.mapSelect.count()
-                # If we simply passed path, then HTTP error codes 202 and 404 would return a blank image instead of raising.
-                # However, instead of returning a blank image, MapReadThread shall try reading at a higher overview level.
-                # To get the XML we want, we could open the dataset using path, query its XML using dataset.GetMetadataItem('XML', 'WMTS'),
-                # and edit that. Instead, let's just roll our own.
-                layers = [el.removeprefix('layer=') for el in path.split(',') if el.startswith('layer=')]
-                assert len(layers) == 1
-                xml = (
-                    '<GDAL_WMTS>'
-                        f'<GetCapabilitiesUrl>{url}</GetCapabilitiesUrl>'
-                        f'<Layer>{layers[0]}</Layer>'
-                        #'<OfflineMode>true</OfflineMode>'
-                        '<Cache />'
-                        f'<Timeout>{HttpTimeout.seconds}</Timeout>'
-                    '</GDAL_WMTS>')
-                ui.mapSelect.addItem(prefix + desc, xml)
+                if isWMTS:
+                    # If we simply passed path, then HTTP error codes 202 and 404 would return a blank image instead of raising.
+                    # However, instead of returning a blank image, MapReadThread shall try reading at a higher overview level.
+                    # To get the XML we want, we could open the dataset using path, query its XML using dataset.GetMetadataItem('XML', 'WMTS'),
+                    # and edit that. Instead, let's just roll our own.
+                    layers = [el.removeprefix('layer=') for el in path.split(',') if el.startswith('layer=')]
+                    assert len(layers) == 1
+                    path = (
+                        '<GDAL_WMTS>'
+                            f'<GetCapabilitiesUrl>{url}</GetCapabilitiesUrl>'
+                            f'<Layer>{layers[0]}</Layer>'
+                            #'<OfflineMode>true</OfflineMode>'
+                            '<Cache />'
+                            f'<Timeout>{HttpTimeout.seconds}</Timeout>'
+                        '</GDAL_WMTS>')
+                ui.mapSelect.addItem(icon, prefix + desc, path)
             ui.mapSelect.insertSeparator(ui.mapSelect.count())
-
-
-        for url in ['WMS:http://ows.terrestris.de/osm/service']:
-            base = gdal.Open(url)
-            for path, desc in base.GetSubDatasets():
-                ui.mapSelect.addItem(desc, path)
 
         gdalPopLogHandler()
 
@@ -98,34 +111,34 @@ class MainWindow(FormBase):
         minX, minY =  977650, 5838030
         epsg = 3857
         scene = MapScene(minX, -maxY, maxX - minX, maxY - minY, self, epsg=epsg, config=self.__config)
-        ui.mapView.epsg = epsg
-        ui.mapView.setScene(scene)
-        ui.mapView.fitInView(scene.sceneRect(), Qt.KeepAspectRatio)
+        mapView = ui.mapView
+        mapView.epsg = epsg
+        mapView.setScene(scene)
+        mapView.fitInView(scene.sceneRect(), Qt.KeepAspectRatio)
 
-        ui.mapView.isReading.connect(lambda b: ui.progressBar.setMaximum(0 if b else 1))
-        ui.mapView.datasetResolution.connect(lambda f: ui.mapResolution.setText(f'Map resolution: {f:.2f}m'))
-        ui.mapView.reportResponseTime.connect(lambda x: ui.responseTime.setText(f'Response time: {x // 60:02.0f}:{x % 60:05.2f}'))
+        mapView.isReading.connect(lambda b: ui.progressBar.setMaximum(0 if b else 1))
+        mapView.datasetResolution.connect(lambda f: ui.mapResolution.setText(f'Map resolution: {f:.2f}m'))
+        mapView.reportResponseTime.connect(lambda x: ui.responseTime.setText(f'Response time: {x // 60:02.0f}:{x % 60:05.2f}'))
         
         self.__responseElapsedTimer = QElapsedTimer()
         self.__responseElapsedTimer.start()
         self.startTimer(250)
-        ui.mapView.newImage.connect(lambda: self.__responseElapsedTimer.restart())
+        mapView.newImage.connect(lambda: self.__responseElapsedTimer.restart())
 
         ui.mapSelect.currentIndexChanged.connect(lambda idx: ui.mapView.load(ui.mapSelect.itemData(idx)))
         ui.mapSelect.setCurrentIndex(defIdx)
 
-        self.__statusBarLogHandler = StatusBarLogHandler(logging.INFO, self.showLogMessage)
-        packageLogger, _ = getLoggerAndFileHandler()
-        packageLogger.addHandler(self.__statusBarLogHandler)
-        self.showLogMessage.connect(lambda msg: self.statusBar().showMessage(msg, 5000))
-
-        mapView = ui.mapView
+        
         for button, func in ((ui.mapZoomIn , lambda: mapView.zoom(+1, False)),
                              (ui.mapZoomOut, lambda: mapView.zoom(-1, False)),
                              (ui.mapZoomNative, lambda: mapView.zoom(None, False)),
                              (ui.mapZoomFit, lambda: mapView.fitInView(scene.itemsBoundingRect(), Qt.KeepAspectRatio))):
             button.pressed.connect(func)
 
+
+    def __initAerials(self):
+        ui = self.ui
+        scene = ui.mapView.scene()
         ui.loadAoi.clicked.connect(scene.selectAoiFile)
         ui.loadAerials.clicked.connect(scene.selectAerialsFile)
 
@@ -170,10 +183,7 @@ class MainWindow(FormBase):
             button.toggled.connect(lambda checked, usage=usage: self.__onUsageChanged(usage, checked))
             scene.aerialsLoaded.connect(lambda button=button: button.setEnabled(True))
 
-        ui.aerialsFreeze.toggled.connect(lambda checked: mapView.setInteractive(not checked))
-
-        #ui.scene.loadAerialsFile(Path(r'P:\Projects\19_DoRIAH\07_Work_Data\OwnCloud\Projekte LBDB\Meeting_2021-06-10_Testprojekte\Testprojekt1\Recherche_Metadaten_Testprojekt1.xls'))
-        
+        ui.aerialsFreeze.toggled.connect(lambda checked: ui.mapView.setInteractive(not checked))
 
 
     def unload(self) -> None:

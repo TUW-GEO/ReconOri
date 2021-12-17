@@ -24,7 +24,7 @@ import numpy as np
 import numpy.linalg
 from osgeo import gdal, osr
 
-from . import HttpTimeout, gdalPushLogHandler, gdalPopLogHandler
+from . import HttpTimeout, GdalPushLogHandler
 
 osr.UseExceptions()
 
@@ -275,8 +275,7 @@ class MapReadThread(threading.Thread):
                  cbIsReading: Callable[[bool], None]) -> None:
         super().__init__(daemon=True, name='MapRead')
         logger.debug(f'Open {datasetPath}')
-        gdalPushLogHandler()
-        try:
+        with GdalPushLogHandler():
             self.dataset = gdal.Open(datasetPath)
             if self.dataset.GetDriver().ShortName == 'WMS':
                 # Make WMS also use the file cache.
@@ -293,21 +292,18 @@ class MapReadThread(threading.Thread):
                         elem.text = str(HttpTimeout.seconds)
                     self.dataset = gdal.Open(xml.etree.ElementTree.tostring(root, encoding='unicode'))
 
-            
-            geoTrafo = np.array(self.dataset.GetGeoTransform()).reshape((2,3))
-            self.mapResolution = np.abs(np.linalg.det(geoTrafo[:, 1:])) ** .5
-            self.__stop = threading.Event()
-            self.__cbImageRead = cbImageRead
-            self.__cbResponseTime = cbResponseTime
-            self.__cbIsReading = cbIsReading
-            self.__jobCondition = threading.Condition(threading.Lock())
-            self.__job: tuple[Optional[QRectF], Optional[float]] = None, None
-            self.__exc = None
-            assert self.dataset.RasterCount in (3, 4)
-            assert all(self.dataset.GetRasterBand(idx + 1).DataType == gdal.GDT_Byte for idx in range(self.dataset.RasterCount))
-        finally:
-            gdalPopLogHandler()
-
+        geoTrafo = np.array(self.dataset.GetGeoTransform()).reshape((2,3))
+        self.mapResolution = np.abs(np.linalg.det(geoTrafo[:, 1:])) ** .5
+        self.__stop = threading.Event()
+        self.__cbImageRead = cbImageRead
+        self.__cbResponseTime = cbResponseTime
+        self.__cbIsReading = cbIsReading
+        self.__jobCondition = threading.Condition(threading.Lock())
+        self.__job: tuple[Optional[QRectF], Optional[float]] = None, None
+        self.__exc = None
+        assert self.dataset.RasterCount in (3, 4)
+        assert all(self.dataset.GetRasterBand(idx + 1).DataType == gdal.GDT_Byte for idx in range(self.dataset.RasterCount))
+        
 
     def requestImage(self, wcsRect: QRectF, pxPerMeter: float) -> None:
         with self.__jobCondition:
@@ -337,14 +333,12 @@ class MapReadThread(threading.Thread):
 
 
     def run(self) -> None:
-        gdalPushLogHandler()
-        try:
-            self.__run()
-        except Exception as oops:
-            with self.__jobCondition:
-                self.__exc = oops
-        finally:
-            gdalPopLogHandler()
+        with GdalPushLogHandler():
+            try:
+                self.__run()
+            except Exception as oops:
+                with self.__jobCondition:
+                    self.__exc = oops
                 
         self.__cbIsReading(False)
 

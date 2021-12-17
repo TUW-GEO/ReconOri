@@ -35,7 +35,7 @@ from typing import Optional
 # from .resources import *
 # Hence, PlugIn Reloader would call it not only for resources.py itself, but also for this file.
 # Hence, better use importlib to do a relative import without importing anything from it.
-importlib.import_module('..resources', __name__)
+importlib.import_module('..resources_rc', __name__)
 
 from .main_window import MainWindow
 from . import getLoggerAndFileHandler

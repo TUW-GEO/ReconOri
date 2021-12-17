@@ -25,7 +25,7 @@ Each aerial belongs to one of each of these categories:
 
 All states are indicated graphically. Use the buttons above the map view to control if aerials with the respective state shall be shown or not.
 
-Tested with QGIS 3.16 LTR. Should work with newer releases, too.
+Tested with QGIS 3.16.14 LTR. Does not work with older releases, but should work with newer ones.
 
 ## Compilation
 

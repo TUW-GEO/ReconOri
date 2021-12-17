@@ -47,37 +47,40 @@ def getLoggerAndFileHandler():
     return _logger, _logFileHandler
 
 
-def gdalPushLogHandler():
-    from osgeo import gdal
+class GdalPushLogHandler:
+    def __enter__(self):
+        from osgeo import gdal
 
-    if not hasattr(gdal._pylog_handler, 'logger'):
-        gdal.ConfigurePythonLogging(logger_name=__name__ + '.GDAL')
-        gdal.SetErrorHandler(None)
+        if not hasattr(gdal._pylog_handler, 'logger'):
+            gdal.ConfigurePythonLogging(logger_name=__name__ + '.GDAL')
+            gdal.SetErrorHandler(None)
 
-    gdal.PushErrorHandler(gdal._pylog_handler)
+        gdal.PushErrorHandler(gdal._pylog_handler)
 
-    # Useful: inspect actual HTTP traffic.
-    # gdal.SetThreadLocalConfigOption('CPL_DEBUG', 'ON')
+        # Useful: inspect actual HTTP traffic.
+        # gdal.SetThreadLocalConfigOption('CPL_DEBUG', 'ON')
 
-    # Ineffective?
-    # gdal.SetThreadLocalConfigOption('CPL_CURL_VERBOSE', 'YES')
+        # Ineffective?
+        # gdal.SetThreadLocalConfigOption('CPL_CURL_VERBOSE', 'YES')
 
-    # Ineffective, since the internal default of 300 would still be used.
-    # gdal.SetThreadLocalConfigOption('GDAL_HTTP_TIMEOUT', '1') # [s]
+        # Ineffective, since the internal default of 300 would still be used.
+        # gdal.SetThreadLocalConfigOption('GDAL_HTTP_TIMEOUT', '1') # [s]
 
-    # Maybe useful
-    # gdal.SetThreadLocalConfigOption('GDAL_HTTP_LOW_SPEED_LIMIT', '1024')  # bytes per second
-    # gdal.SetThreadLocalConfigOption('GDAL_HTTP_LOW_SPEED_TIME', '1')  # seconds
+        # Maybe useful
+        # gdal.SetThreadLocalConfigOption('GDAL_HTTP_LOW_SPEED_LIMIT', '1024')  # bytes per second
+        # gdal.SetThreadLocalConfigOption('GDAL_HTTP_LOW_SPEED_TIME', '1')  # seconds
 
 
-def gdalPopLogHandler():
-    from osgeo import gdal
-    
-    gdal.PopErrorHandler()
-    gdal.SetThreadLocalConfigOption('CPL_DEBUG', None)
-    gdal.SetThreadLocalConfigOption('CPL_CURL_VERBOSE', None)
-    gdal.SetThreadLocalConfigOption('GDAL_HTTP_LOW_SPEED_LIMIT', None)
-    gdal.SetThreadLocalConfigOption('GDAL_HTTP_LOW_SPEED_TIME', None)
+    def __exit__(self, type, value, traceback):
+        from osgeo import gdal
+        
+        gdal.PopErrorHandler()
+        gdal.SetThreadLocalConfigOption('CPL_DEBUG', None)
+        gdal.SetThreadLocalConfigOption('CPL_CURL_VERBOSE', None)
+        gdal.SetThreadLocalConfigOption('GDAL_HTTP_LOW_SPEED_LIMIT', None)
+        gdal.SetThreadLocalConfigOption('GDAL_HTTP_LOW_SPEED_TIME', None)
+
+        return type is None
 
 
 def classFactory(iface: QgisInterface):

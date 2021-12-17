@@ -19,7 +19,7 @@ import enum
 from pathlib import Path
 from typing import Optional
 
-from . import gdalPushLogHandler, gdalPopLogHandler
+from . import GdalPushLogHandler
 
 class GraphicsView(QGraphicsView):
 
@@ -114,8 +114,7 @@ class PreviewWindow(FormBase):
         assert imgPath.exists()
         self.setCursor(Qt.WaitCursor)
         try:
-            gdalPushLogHandler()
-            try:
+            with GdalPushLogHandler():
                 ds = gdal.Open(str(imgPath))
                 img = QImage(ds.RasterXSize, ds.RasterYSize, QImage.Format_RGBA8888)
                 img.fill(Qt.white)
@@ -128,8 +127,6 @@ class PreviewWindow(FormBase):
                             buf_pixel_space=4, buf_line_space=ds.RasterXSize * 4, buf_band_space=1,
                             resample_alg=gdal.GRIORA_NearestNeighbour,
                             inputOutputBuf=ptr)
-            finally:
-                gdalPopLogHandler()
         
             enhanceContrast(img, self.__contrastEnhancement)
 

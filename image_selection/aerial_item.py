@@ -53,7 +53,7 @@ import sqlite3
 import threading
 from typing import Any, Optional, Union
 
-from . import gdalPushLogHandler, gdalPopLogHandler
+from . import GdalPushLogHandler
 from .preview_window import ContrastEnhancement, enhanceContrast, PreviewWindow
 
 logger = logging.getLogger(__name__)
@@ -621,8 +621,7 @@ Double-click to close.<br/>
 
 
 def _getPixMap(imgPath: Path, width: int, contrast: ContrastEnhancement, rect = QRect()):
-    gdalPushLogHandler()
-    try:
+    with GdalPushLogHandler():
         ds = gdal.Open(str(imgPath))
         if rect.isNull():
             rect = QRect(0, 0, ds.RasterXSize, ds.RasterYSize)
@@ -638,8 +637,6 @@ def _getPixMap(imgPath: Path, width: int, contrast: ContrastEnhancement, rect = 
                     buf_pixel_space=4, buf_line_space=width * 4, buf_band_space=1,
                     resample_alg=gdal.GRIORA_Gauss,
                     inputOutputBuf=ptr)
-    finally:
-        gdalPopLogHandler()
 
     enhanceContrast(img, contrast)
     return QPixmap.fromImage(img)

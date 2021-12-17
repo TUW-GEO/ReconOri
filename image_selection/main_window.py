@@ -32,7 +32,7 @@ import traceback
 
 from osgeo import gdal
 
-from . import HttpTimeout, getLoggerAndFileHandler, gdalPushLogHandler, gdalPopLogHandler
+from . import HttpTimeout, getLoggerAndFileHandler, GdalPushLogHandler
 from .map_scene import ContrastEnhancement, MapScene, Availability, Usage, Visualization
 
 gdal.UseExceptions()
@@ -72,40 +72,38 @@ class MainWindow(FormBase):
 
     def __initMap(self):
         ui = self.ui
-        gdalPushLogHandler()
-        austria = QIcon(':/plugins/image_selection/austria')
-        vienna = QIcon(':/plugins/image_selection/vienna')
-        globe = QIcon(':/plugins/image_selection/globe-green')
-        # QGIS seems to set the CWD to %USERPROFILE%/Documents, and the default WMTS cache path is ./gdalwmscache
-        for isWMTS, icon, prefix, url in [
-            (True, austria, '', 'https://maps.wien.gv.at/basemap/1.0.0/WMTSCapabilities.xml'),
-            (False, austria, 'BEV ', 'https://data.bev.gv.at/geoserver/BEVdataKAT/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities&CRS=EPSG:3857'),
-            (True, vienna, 'Stadt Wien ', 'https://maps.wien.gv.at/wmts/1.0.0/WMTSCapabilities.xml'),
-            (False, globe, '', 'WMS:http://ows.terrestris.de/osm/service')]:
-            base = gdal.Open(url)
-            for path, desc in base.GetSubDatasets():
-                desc = desc.removeprefix('Layer ')
-                if desc == 'Geoland Basemap Orthofoto':
-                    defIdx = ui.mapSelect.count()
-                if isWMTS:
-                    # If we simply passed path, then HTTP error codes 202 and 404 would return a blank image instead of raising.
-                    # However, instead of returning a blank image, MapReadThread shall try reading at a higher overview level.
-                    # To get the XML we want, we could open the dataset using path, query its XML using dataset.GetMetadataItem('XML', 'WMTS'),
-                    # and edit that. Instead, let's just roll our own.
-                    layers = [el.removeprefix('layer=') for el in path.split(',') if el.startswith('layer=')]
-                    assert len(layers) == 1
-                    path = (
-                        '<GDAL_WMTS>'
-                            f'<GetCapabilitiesUrl>{url}</GetCapabilitiesUrl>'
-                            f'<Layer>{layers[0]}</Layer>'
-                            #'<OfflineMode>true</OfflineMode>'
-                            '<Cache />'
-                            f'<Timeout>{HttpTimeout.seconds}</Timeout>'
-                        '</GDAL_WMTS>')
-                ui.mapSelect.addItem(icon, prefix + desc, path)
-            ui.mapSelect.insertSeparator(ui.mapSelect.count())
-
-        gdalPopLogHandler()
+        with GdalPushLogHandler():
+            austria = QIcon(':/plugins/image_selection/austria')
+            vienna = QIcon(':/plugins/image_selection/vienna')
+            globe = QIcon(':/plugins/image_selection/globe-green')
+            # QGIS seems to set the CWD to %USERPROFILE%/Documents, and the default WMTS cache path is ./gdalwmscache
+            for isWMTS, icon, prefix, url in [
+                (True, austria, '', 'https://maps.wien.gv.at/basemap/1.0.0/WMTSCapabilities.xml'),
+                (False, austria, 'BEV ', 'https://data.bev.gv.at/geoserver/BEVdataKAT/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities&CRS=EPSG:3857'),
+                (True, vienna, 'Stadt Wien ', 'https://maps.wien.gv.at/wmts/1.0.0/WMTSCapabilities.xml'),
+                (False, globe, '', 'WMS:http://ows.terrestris.de/osm/service')]:
+                base = gdal.Open(url)
+                for path, desc in base.GetSubDatasets():
+                    desc = desc.removeprefix('Layer ')
+                    if desc == 'Geoland Basemap Orthofoto':
+                        defIdx = ui.mapSelect.count()
+                    if isWMTS:
+                        # If we simply passed path, then HTTP error codes 202 and 404 would return a blank image instead of raising.
+                        # However, instead of returning a blank image, MapReadThread shall try reading at a higher overview level.
+                        # To get the XML we want, we could open the dataset using path, query its XML using dataset.GetMetadataItem('XML', 'WMTS'),
+                        # and edit that. Instead, let's just roll our own.
+                        layers = [el.removeprefix('layer=') for el in path.split(',') if el.startswith('layer=')]
+                        assert len(layers) == 1
+                        path = (
+                            '<GDAL_WMTS>'
+                                f'<GetCapabilitiesUrl>{url}</GetCapabilitiesUrl>'
+                                f'<Layer>{layers[0]}</Layer>'
+                                #'<OfflineMode>true</OfflineMode>'
+                                '<Cache />'
+                                f'<Timeout>{HttpTimeout.seconds}</Timeout>'
+                            '</GDAL_WMTS>')
+                    ui.mapSelect.addItem(icon, prefix + desc, path)
+                ui.mapSelect.insertSeparator(ui.mapSelect.count())
 
         # bbox Austria EPSG:3857
         maxX, maxY = 1913530, 6281290

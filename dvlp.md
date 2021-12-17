@@ -270,3 +270,10 @@ The DB table `aerials` has 6 entries that are important for the image selection 
 
 
 
+## Packaging
+
+```
+set PATH=%PATH%;D:\swdvlp64_2015\external\7zip\x64
+... image_selection>%APPDATA%\Python\Python39\Scripts\pb_tool.exe zip
+```
+

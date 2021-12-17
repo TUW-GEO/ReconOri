@@ -81,10 +81,6 @@ def gdalPopLogHandler():
 
 
 def classFactory(iface: QgisInterface):
-    """Load ImageSelection class from file ImageSelection.
-
-    :param iface: A QGIS interface instance.
-    """
     #from osgeo import gdal
 
     import logging

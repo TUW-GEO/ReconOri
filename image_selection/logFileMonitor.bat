@@ -1,1 +1,0 @@
-start powershell.exe -Command "Get-content %~dp0/log.txt -Tail 0 -Wait"

@@ -1,3 +1,12 @@
+#  ***************************************************************************
+#  *                                                                         *
+#  *   This program is free software; you can redistribute it and/or modify  *
+#  *   it under the terms of the GNU General Public License as published by  *
+#  *   the Free Software Foundation; either version 2 of the License, or     *
+#  *   (at your option) any later version.                                   *
+#  *                                                                         *
+#  ***************************************************************************
+
 from qgis.PyQt.QtCore import QModelIndex, QRect, QRectF, Qt
 from qgis.PyQt.QtGui import QImage, QPen, QPixmap
 from qgis.PyQt.QtWidgets import QButtonGroup, QDialogButtonBox, QFileSystemModel, QGraphicsPixmapItem, QGraphicsRectItem, QGraphicsScene, QGraphicsView

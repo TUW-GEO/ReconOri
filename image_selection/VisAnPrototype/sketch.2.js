@@ -103,8 +103,8 @@ qgisplugin.aerialFootPrintChanged.connect(function(imgId, footprint) {
   console.log("Footprint of " + imgId + " has changed to " + footprint);
 });
 
-qgisplugin.aerialPreviewFound.connect(function(imgId, path, rect){
-  console.log("Preview found for " + imgId + ": " + path + " " + rect);
+qgisplugin.aerialAvailabilityChanged.connect(function(imgId, availability, path){
+  console.log("Availability of " + imgId + " has changed to: " + availability + " with file path: " + path);
 });
 
 qgisplugin.aerialUsageChanged.connect(function(imgId, usage){

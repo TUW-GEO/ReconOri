@@ -38,7 +38,7 @@ class MapScene(QGraphicsScene):
 
     aerialFootPrintChanged = pyqtSignal(str, str)
 
-    aerialPreviewFound = pyqtSignal(str, str, str)
+    aerialAvailabilityChanged = pyqtSignal(str, int, str)
 
     aerialUsageChanged = pyqtSignal(str, int)
     
@@ -174,6 +174,9 @@ class MapScene(QGraphicsScene):
         shouldBeMissing = []
         shouldBeThere = []
         aerialObjects = []
+        # Speed up the creating of a new DB, especially if it is located on a network drive.
+        # Also, errors during setup will leave an existing DB in its original state.
+        self.__db.execute('BEGIN TRANSACTION')
         for row in df.itertuples(index=False):
             #fn = f'{row.Datum.year}-{row.Datum.month:02}-{row.Datum.day:02}_{row.Sortie}_{row.Bildnr}' + imgExt
             #imgFilePath = imageRootDir / fn
@@ -193,6 +196,8 @@ class MapScene(QGraphicsScene):
                 x, y = y, x
             wcsCtr = db2wcs.TransformPoint(x, y)
             aerialObjects.append(AerialObject(self, QPointF(wcsCtr[0], -wcsCtr[1]), str(imgId), row, self.__db))
+
+        self.__db.execute('COMMIT TRANSACTION')
 
         for view in self.views():
             view.fitInView(self.itemsBoundingRect(), Qt.KeepAspectRatio)
@@ -223,17 +228,17 @@ class MapScene(QGraphicsScene):
         cursor = self.__db.execute('SELECT * FROM aerials')
         iId = [el[0] for el in cursor.description].index('id')
         for row in cursor:
-            aerial = {name: val for (name, *_), val in zip(cursor.description, row) if name not in ('trafo', 'scenePos')}
+            aerial = {name: val for (name, *_), val in zip(cursor.description, row)
+                      if name not in ('trafo', 'scenePos', 'previewRect')}
             aerial['meta'] = json.loads(aerial['meta'])
             aerials[row[iId]] = aerial
+
         for aerialObject in aerialObjects:
             imgId, footprint = aerialObject.image.idAndFootprint(asJson=False)
-            aerials[imgId]['footprint'] = footprint
+            aerials[imgId].update([('footprint', footprint),
+                                   ('availability', int(aerialObject.image.availability()))])
+
         self.aerialsLoaded.emit(list(aerials.values()))
-        for el in aerialObjects:
-            el.footPrintChanged.connect(self.aerialFootPrintChanged)
-            el.previewFound.connect(self.aerialPreviewFound)
-            el.usageChanged.connect(self.aerialUsageChanged)
 
 
     def __cleanData(self, df: pd.DataFrame, sheet_name: str) -> bool:

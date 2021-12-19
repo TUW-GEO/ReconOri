@@ -71,7 +71,7 @@ class MainWindow(FormBase):
         webView = self.ui.webView
         scene.aerialsLoaded.connect(webView.onAerialsLoaded)
         scene.aerialFootPrintChanged.connect(webView.aerialFootPrintChanged)
-        scene.aerialPreviewFound.connect(webView.aerialPreviewFound)
+        scene.aerialAvailabilityChanged.connect(webView.aerialAvailabilityChanged)
         scene.aerialUsageChanged.connect(webView.aerialUsageChanged)
 
         #ui.scene.loadAerialsFile(Path(r'P:\Projects\19_DoRIAH\07_Work_Data\OwnCloud\Projekte LBDB\Meeting_2021-06-10_Testprojekte\Testprojekt1\Recherche_Metadaten_Testprojekt1.xls'))
@@ -173,12 +173,13 @@ class MainWindow(FormBase):
             menu = QMenu(self)
             group = QActionGroup(menu)
             asPoints = group.addAction(menu.addAction(target, 'as points', func))
+            asPoints.setData(Visualization.asPoint)
             asPoints.setCheckable(True)
             asPoints.setChecked(True)
-            asPoints.setData(Visualization.asPoint)
             asImage = group.addAction(menu.addAction(picture, 'as images', func))
-            asImage.setCheckable(True)
             asImage.setData(Visualization.asImage)
+            asImage.setCheckable(True)
+            group.triggered.connect(lambda _, button=button: button.setChecked(True))
             button.setMenu(menu)
             scene.aerialsLoaded.connect(lambda *_, button=button: button.setEnabled(True))
 

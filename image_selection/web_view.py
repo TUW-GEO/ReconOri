@@ -33,7 +33,7 @@ class WebView(QWebView):
 
     aerialFootPrintChanged = pyqtSignal(str, str) 
 
-    aerialPreviewFound = pyqtSignal(str, str, str)
+    aerialAvailabilityChanged = pyqtSignal(str, int, str)
 
     aerialUsageChanged = pyqtSignal(str, int)
 
@@ -74,7 +74,7 @@ class WebView(QWebView):
         self.__exposedToWebJavaScript.keyPressedAtPos.connect(self.__onWebKeyPressedAtPos)
 
         self.aerialFootPrintChanged.connect(self.__exposedToWebJavaScript.aerialFootPrintChanged)
-        self.aerialPreviewFound.connect(self.__exposedToWebJavaScript.aerialPreviewFound)
+        self.aerialAvailabilityChanged.connect(self.__exposedToWebJavaScript.aerialAvailabilityChanged)
         self.aerialUsageChanged.connect(self.__exposedToWebJavaScript.aerialUsageChanged)
 
         #self.setUrl(QUrl.fromLocalFile(str(Path(__file__).parent / 'VisAnPrototype/index.html')))
@@ -212,6 +212,6 @@ class ExposedToWebJavaScript(QObject):
 
     aerialFootPrintChanged = pyqtSignal(str, str)
 
-    aerialPreviewFound = pyqtSignal(str, str, str)
+    aerialAvailabilityChanged = pyqtSignal(str, int, str)
 
     aerialUsageChanged = pyqtSignal(str, int)

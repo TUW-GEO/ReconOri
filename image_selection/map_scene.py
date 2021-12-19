@@ -17,10 +17,11 @@ import sqlite3
 
 import configparser
 import glob
+import json
 import logging
 from pathlib import Path
 
-from .aerial_item import ContrastEnhancement, AerialItem, AerialImage, Availability, Usage, Visualization
+from .aerial_item import ContrastEnhancement, AerialObject, AerialImage, Availability, Usage, Visualization
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,13 @@ def _truncateMsg(msg: str, maxLen = 500):
 
 class MapScene(QGraphicsScene):
 
-    aerialsLoaded = pyqtSignal()
+    aerialsLoaded = pyqtSignal(list)
+
+    aerialFootPrintChanged = pyqtSignal(str, str)
+
+    aerialPreviewFound = pyqtSignal(str, str, str)
+
+    aerialUsageChanged = pyqtSignal(str, int)
     
     contrastEnhancement = pyqtSignal(ContrastEnhancement)
 
@@ -166,6 +173,7 @@ class MapScene(QGraphicsScene):
         xlsImgFiles = []
         shouldBeMissing = []
         shouldBeThere = []
+        aerialObjects = []
         for row in df.itertuples(index=False):
             #fn = f'{row.Datum.year}-{row.Datum.month:02}-{row.Datum.day:02}_{row.Sortie}_{row.Bildnr}' + imgExt
             #imgFilePath = imageRootDir / fn
@@ -184,10 +192,7 @@ class MapScene(QGraphicsScene):
             if csDb.EPSGTreatsAsNorthingEasting() or csDb.EPSGTreatsAsLatLong():
                 x, y = y, x
             wcsCtr = db2wcs.TransformPoint(x, y)
-            AerialItem(self, QPointF(wcsCtr[0], -wcsCtr[1]), str(imgId), row, self.__db)
-
-            #if len(self.items()) > 10:
-            #    break
+            aerialObjects.append(AerialObject(self, QPointF(wcsCtr[0], -wcsCtr[1]), str(imgId), row, self.__db))
 
         for view in self.views():
             view.fitInView(self.itemsBoundingRect(), Qt.KeepAspectRatio)
@@ -211,10 +216,24 @@ class MapScene(QGraphicsScene):
             logger.warning(msg)
             QMessageBox.warning(None, "Inconsistency", _truncateMsg(msg))
 
-        aerialImgs = [el for el in self.items() if isinstance(el, AerialImage)]
-        logger.info('{} of {} images available.'.format(sum(el.availability() == Availability.image for el in aerialImgs), len(aerialImgs)))
+        logger.info('{} of {} images available.'.format(
+            sum(el.image.availability() == Availability.image for el in aerialObjects), len(aerialObjects)))
 
-        self.aerialsLoaded.emit()
+        aerials = {}
+        cursor = self.__db.execute('SELECT * FROM aerials')
+        iId = [el[0] for el in cursor.description].index('id')
+        for row in cursor:
+            aerial = {name: val for (name, *_), val in zip(cursor.description, row) if name not in ('trafo', 'scenePos')}
+            aerial['meta'] = json.loads(aerial['meta'])
+            aerials[row[iId]] = aerial
+        for aerialObject in aerialObjects:
+            imgId, footprint = aerialObject.image.idAndFootprint(asJson=False)
+            aerials[imgId]['footprint'] = footprint
+        self.aerialsLoaded.emit(list(aerials.values()))
+        for el in aerialObjects:
+            el.footPrintChanged.connect(self.aerialFootPrintChanged)
+            el.previewFound.connect(self.aerialPreviewFound)
+            el.usageChanged.connect(self.aerialUsageChanged)
 
 
     def __cleanData(self, df: pd.DataFrame, sheet_name: str) -> bool:

@@ -161,7 +161,7 @@ class PreviewWindow(FormBase):
             # The rubber band can actually be dragged outside the scene=view limits!
             sceneRect = scene.selectionArea().boundingRect() & scene.sceneRect()
             if sceneRect.isNull():
-                return
+                return self.ui.buttonBox.button(QDialogButtonBox.Ok).setEnabled(False)
             self.__rect = QGraphicsRectItem(sceneRect)
             self.__rect.setPen(QPen(Qt.magenta, 0))
             scene.addItem(self.__rect)

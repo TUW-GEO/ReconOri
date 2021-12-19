@@ -79,7 +79,7 @@ class ImageSelection:
             self.iface.removeToolBarIcon(action)
         if self.dlg is not None:
             self.dlg.unload()
-        logger.debug('Good-bye!')
+        logger.debug('Cheers!')
         packageLogger, packageLogFileHandler = getLoggerAndFileHandler()
         packageLogger.removeHandler(packageLogFileHandler)
         packageLogFileHandler.close()

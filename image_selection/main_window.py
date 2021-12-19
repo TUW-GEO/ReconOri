@@ -67,6 +67,13 @@ class MainWindow(FormBase):
         packageLogger.addHandler(self.__statusBarLogHandler)
         self.showLogMessage.connect(lambda msg: self.statusBar().showMessage(msg, 5000))
 
+        scene = self.ui.mapView.scene()
+        webView = self.ui.webView
+        scene.aerialsLoaded.connect(webView.onAerialsLoaded)
+        scene.aerialFootPrintChanged.connect(webView.aerialFootPrintChanged)
+        scene.aerialPreviewFound.connect(webView.aerialPreviewFound)
+        scene.aerialUsageChanged.connect(webView.aerialUsageChanged)
+
         #ui.scene.loadAerialsFile(Path(r'P:\Projects\19_DoRIAH\07_Work_Data\OwnCloud\Projekte LBDB\Meeting_2021-06-10_Testprojekte\Testprojekt1\Recherche_Metadaten_Testprojekt1.xls'))
 
 
@@ -152,7 +159,7 @@ class MainWindow(FormBase):
         histogram.setChecked(True)
         ui.aerialsContrastEnhancement.setMenu(menu)
         ui.aerialsContrastEnhancement.toggled.connect(self.__onContrastEnhancementToggled)
-        scene.aerialsLoaded.connect(lambda: ui.aerialsContrastEnhancement.setEnabled(True))
+        scene.aerialsLoaded.connect(lambda *_: ui.aerialsContrastEnhancement.setEnabled(True))
 
         self.__availabilities = ((ui.aerialsGray, Availability.missing),
                                  (ui.aerialsBlue, Availability.findPreview),
@@ -173,14 +180,14 @@ class MainWindow(FormBase):
             asImage.setCheckable(True)
             asImage.setData(Visualization.asImage)
             button.setMenu(menu)
-            scene.aerialsLoaded.connect(lambda button=button: button.setEnabled(True))
+            scene.aerialsLoaded.connect(lambda *_, button=button: button.setEnabled(True))
 
         self.__usages = ((ui.usageUnset, Usage.unset),
                          (ui.usageSelected, Usage.selected),
                          (ui.usageDiscarded, Usage.discarded))
         for button, usage in self.__usages:
             button.toggled.connect(lambda checked, usage=usage: self.__onUsageChanged(usage, checked))
-            scene.aerialsLoaded.connect(lambda button=button: button.setEnabled(True))
+            scene.aerialsLoaded.connect(lambda *_, button=button: button.setEnabled(True))
 
         ui.aerialsFreeze.toggled.connect(lambda checked: ui.mapView.setInteractive(not checked))
 

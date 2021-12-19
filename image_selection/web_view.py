@@ -7,7 +7,7 @@
 #  *                                                                         *
 #  ***************************************************************************
 
-from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QObject, Qt, QUrl
+from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QObject, Qt, QUrl, QVariant
 from qgis.PyQt.QtGui import QKeyEvent
 from qgis.PyQt.QtWidgets import QDialog, QGridLayout
 from qgis.PyQt.QtWebKit import QWebSettings
@@ -22,7 +22,8 @@ import threading
 import urllib.request
 from pathlib import Path
 
-showWeb = False
+showWeb = True
+webInspectorSupport = False
 
 logger = logging.getLogger(__name__)
 httpdLogger = logging.getLogger(__name__ + '.httpd')
@@ -30,27 +31,36 @@ httpdLogger = logging.getLogger(__name__ + '.httpd')
 
 class WebView(QWebView):
 
+    aerialFootPrintChanged = pyqtSignal(str, str) 
+
+    aerialPreviewFound = pyqtSignal(str, str, str)
+
+    aerialUsageChanged = pyqtSignal(str, int)
+
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.setWhatsThis('Hit F5 to re-load, and F4 to open Web Inspector.')
+        self.setWhatsThis('Hit F5 to re-load.' + (' Hit F4 to open Web Inspector.' if webInspectorSupport else ''))
         self.__httpd = None
         self.__webInspectorDialog = None
 
         if not showWeb:
             return
 
-        # Web Inspector support
-        self.settings().setAttribute(QWebSettings.WebAttribute.DeveloperExtrasEnabled, True)
+        if webInspectorSupport:
+            self.settings().setAttribute(QWebSettings.WebAttribute.DeveloperExtrasEnabled, True)
 
         self.__createHttpd()
 
-        #self.setUrl(QUrl.fromLocalFile(r'E:\P\Projects\19_DoRIAH\VisAnPrototype\index.html'))
-        self.setUrl(QUrl(f'http://localhost:{self.__httpd.server_port}/'))
-        #self.setUrl(QUrl('https://webkit.org/blog-files/webgl/SpiritBox.html'))
-        #self.setUrl(QUrl('https://p5js.org/examples/hello-p5-animation.html'))
+        # Redirecting the JavaScript console needs QWebPage to be sub-classed.
+        # But with a sub-classed web page, the web inspector no longer works.
+        if webInspectorSupport:
+            page = self.page()
+        else:
+            page = WebPage(self)
+            self.setPage(page)
+        
 
         # Let Webkit handle no links at all, but trigger QWebView's signal linkClicked(QUrl) instead.
-        page = self.page()
         page.setLinkDelegationPolicy(QWebPage.DelegateAllLinks)
         self.linkClicked.connect(self.__onWebLinkClicked)
 
@@ -62,6 +72,16 @@ class WebView(QWebView):
         self.__exposedToWebJavaScript = ExposedToWebJavaScript()
         frame.javaScriptWindowObjectCleared.connect(self.__onWebJavaScriptWindowObjectCleared)
         self.__exposedToWebJavaScript.keyPressedAtPos.connect(self.__onWebKeyPressedAtPos)
+
+        self.aerialFootPrintChanged.connect(self.__exposedToWebJavaScript.aerialFootPrintChanged)
+        self.aerialPreviewFound.connect(self.__exposedToWebJavaScript.aerialPreviewFound)
+        self.aerialUsageChanged.connect(self.__exposedToWebJavaScript.aerialUsageChanged)
+
+        #self.setUrl(QUrl.fromLocalFile(str(Path(__file__).parent / 'VisAnPrototype/index.html')))
+        self.setUrl(QUrl(f'http://localhost:{self.__httpd.server_port}/'))
+        #self.setUrl(QUrl('https://webkit.org/blog-files/webgl/SpiritBox.html'))
+        #self.setUrl(QUrl('https://p5js.org/examples/hello-p5-animation.html'))
+
         
         # Provide the option to inspect the web page with QWebInspector.
         # If the visualization did not suppress the context menu, then this could simply be:
@@ -162,10 +182,36 @@ class WebView(QWebView):
         logger.info(f'onWebLinkClicked: {url}')
 
 
+    @pyqtSlot(list)
+    def onAerialsLoaded(self, aerials) -> None:
+        self.__exposedToWebJavaScript.aerialsLoaded.emit(QVariant(aerials))
+
+
+
 class RequestHandler(http.server.SimpleHTTPRequestHandler):
+
     def log_message(self, format, *args):
         httpdLogger.debug(format % args)
 
 
+class WebPage(QWebPage):
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.__logger = logging.getLogger(__name__ + '.javascript')
+
+    def javaScriptConsoleMessage(self, message: str, lineNumber: int, sourceId: str) -> None:
+        self.__logger.info(f'{sourceId}:{lineNumber}:{message}')
+
+
 class ExposedToWebJavaScript(QObject):
+
     keyPressedAtPos = pyqtSignal(int, int)
+
+    aerialsLoaded = pyqtSignal(QVariant)
+
+    aerialFootPrintChanged = pyqtSignal(str, str)
+
+    aerialPreviewFound = pyqtSignal(str, str, str)
+
+    aerialUsageChanged = pyqtSignal(str, int)

@@ -34,7 +34,7 @@ by constantly updating AerialPoint's bounding rectangle using QGraphicsItem.devi
 However, this sounds slow.
  """
 
-from qgis.PyQt.QtCore import pyqtSlot, QEvent, QObject, QPointF, QRect, Qt
+from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QEvent, QObject, QPointF, QRect, Qt
 from qgis.PyQt.QtGui import QBrush, QColor, QCursor, QFocusEvent, QIcon, QImage, QKeyEvent, QPen, QPainter, QPixmap, QTransform
 from qgis.PyQt.QtWidgets import (QDialog, QGraphicsEllipseItem, QGraphicsItem, QMenu, QGraphicsPixmapItem,
                                  QGraphicsScene, QGraphicsSceneContextMenuEvent, QGraphicsSceneMouseEvent,
@@ -74,9 +74,9 @@ class Availability(enum.IntEnum):
 
 
 class Usage(enum.IntEnum):
-    discarded = enum.auto()
-    unset = enum.auto()
-    selected = enum.auto()
+    discarded = 0
+    unset = 1
+    selected = 2
 
 
 class TransformState(enum.IntEnum):
@@ -97,12 +97,20 @@ class Visualization(enum.Enum):
     asImage = enum.auto()
 
 
-class AerialItem(QObject):
+class AerialObject(QObject):
+
+    footPrintChanged = pyqtSignal(str, str)
+
+    previewFound = pyqtSignal(str, str, str)
+
+    usageChanged = pyqtSignal(str, int)
 
     def __init__(self, scene: QGraphicsScene, posScene: QPointF, imgId: str, meta, db: sqlite3.Connection):
         super().__init__()
         point = AerialPoint()
-        image = AerialImage(imgId, posScene, meta, point, db)
+        self.point = point
+        image = AerialImage(imgId, posScene, meta, self, db)
+        self.image = image
         point.setImage(image)
         image.setVisible(False)
         scene.contrastEnhancement.connect(image.setContrastEnhancement)
@@ -112,29 +120,26 @@ class AerialItem(QObject):
             el.setToolTip(toolTip)
             scene.addItem(el)
 
-        self.__image = image
-        self.__point = point
-        self.__point.__keepMeAlive = self
         scene.visualizationByAvailability.connect(self.setVisualizationByAvailability, Qt.QueuedConnection)
         scene.visualizationByUsage.connect(self.setVisualizationByUsage, Qt.QueuedConnection)
 
 
     @pyqtSlot(Availability, Visualization, dict)
     def setVisualizationByAvailability(self, availability, visualization, usages: dict[Usage, bool]) -> None:
-        if availability != self.__image.availability():
+        if availability != self.image.availability():
             return
-        usage = self.__image.usage()
-        self.__point.setVisible(visualization == Visualization.asPoint and usages[usage])
-        self.__image.setVisible(visualization == Visualization.asImage and usages[usage])
+        usage = self.image.usage()
+        self.point.setVisible(visualization == Visualization.asPoint and usages[usage])
+        self.image.setVisible(visualization == Visualization.asImage and usages[usage])
 
 
     @pyqtSlot(Usage, bool, dict)
     def setVisualizationByUsage(self, usage, checked, visualizations: dict[Availability, Visualization]) -> None:
-        if usage != self.__image.usage():
+        if usage != self.image.usage():
             return
-        availability = self.__image.availability()
-        self.__point.setVisible(visualizations[availability] == Visualization.asPoint and checked)
-        self.__image.setVisible(visualizations[availability] == Visualization.asImage and checked)
+        availability = self.image.availability()
+        self.point.setVisible(visualizations[availability] == Visualization.asPoint and checked)
+        self.image.setVisible(visualizations[availability] == Visualization.asImage and checked)
 
 
 class AerialPoint(QGraphicsEllipseItem):
@@ -234,6 +239,7 @@ class AerialImage(QGraphicsPixmapItem):
     def unload():
         if __class__.__threadPool is not None:
             __class__.__threadPool.shutdown(wait=False, cancel_futures=True)
+        __class__.firstInstance = True
 
 
     @staticmethod
@@ -241,7 +247,7 @@ class AerialImage(QGraphicsPixmapItem):
         return usage + max(Usage)
 
 
-    def __init__(self, imgId: str, pos: QPointF, meta, point: AerialPoint, db: sqlite3.Connection):
+    def __init__(self, imgId: str, pos: QPointF, meta, object: AerialObject, db: sqlite3.Connection):
         super().__init__()
         self.setFlag(QGraphicsItem.ItemIsMovable)
         self.setFlag(QGraphicsItem.ItemIsFocusable)
@@ -250,14 +256,15 @@ class AerialImage(QGraphicsPixmapItem):
         self.setTransformationMode(Qt.SmoothTransformation)            
         self.__origPos = pos
         self.__radiusBild = meta.Radius_Bild
-        self.__point = point
+        self.__object = object
         self.__opacity = 1.
         self.__loadedPixMapParams = None
         self.__currentContrast = ContrastEnhancement.histogram
         self.__futurePixmap: Optional[concurrent.futures.Future] = None
         self.__futurePixmapLock = threading.Lock()
         self.__db = db
-        self.__imgId = imgId
+        self.__id = imgId
+        self.__availability: Optional[Availability] = None
         pixMap = self.__missingPixMap
         self.setPixmap(pixMap)
         self.setOffset(-pixMap.width() / 2, -pixMap.height() / 2)
@@ -279,16 +286,16 @@ class AerialImage(QGraphicsPixmapItem):
             db.execute('''
                 CREATE TABLE IF NOT EXISTS aerials
                 (
-                    imgId TEXT PRIMARY KEY NOT NULL,
+                    id TEXT PRIMARY KEY NOT NULL,
                     usage INT NOT NULL REFERENCES usages(id),
                     scenePos TEXT NOT NULL,
                     trafo TEXT NOT NULL,
-                    imgPath TEXT,
+                    path TEXT,
                     previewRect TEXT,
                     meta TEXT NOT NULL
                 ) ''')
 
-        if row := db.execute('SELECT usage, scenePos, trafo FROM aerials WHERE imgId == ?', [imgId] ).fetchone():
+        if row := db.execute('SELECT usage, scenePos, trafo FROM aerials WHERE id == ?', [imgId] ).fetchone():
             self.__setUsage(Usage(row[0]))
             self.setPos(QPointF(*json.loads(row[1])))
             self.setTransform(QTransform(*json.loads(row[2])))
@@ -303,14 +310,14 @@ class AerialImage(QGraphicsPixmapItem):
                     return str(value)
                 raise TypeError(f'Unable to encode type {value.__class__}')
 
-            imgPath = __class__.imageRootDir / imgId
+            path = __class__.imageRootDir / imgId
             db.execute(
-                'INSERT INTO aerials (imgId, usage, scenePos, trafo, imgPath, meta) VALUES(?, ?, ?, ?, ?, ?)',
+                'INSERT INTO aerials (id, usage, scenePos, trafo, path, meta) VALUES(?, ?, ?, ?, ?, ?)',
                 [imgId,
                  Usage.unset,
                  json.dumps([pos.x(), pos.y()]),
                  json.dumps(np.eye(3).ravel().tolist()),
-                 str(imgPath) if imgPath.exists() else None,
+                 str(path) if path.exists() else None,
                  json.dumps(meta._asdict(), default=toJson)] )
             self.__setUsage(Usage.unset)
             self.__resetTransform()
@@ -325,19 +332,21 @@ class AerialImage(QGraphicsPixmapItem):
                 self.__requestPixMap()
 
         elif change == QGraphicsItem.ItemPositionHasChanged:
-            self.__point.setPos(v)
+            self.__object.point.setPos(v)
             self.__db.execute(
-                'UPDATE aerials SET scenePos = ? WHERE imgId == ?',
-                [json.dumps([v.x(), v.y()]), self.__imgId])
+                'UPDATE aerials SET scenePos = ? WHERE id == ?',
+                [json.dumps([v.x(), v.y()]), self.__id])
+            self.__object.footPrintChanged.emit(*self.idAndFootprint())
             self.__setTransformState(TransformState.changed)
 
         elif change == QGraphicsItem.ItemTransformHasChanged:
             self.__db.execute(
-                'UPDATE aerials SET trafo = ? WHERE imgId == ?',
+                'UPDATE aerials SET trafo = ? WHERE id == ?',
                 [json.dumps([
                     v.m11(), v.m12(), v.m13(),
                     v.m21(), v.m22(), v.m23(),
-                    v.m31(), v.m32(), v.m33()]), self.__imgId])
+                    v.m31(), v.m32(), v.m33()]), self.__id])
+            self.__object.footPrintChanged.emit(*self.idAndFootprint())
             self.__setTransformState(TransformState.changed)
 
         return super().itemChange(change, v)
@@ -370,8 +379,8 @@ class AerialImage(QGraphicsPixmapItem):
     def mouseDoubleClickEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         if event.button() == Qt.LeftButton:
             self.setVisible(False)
-            self.__point.setVisible(True)
-            self.__point.setFocus(Qt.OtherFocusReason)
+            self.__object.point.setVisible(True)
+            self.__object.point.setFocus(Qt.OtherFocusReason)
         else:
             super().mouseDoubleClickEvent(event)
 
@@ -516,19 +525,19 @@ Double-click to close.<br/>
 
 
     def __requestPixMap(self):
-        imgPath, previewRect = self.__db.execute('SELECT imgPath, previewRect FROM aerials WHERE imgId == ?', [self.__imgId]).fetchone()
+        path, previewRect = self.__db.execute('SELECT path, previewRect FROM aerials WHERE id == ?', [self.__id]).fetchone()
 
         if self.__availability in (Availability.preview, Availability.image):
-            if not self.__loadedPixMapParams or self.__loadedPixMapParams != (self.__currentContrast, imgPath, previewRect):
+            if not self.__loadedPixMapParams or self.__loadedPixMapParams != (self.__currentContrast, path, previewRect):
                 if __class__.__threadPool is None:
                     __class__.__threadPool = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='ImageReader')
 
                 if previewRect is not None:
                     previewRect = QRect(*json.loads(previewRect))
-                future = __class__.__threadPool.submit(_getPixMap, Path(imgPath), self.__missingPixMap.width(), self.__currentContrast, previewRect or QRect())
+                future = __class__.__threadPool.submit(_getPixMap, Path(path), self.__missingPixMap.width(), self.__currentContrast, previewRect or QRect())
                 future.add_done_callback(self.__pixMapReady)
 
-        self.__loadedPixMapParams = self.__currentContrast, imgPath, previewRect
+        self.__loadedPixMapParams = self.__currentContrast, path, previewRect
 
 
     def __pixMapReady(self, future) -> None:
@@ -548,21 +557,23 @@ Double-click to close.<br/>
 
 
     def __deriveAvailability(self) -> None:
-        imgPath, previewRect = self.__db.execute('SELECT imgPath, previewRect FROM aerials WHERE imgId == ?', [self.__imgId]).fetchone()
-        if imgPath is None:
-            filmDir = self.previewRootDir / Path(self.__imgId).parent
+        path, rect = self.__db.execute('SELECT path, previewRect FROM aerials WHERE id == ?', [self.__id]).fetchone()
+        if path is None:
+            filmDir = self.previewRootDir / Path(self.__id).parent
             availability = Availability.findPreview if filmDir.exists() else Availability.missing
         else:
-            availability = Availability.image if previewRect is None else Availability.preview
+            availability = Availability.image if rect is None else Availability.preview
         self.setFlag(QGraphicsItem.ItemIsMovable, availability >= Availability.preview)
+        if self.__availability != availability:
+            self.__object.previewFound.emit(self.__id, path, rect or '')
         self.__availability = availability
-        self.__point.setAvailability(availability)
+        self.__object.point.setAvailability(availability)
 
 
     def usage(self) -> Usage:
         value, = self.__db.execute(
-            'SELECT usage FROM aerials WHERE imgId == ?',
-            [self.__imgId]).fetchone()
+            'SELECT usage FROM aerials WHERE id == ?',
+            [self.__id]).fetchone()
         return Usage(value)
 
 
@@ -570,10 +581,11 @@ Double-click to close.<br/>
         self.setZValue(self.__zValueFor(usage))
         self.__cross.setVisible(usage == Usage.discarded)
         self.__tick.setVisible(usage == Usage.selected)
-        self.__point.setUsage(usage)
+        self.__object.point.setUsage(usage)
+        self.__object.usageChanged.emit(self.__id, usage)
         self.__db.execute(
-            'UPDATE aerials SET usage = ? WHERE imgId == ?',
-            [usage, self.__imgId])
+            'UPDATE aerials SET usage = ? WHERE id == ?',
+            [usage, self.__id])
 
 
     def transformState(self) -> TransformState:
@@ -582,7 +594,7 @@ Double-click to close.<br/>
 
     def __setTransformState(self, transformState: TransformState) -> None:
         self.__transformState = transformState
-        self.__point.setTransformState(transformState)
+        self.__object.point.setTransformState(transformState)
 
 
     def __originalTransform(self) -> QTransform:
@@ -607,22 +619,28 @@ Double-click to close.<br/>
 
 
     def __findPreview(self):
-        filmDir = self.previewRootDir / Path(self.__imgId).parent
-        dialog = PreviewWindow(filmDir, Path(self.__imgId).stem)
+        filmDir = self.previewRootDir / Path(self.__id).parent
+        dialog = PreviewWindow(filmDir, Path(self.__id).stem)
         if dialog.exec() == QDialog.Accepted:
             path, rect = dialog.selection()
             self.__db.execute(
-                'UPDATE aerials SET imgPath = ?, previewRect = ? WHERE imgId == ?',
+                'UPDATE aerials SET path = ?, previewRect = ? WHERE id == ?',
                 [str(path),
                  json.dumps([rect.left(), rect.top(), rect.width(), rect.height()]),
-                 self.__imgId])
+                 self.__id])
             self.__deriveAvailability()
             self.__requestPixMap()
 
+    def idAndFootprint(self, asJson = True):
+        val = [{'x': pt.x(), 'y': pt.y()} for pt in self.mapToScene(self.boundingRect())[:-1]]
+        if asJson:
+            val = json.dumps(val)
+        return self.__id, val
 
-def _getPixMap(imgPath: Path, width: int, contrast: ContrastEnhancement, rect = QRect()):
+
+def _getPixMap(path: Path, width: int, contrast: ContrastEnhancement, rect = QRect()):
     with GdalPushLogHandler():
-        ds = gdal.Open(str(imgPath))
+        ds = gdal.Open(str(path))
         if rect.isNull():
             rect = QRect(0, 0, ds.RasterXSize, ds.RasterYSize)
         height = round(rect.height() / rect.width() * width)

@@ -219,20 +219,40 @@ class AerialImage(QGraphicsPixmapItem):
 
     __threadPool: Optional[concurrent.futures.ThreadPoolExecutor] = None
 
-    __firstInstance = True
-
     # To be set beforehand by the scene:
 
     imageRootDir: Path
 
     previewRootDir: Path
 
+    @staticmethod
+    def createTables(db: sqlite3.Connection) -> None:
+        db.execute('''
+            CREATE TABLE IF NOT EXISTS usages
+            (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL
+            ) ''')
+        db.executemany(
+            'INSERT OR IGNORE INTO usages(id, name) VALUES( ?, ? )',
+            ((el, el.name) for el in Usage))
+        db.execute('''
+            CREATE TABLE IF NOT EXISTS aerials
+            (
+                id TEXT PRIMARY KEY NOT NULL,
+                usage INT NOT NULL REFERENCES usages(id),
+                scenePos TEXT NOT NULL,
+                trafo TEXT NOT NULL,
+                path TEXT,
+                previewRect TEXT,
+                meta TEXT NOT NULL
+            ) ''')        
+
 
     @staticmethod
     def unload():
         if __class__.__threadPool is not None:
             __class__.__threadPool.shutdown(wait=False, cancel_futures=True)
-        __class__.__firstInstance = True
 
 
     @staticmethod
@@ -260,30 +280,6 @@ class AerialImage(QGraphicsPixmapItem):
         self.__availability: Optional[Availability] = None
         self.__cross = _makeOverlay('cross', self, QGraphicsItem.ItemIgnoresTransformations)
         self.__tick = _makeOverlay('tick', self, QGraphicsItem.ItemIgnoresTransformations)
-
-        if __class__.__firstInstance:
-            __class__.__firstInstance = False
-            db.execute('PRAGMA foreign_keys = ON')
-            db.execute('''
-                CREATE TABLE IF NOT EXISTS usages
-                (
-                    id INTEGER PRIMARY KEY,
-                    name TEXT NOT NULL
-                ) ''')
-            db.executemany(
-                'INSERT OR IGNORE INTO usages(id, name) VALUES( ?, ? )',
-                ((el, el.name) for el in Usage))
-            db.execute('''
-                CREATE TABLE IF NOT EXISTS aerials
-                (
-                    id TEXT PRIMARY KEY NOT NULL,
-                    usage INT NOT NULL REFERENCES usages(id),
-                    scenePos TEXT NOT NULL,
-                    trafo TEXT NOT NULL,
-                    path TEXT,
-                    previewRect TEXT,
-                    meta TEXT NOT NULL
-                ) ''')
 
         if row := db.execute('SELECT usage, scenePos, trafo FROM aerials WHERE id == ?', [imgId] ).fetchone():
             self.__setUsage(Usage(row[0]))

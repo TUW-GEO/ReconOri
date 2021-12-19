@@ -19,6 +19,7 @@ import http.server
 # must not import logging before PyQt, or logging will fail within pydevd!
 import logging
 import threading
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -201,7 +202,9 @@ class WebPage(QWebPage):
         self.__logger = logging.getLogger(__name__ + '.javascript')
 
     def javaScriptConsoleMessage(self, message: str, lineNumber: int, sourceId: str) -> None:
-        self.__logger.info(f'{sourceId}:{lineNumber}:{message}')
+        comps = urllib.parse.urlparse(sourceId)
+        sourceId = urllib.parse.urlunparse(('', '', *comps[2:]))
+        self.__logger.info(f'{sourceId}:{lineNumber}: {message}')
 
 
 class ExposedToWebJavaScript(QObject):

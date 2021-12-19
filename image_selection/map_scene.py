@@ -7,7 +7,7 @@
 #  *                                                                         *
 #  ***************************************************************************
 
-from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, Qt, QPointF
+from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, Qt, QPointF, QSettings
 from qgis.PyQt.QtGui import QPen, QPolygonF
 from qgis.PyQt.QtWidgets import QFileDialog, QGraphicsPolygonItem, QGraphicsScene, QMessageBox
 
@@ -60,15 +60,17 @@ class MapScene(QGraphicsScene):
 
     @pyqtSlot()
     def selectAoiFile(self):
-        fileName = QFileDialog.getOpenFileName(None, "Open the area of interest as a polygon", "", "Polygon formats (*.kml;*.shp);;Any type (*.*)")[0]
+        fileName = QFileDialog.getOpenFileName(None, "Open the area of interest as a polygon", self.__lastDir, "Polygon formats (*.kml;*.shp);;Any type (*.*)")[0]
         if fileName:
+            self.__lastDir = str(Path(fileName).parent)
             self.loadAoiFile(Path(fileName))
 
 
     @pyqtSlot()
     def selectAerialsFile(self):
-        fileName = QFileDialog.getOpenFileName(None, "Open DB query result", "", "Excel sheets (*.xls);;Any type (*.*)")[0]
+        fileName = QFileDialog.getOpenFileName(None, "Open DB query result", self.__lastDir, "Excel sheets (*.xls);;Any type (*.*)")[0]
         if fileName:
+            self.__lastDir = str(Path(fileName).parent)
             self.loadAerialsFile(Path(fileName))
 
 
@@ -146,7 +148,6 @@ class MapScene(QGraphicsScene):
                 return
             if button == QMessageBox.Discard:
                 dbPath.unlink()
-        self.__db = sqlite3.connect(dbPath, isolation_level=None)
       
         if self.__aoi is not None:
             self.removeItem(self.__aoi)
@@ -169,6 +170,10 @@ class MapScene(QGraphicsScene):
         df = pd.read_excel(fileName, sheet_name=sheet_name, true_values=['Ja', 'ja'], false_values=['Nein', 'nein'])
         if not self.__cleanData(df, sheet_name):
             return
+
+        self.__db = sqlite3.connect(dbPath, isolation_level=None)
+        self.__db.execute('PRAGMA foreign_keys = ON')
+        AerialImage.createTables(self.__db)
 
         xlsImgFiles = []
         shouldBeMissing = []
@@ -270,3 +275,13 @@ class MapScene(QGraphicsScene):
         else:
             return error(f"{sheet_name} seems to provide no information on coordinate system. Columns are: {', '.join(df.columns)}")
         return True
+
+    @property
+    def __lastDir(self):
+        settings = QSettings("TU WIEN", "Image Selection", self)
+        return settings.value("lastDir", ".")
+
+    @__lastDir.setter
+    def __lastDir(self, value: str):
+        settings = QSettings("TU WIEN", "Image Selection", self)
+        settings.setValue("lastDir", value)

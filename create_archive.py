@@ -30,3 +30,5 @@ with zipfile.ZipFile(archivePath, 'w', zipfile.ZIP_DEFLATED) as archive:
     for path in Path('VisAnPrototype').rglob('*'):
         archive.write(path, plugInName / path)
         
+
+        

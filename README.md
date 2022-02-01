@@ -8,28 +8,28 @@ For help on how to navigate the map or transform aerials, click the help button 
 
 All footprints, adapted or not, are stored in an SQLite data base next to the spread sheet, together with their selection states. You can resume work at any later point by loading the same spread sheet, again.
 
-Each aerial belongs to one of each of these categories:
+At any point, an aerial belongs to each of these categories:
 
 - `Availability`:
-  - `missing`: no image, and not preview available.
+  - `missing`: no image, and no preview available.
   - `preview not yet determined`: no image available, but the preview folder for its sortie exists. However, the preview has not yet been found.
   - `preview`:  a preview is available i.e. it has been found before.
-  - `image`: an image file is available.
+  - `image`: an image file (full resolution) is available.
 - `Usage`:
   - `discarded`: the aerial has been discarded from consideration.
   - `unset`: no explicit usage has been set.
-  - `selected`: the aerial shall be used in geo-referencing and image analysis. If no image is available, it needs to be ordered.
+  - `selected`: the aerial shall be used in geo-referencing and image analysis. If only a preview is available, the image hence needs to be ordered.
 - `Transformation state`:
   - `original`: the aerial's transformation is the one derived from the spread sheet.
   - `changed`: the aerial's transformation has been adapted manually.
 
 All states are indicated graphically. Use the buttons above the map view to control if aerials with the respective state shall be shown or not.
 
-Tested with QGIS 3.16.14 LTR. Does not work with older releases, but should work with newer ones.
+Tested with QGIS 3.16.14 LTR, installed with the *standalone installer (MSI)*. Does not work with the QGIS 3.16.14 *network installer*, since that comes with Python 3.7 instead of 3.9. Does not work with older releases, but should work with newer ones.
 
 ## Compilation
 
-Skip this step if you have received a package archive.
+Skip this step if you have received a package archive (`.zip`).
 
 Open the *OSGeo4W* shell that comes with QGIS, and compile the resources by calling *pyQt5*'s resource compiler:
 
@@ -45,19 +45,24 @@ To create a package archive:
 
 ## Installation on Windows
 
-There are two ways to make the PlugIn accessible to the *QGIS PlugIn manager*:
+There are different ways to make the PlugIn accessible in QGIS:
 
-1. The PlugIn-folder *image_selection* must be a sub-directory of the directory where the PlugIn manager searches for PlugIns. That directory's path is: 
+1. if installing from a package archive (`.zip`), the easiest way is via menu `PlugIns` → entry `Manage and install plugins` → tab `Install from ZIP`: choose the path to the archive and hit `Install Plugin`.
 
-   ```
-   %USERPROFILE%\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins
-   ```
+2. Or: place/extract the PlugIn-folder somewhere on your file system. 
 
-   In case you use a non-default QGIS profile, replace `default` with that profile's name. You may make the PlugIn folder a sub-directory either as a copy, or as a symbolic link.
+   1. Put/extract the PlugIn-folder into the place where the QGIS PlugIn manager expects it: make the PlugIn-folder *image_selection* a sub-directory of:
 
-2. Before starting QGIS, set the environment variable `QGIS_PLUGINPATH` to the path of the parent directory of the PlugIn folder, wherever that is.
+      ```
+      %USERPROFILE%\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins
+      ```
 
-Activate the PlugIn in the QGIS PlugIn manager: menu `PlugIns` → entry `Manage and install plugins` → tab `Installed` → Check `DoRIAH Image Selection`.
+      In case you use a non-default QGIS profile, replace `default` with that profile's name. You may make the PlugIn folder a sub-directory either as a copy, or as a symbolic link.
+
+   2. Otherwise, you may place/extract your PlugIn-folder anywhere and tell QGIS where to find it. To do so, before starting QGIS, set the environment variable `QGIS_PLUGINPATH` to the parent directory of the PlugIn folder, wherever that is.
+
+
+Afterwards, activate the PlugIn in the QGIS PlugIn manager: menu `PlugIns` → entry `Manage and install plugins` → tab `Installed` → Check `DoRIAH Image Selection`.
 
 You should now see the PlugIn icon in the QGIS main window. If not: menu `View` → entry `Tool boxes` → check `PlugIn tool box`.
 

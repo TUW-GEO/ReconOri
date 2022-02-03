@@ -36,7 +36,9 @@ class MapScene(QGraphicsScene):
 
     aerialsLoaded = pyqtSignal(list)
 
-    aerialFootPrintChanged = pyqtSignal(str, str)
+    areaOfInterestLoaded = pyqtSignal(list)
+
+    aerialFootPrintChanged = pyqtSignal(str, list)
 
     aerialAvailabilityChanged = pyqtSignal(str, int, str)
 
@@ -133,6 +135,8 @@ class MapScene(QGraphicsScene):
         self.__aoi = polyg
         for view in self.views():
             view.fitInView(self.itemsBoundingRect(), Qt.KeepAspectRatio)
+
+        self.areaOfInterestLoaded.emit([{'x': pt[0], 'y': -pt[1]} for pt in pts])
 
 
     def loadAerialsFile(self, fileName: Path) -> None:
@@ -239,7 +243,7 @@ class MapScene(QGraphicsScene):
             aerials[row[iId]] = aerial
 
         for aerialObject in aerialObjects:
-            imgId, footprint = aerialObject.image.idAndFootprint(asJson=False)
+            imgId, footprint = aerialObject.image.idAndFootprint()
             aerials[imgId].update([('footprint', footprint),
                                    ('availability', int(aerialObject.image.availability()))])
 

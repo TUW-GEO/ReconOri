@@ -644,10 +644,8 @@ Double-click to close.<br/>
             self.__requestPixMap()
 
 
-    def idAndFootprint(self, asJson = True):
+    def idAndFootprint(self):
         val = [{'x': pt.x(), 'y': pt.y()} for pt in self.mapToScene(self.boundingRect())[:-1]]
-        if asJson:
-            val = json.dumps(val)
         return self.__id, val
 
 

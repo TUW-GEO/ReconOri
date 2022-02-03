@@ -70,7 +70,8 @@ class MainWindow(FormBase):
         scene = self.ui.mapView.scene()
         webView = self.ui.webView
         scene.aerialsLoaded.connect(webView.onAerialsLoaded)
-        scene.aerialFootPrintChanged.connect(webView.aerialFootPrintChanged)
+        scene.areaOfInterestLoaded.connect(webView.onAreaOfInterestLoaded)
+        scene.aerialFootPrintChanged.connect(webView.onAerialFootPrintChanged)
         scene.aerialAvailabilityChanged.connect(webView.aerialAvailabilityChanged)
         scene.aerialUsageChanged.connect(webView.aerialUsageChanged)
 

@@ -32,8 +32,6 @@ httpdLogger = logging.getLogger(__name__ + '.httpd')
 
 class WebView(QWebView):
 
-    aerialFootPrintChanged = pyqtSignal(str, str) 
-
     aerialAvailabilityChanged = pyqtSignal(str, int, str)
 
     aerialUsageChanged = pyqtSignal(str, int)
@@ -74,7 +72,6 @@ class WebView(QWebView):
         frame.javaScriptWindowObjectCleared.connect(self.__onWebJavaScriptWindowObjectCleared)
         self.__exposedToWebJavaScript.keyPressedAtPos.connect(self.__onWebKeyPressedAtPos)
 
-        self.aerialFootPrintChanged.connect(self.__exposedToWebJavaScript.aerialFootPrintChanged)
         self.aerialAvailabilityChanged.connect(self.__exposedToWebJavaScript.aerialAvailabilityChanged)
         self.aerialUsageChanged.connect(self.__exposedToWebJavaScript.aerialUsageChanged)
 
@@ -188,6 +185,15 @@ class WebView(QWebView):
         self.__exposedToWebJavaScript.aerialsLoaded.emit(QVariant(aerials))
 
 
+    @pyqtSlot(list)
+    def onAreaOfInterestLoaded(self, aoi) -> None:
+        self.__exposedToWebJavaScript.areaOfInterestLoaded.emit(QVariant(aoi))
+
+
+    @pyqtSlot(str, list)
+    def onAerialFootPrintChanged(self, imgId, footPrint) -> None:
+        self.__exposedToWebJavaScript.aerialFootPrintChanged.emit(imgId, QVariant(footPrint))
+
 
 class RequestHandler(http.server.SimpleHTTPRequestHandler):
 
@@ -213,7 +219,9 @@ class ExposedToWebJavaScript(QObject):
 
     aerialsLoaded = pyqtSignal(QVariant)
 
-    aerialFootPrintChanged = pyqtSignal(str, str)
+    areaOfInterestLoaded = pyqtSignal(QVariant)
+
+    aerialFootPrintChanged = pyqtSignal(str, QVariant)
 
     aerialAvailabilityChanged = pyqtSignal(str, int, str)
 

@@ -99,8 +99,12 @@ qgisplugin.aerialsLoaded.connect(function(aerials) {
   console.log(JSON.stringify(aerials, null, 4));
 });
 
+qgisplugin.areaOfInterestLoaded.connect(function(aoi){
+  console.log("Area of interest loaded: " + JSON.stringify(aoi, null, 4));
+});
+
 qgisplugin.aerialFootPrintChanged.connect(function(imgId, footprint) {
-  console.log("Footprint of " + imgId + " has changed to " + footprint);
+  console.log("Footprint of " + imgId + " has changed to " + JSON.stringify(footprint, null, 4));
 });
 
 qgisplugin.aerialAvailabilityChanged.connect(function(imgId, availability, path){

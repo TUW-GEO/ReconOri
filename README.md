@@ -34,7 +34,7 @@ Skip this step if you have received a package archive (`.zip`).
 Open the *OSGeo4W* shell that comes with QGIS, and compile the resources by calling *pyQt5*'s resource compiler:
 
 ```
-... image_selection>pyrcc5 -o resources.py resources.qrc
+... image_selection>pyrcc5 -o resources_rc.py resources.qrc
 ```
 
 To create a package archive:

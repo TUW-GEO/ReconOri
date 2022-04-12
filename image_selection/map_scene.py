@@ -20,6 +20,7 @@ import glob
 import json
 import logging
 from pathlib import Path
+from typing import Optional
 
 from .aerial_item import ContrastEnhancement, AerialObject, AerialImage, Availability, Usage, Visualization
 
@@ -135,8 +136,7 @@ class MapScene(QGraphicsScene):
         self.__aoi = polyg
         for view in self.views():
             view.fitInView(self.itemsBoundingRect(), Qt.KeepAspectRatio)
-
-        self.areaOfInterestLoaded.emit([{'x': pt[0], 'y': -pt[1]} for pt in pts])
+        self.emitAreaOfInterestLoaded()
 
 
     def loadAerialsFile(self, fileName: Path) -> None:
@@ -233,21 +233,7 @@ class MapScene(QGraphicsScene):
         logger.info('{} of {} images available.'.format(
             sum(el.image.availability() == Availability.image for el in aerialObjects), len(aerialObjects)))
 
-        aerials = {}
-        cursor = self.__db.execute('SELECT * FROM aerials')
-        iId = [el[0] for el in cursor.description].index('id')
-        for row in cursor:
-            aerial = {name: val for (name, *_), val in zip(cursor.description, row)
-                      if name not in ('trafo', 'scenePos', 'previewRect')}
-            aerial['meta'] = json.loads(aerial['meta'])
-            aerials[row[iId]] = aerial
-
-        for aerialObject in aerialObjects:
-            imgId, footprint = aerialObject.image.idAndFootprint()
-            aerials[imgId].update([('footprint', footprint),
-                                   ('availability', int(aerialObject.image.availability()))])
-
-        self.aerialsLoaded.emit(list(aerials.values()))
+        self.emitAerialsLoaded([el.image for el in aerialObjects])
 
 
     def __cleanData(self, df: pd.DataFrame, sheet_name: str) -> bool:
@@ -279,6 +265,39 @@ class MapScene(QGraphicsScene):
         else:
             return error(f"{sheet_name} seems to provide no information on coordinate system. Columns are: {', '.join(df.columns)}")
         return True
+
+
+    def emitAerialsLoaded(self, images: Optional[list[AerialImage]] = None) -> None:
+        if self.__db is None:
+            return
+        if images is None:
+            images = [item for item in self.items() if isinstance(item, AerialImage)]
+        aerials = {}
+        cursor = self.__db.execute('SELECT * FROM aerials')
+        iId = [el[0] for el in cursor.description].index('id')
+        for row in cursor:
+            aerial = {name: val for (name, *_), val in zip(cursor.description, row)
+                      if name not in ('trafo', 'scenePos', 'previewRect')}
+            aerial['meta'] = json.loads(aerial['meta'])
+            aerials[row[iId]] = aerial
+
+        for image in images:
+            imgId, footprint = image.idAndFootprint()
+            aerials[imgId].update([('footprint', footprint),
+                                   ('availability', int(image.availability()))])
+
+        self.aerialsLoaded.emit(list(aerials.values()))
+
+
+    def emitAreaOfInterestLoaded(self):
+        if self.__aoi is None:
+            return
+        scenePos = self.__aoi.pos()
+        polyg = self.__aoi.polygon()
+        self.areaOfInterestLoaded.emit(
+            [{'x': pt_.x(), 'y': pt_.y()}
+             for pt in polyg for pt_ in (pt + scenePos,)])
+        
 
     @property
     def __lastDir(self):

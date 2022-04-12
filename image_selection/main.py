@@ -30,7 +30,7 @@ from pathlib import Path
 import time
 from typing import Optional
 
-# Initialize Qt resources from file resources.py at first, so the rest can use it upon its import, already.
+# Initialize Qt resources from file resources_rc.py at first, so the rest can use it upon its import, already.
 # This would also import resources.qCleanupResources():
 # from .resources import *
 # Hence, PlugIn Reloader would call it not only for resources.py itself, but also for this file.

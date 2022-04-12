@@ -1,6 +1,6 @@
 # Image Selection Tool as QGIS-Plugin
 
-There is no real need for this tool to be integrated into QGIS, because having used it, users will most probably order images, wait for their delivery, and use other tools then. Also, the geo-referencing of aerial image (previews) is generally still imprecise at this stage, and they must be viewed together with an orthophoto reference. This is better not done using QGIS layers and the QGIS main window. Still, the benefit of making it a PlugIn is that we do not need to setup a separate environment with Python interpreter, Qt, etc. However, the QGIS environment comes with its challenges (see below).
+There is no real need for this tool to be integrated into QGIS, because having used it, users will most probably order images, wait for their delivery, and proceed with other tools then. Also, the geo-referencing of aerial image (previews) is generally still imprecise at this stage, and they must be viewed together with an orthophoto reference. This is better not done using QGIS layers and the QGIS main window. Still, the benefit of making it a PlugIn is that we do not need to setup a separate environment with Python interpreter, Qt, etc. However, the QGIS environment comes with its challenges (see below).
 
 ## Visual Analytics Component
 

@@ -14,7 +14,7 @@ function getRange( d, field ) {
 }
 
 function preload() {
-  data = loadTable('data/Recherche_Metadaten_Testprojekt'+testProject+'.csv','header').rows;
+  // data = loadTable('data/Recherche_Metadaten_Testprojekt'+testProject+'.csv','header').rows;
   monotype = loadFont('assets/Akkurat-Mono.OTF');
   images = images.map( a => loadImage('images/Test'+ '1' + '.' + a + '.png'));
   colors = [color(220),color(110)];

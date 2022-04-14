@@ -15,71 +15,31 @@
     
     
     <script src="js/p5.js" type="text/javascript"></script>
-    <script src="commons.js" type="text/javascript"></script>
-    <script src="sketch.2.js" type="text/javascript"></script>
+    <!-- <script src="commons.js" type="text/javascript"></script> -->
+    <script src="sketch.js" type="text/javascript"></script>
 
 
     <style>
       body {
         padding: 0;
         margin: 0;
-        background-color: rgb(255, 255, 255);
+        background-color: rgb(236,236,236);
         font-family: Noto Sans JP;
         color: black;
         text-align: center;
       }
-      .recipe {
-        color:black;
-        padding: 10px;
-        border: 2px solid #000;
-        background-color: white;
-        border-radius: 15px;
-        -moz-border-radius: 15px;
+      #link {
+        visibility: hidden;
+        position: fixed;
       }
       .canvas {}
-      .fixedContainer {
-        position: fixed;
-        left: 80%;
-        top: 50%;
-        transform: translate(-50%, -80%);
-      }
-      #menu {
-        text-align: center;
-        padding: 10px;
-      }
-      .button {
-        background-color: transparent;
-        border: none;
-        color: white;
-        padding: 5px;
-        text-align: center;
-        text-decoration: none;
-        display: inline-block;
-        font-size: 14px;
-        font-style: italic;
-      }
-      .button:hover {
-        text-decoration: underline;
-      }
-      #display {
-        padding: 0px;
-        transform: translate(100%,0%);
-        width: 35%;
-        text-align: left;
-      }
-      #contact {
-        top: 40px;
-      }
-      #copyright {
-        padding: 20px;
-      }
     </style>
   </head>
   <body>
   
-
+  
   <!-- wk an exemplary link. If clicked, the PlugIn will be informed about the URL -->
-  <a href='http://p5js.org/'>
+  <a href='http://p5js.org/' id="link" visibility='hidden'>
     this is a link
   </a>
   

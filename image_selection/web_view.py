@@ -16,6 +16,7 @@ from qgis.PyQt.QtWebKitWidgets import QWebInspector, QWebPage, QWebView
 import functools
 import http
 import http.server
+import json
 # must not import logging before PyQt, or logging will fail within pydevd!
 import logging
 import threading
@@ -35,6 +36,8 @@ class WebView(QWebView):
     aerialAvailabilityChanged = pyqtSignal(str, int, str)
 
     aerialUsageChanged = pyqtSignal(str, int)
+
+    aerialFilterChanged = pyqtSignal(set)
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -70,7 +73,6 @@ class WebView(QWebView):
         # Expose a QObject to JavaScript, to receive signals from there (Qt WebKit Bridge).
         self.__exposedToWebJavaScript = ExposedToWebJavaScript()
         frame.javaScriptWindowObjectCleared.connect(self.__onWebJavaScriptWindowObjectCleared)
-        self.__exposedToWebJavaScript.keyPressedAtPos.connect(self.__onWebKeyPressedAtPos)
 
         self.aerialAvailabilityChanged.connect(self.__exposedToWebJavaScript.aerialAvailabilityChanged)
         self.aerialUsageChanged.connect(self.__exposedToWebJavaScript.aerialUsageChanged)
@@ -170,14 +172,11 @@ class WebView(QWebView):
         self.page().mainFrame().addToJavaScriptWindowObject('qgisplugin', self.__exposedToWebJavaScript)
 
 
-    @pyqtSlot(int, int)
-    def __onWebKeyPressedAtPos(self, x: int, y: int) -> None:
-        logger.info(f'onWebKeyPressedAtPos: {x} {y}')
-
-
     @pyqtSlot(QUrl)
     def __onWebLinkClicked(self, url: QUrl) -> None:
-        logger.info(f'onWebLinkClicked: {url}')
+        imgIds = json.loads(url.fragment(QUrl.FullyDecoded))
+        logger.info(f'onWebLinkClicked: {imgIds}')
+        self.aerialFilterChanged.emit(set(imgIds))
 
 
     @pyqtSlot(list)
@@ -214,8 +213,6 @@ class WebPage(QWebPage):
 
 
 class ExposedToWebJavaScript(QObject):
-
-    keyPressedAtPos = pyqtSignal(int, int)
 
     aerialsLoaded = pyqtSignal(QVariant)
 

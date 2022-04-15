@@ -107,7 +107,8 @@ class AerialObject(QObject):
         self.image = image
         point.setImage(image)
         image.setVisible(False)
-        scene.contrastEnhancement.connect(image.setContrastEnhancement)
+        scene.contrastEnhancementChanged.connect(image.setContrastEnhancement)
+        scene.visualizationChanged.connect(self.setVisualization, Qt.QueuedConnection)
         toolTip = [f'<tr><td>{name}</td><td>{value}</td></tr>' for name, value in meta._asdict().items()]
         toolTip = ''.join(['<table>'] + toolTip + ['</table>'])
         for el in point, image:
@@ -115,28 +116,18 @@ class AerialObject(QObject):
             # Add the items to the scene only now, such that they have not emitted scene signals during their setup.
             scene.addItem(el)
 
-        scene.visualizationByAvailability.connect(self.setVisualizationByAvailability, Qt.QueuedConnection)
-        scene.visualizationByUsage.connect(self.setVisualizationByUsage, Qt.QueuedConnection)
-
         self.__point.__keepMeAlive = self
 
 
-    @pyqtSlot(Availability, Visualization, dict)
-    def setVisualizationByAvailability(self, availability, visualization, usages: dict[Usage, bool]) -> None:
-        if availability != self.image.availability():
+    @pyqtSlot(dict, dict, set)
+    def setVisualization(self, usages: dict[Usage, bool], visualizations: dict[Availability, Visualization], filteredImageIds: set[str]):
+        usageIsOn = usages.get(self.image.usage())
+        visualization = visualizations.get(self.image.availability())
+        if usageIsOn is None or visualization is None:
             return
-        usage = self.image.usage()
-        self.__point.setVisible(visualization == Visualization.asPoint and usages[usage])
-        self.image.setVisible(visualization == Visualization.asImage and usages[usage])
-
-
-    @pyqtSlot(Usage, bool, dict)
-    def setVisualizationByUsage(self, usage, checked, visualizations: dict[Availability, Visualization]) -> None:
-        if usage != self.image.usage():
-            return
-        availability = self.image.availability()
-        self.__point.setVisible(visualizations[availability] == Visualization.asPoint and checked)
-        self.image.setVisible(visualizations[availability] == Visualization.asImage and checked)
+        isFiltered = not filteredImageIds or self.image.id() in filteredImageIds
+        self.__point.setVisible(visualization == Visualization.asPoint and usageIsOn and isFiltered)
+        self.image.setVisible(visualization == Visualization.asImage and usageIsOn and isFiltered)
 
 
 class AerialPoint(QGraphicsEllipseItem):
@@ -324,7 +315,7 @@ class AerialImage(QGraphicsPixmapItem):
                 'UPDATE aerials SET scenePos = ? WHERE id == ?',
                 [json.dumps([v.x(), v.y()]), self.__id])
             if scene := self.scene():
-                scene.aerialFootPrintChanged.emit(*self.idAndFootprint())
+                scene.aerialFootPrintChanged.emit(self.__id, self.footprint())
             self.__setTransformState(TransformState.changed)
 
         elif change == QGraphicsItem.ItemTransformHasChanged:
@@ -335,7 +326,7 @@ class AerialImage(QGraphicsPixmapItem):
                     v.m21(), v.m22(), v.m23(),
                     v.m31(), v.m32(), v.m33()]), self.__id])
             if scene := self.scene():
-                scene.aerialFootPrintChanged.emit(*self.idAndFootprint())
+                scene.aerialFootPrintChanged.emit(self.__id, self.footprint())
             self.__setTransformState(TransformState.changed)
 
         return super().itemChange(change, v)
@@ -532,7 +523,7 @@ Double-click to close.<br/>
         self.setOffset(-pm.width() / 2, -pm.height() / 2)
         if origPm.size() != pm.size():
             if scene := self.scene():
-                scene.aerialFootPrintChanged.emit(*self.idAndFootprint())
+                scene.aerialFootPrintChanged.emit(self.__id, self.footprint())
 
 
     def __requestPixMap(self):
@@ -644,9 +635,12 @@ Double-click to close.<br/>
             self.__requestPixMap()
 
 
-    def idAndFootprint(self):
-        val = [{'x': pt.x(), 'y': pt.y()} for pt in self.mapToScene(self.boundingRect())[:-1]]
-        return self.__id, val
+    def id(self):
+        return self.__id
+
+
+    def footprint(self):
+        return [{'x': pt.x(), 'y': pt.y()} for pt in self.mapToScene(self.boundingRect())[:-1]]
 
 
 def _pixMapHeightFor(width: int, size: QSize) -> int:

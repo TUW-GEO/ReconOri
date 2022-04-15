@@ -20,12 +20,13 @@
  ***************************************************************************/
 
 """
-from qgis.PyQt.QtCore import QElapsedTimer, Qt, pyqtSignal, pyqtSlot
+from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QElapsedTimer, QMargins, QRectF, Qt
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QActionGroup, QDialogButtonBox, QMenu, QToolButton, QWhatsThis 
 from qgis.PyQt.uic import loadUiType
 
 import configparser
+import functools
 import logging
 from pathlib import Path
 import traceback
@@ -74,6 +75,8 @@ class MainWindow(FormBase):
         scene.aerialFootPrintChanged.connect(webView.onAerialFootPrintChanged)
         scene.aerialAvailabilityChanged.connect(webView.aerialAvailabilityChanged)
         scene.aerialUsageChanged.connect(webView.aerialUsageChanged)
+        self.__filteredImageIds: set[str] = set()
+        webView.aerialFilterChanged.connect(self.__onAerialFilterChanged)
         # Having re-loaded the web page (with possibly changed JavaScript), re-transmit to the page the data we have.
         # Otherwise, the whole PlugIn would need to be re-loaded, meaning a shut-down and re-start of the HTTP-server, which takes time.
         webView.loadFinished.connect(lambda ok: scene.emitAerialsLoaded() if ok else None)
@@ -139,11 +142,22 @@ class MainWindow(FormBase):
         ui.mapSelect.currentIndexChanged.connect(lambda idx: ui.mapView.load(ui.mapSelect.itemData(idx)))
         ui.mapSelect.setCurrentIndex(defIdx)
 
-        
-        for button, func in ((ui.mapZoomIn , lambda: mapView.zoom(+1, False)),
-                             (ui.mapZoomOut, lambda: mapView.zoom(-1, False)),
-                             (ui.mapZoomNative, lambda: mapView.zoom(None, False)),
-                             (ui.mapZoomFit, lambda: mapView.fitInView(scene.itemsBoundingRect(), Qt.KeepAspectRatio))):
+        def fitVisible():
+            rect = QRectF()
+            for item in scene.items():
+                if item.isVisible():
+                    rect |= item.sceneBoundingRect()
+            if rect:
+                rect = mapView.mapFromScene(rect).boundingRect().marginsAdded(QMargins() + 20)
+                rect = mapView.mapToScene(rect).boundingRect()
+            mapView.fitInView(rect, Qt.KeepAspectRatio)
+
+        for button, func in (
+                (ui.mapZoomIn , lambda: mapView.zoom(+1, False)),
+                (ui.mapZoomOut, lambda: mapView.zoom(-1, False)),
+                (ui.mapZoomNative, lambda: mapView.zoom(None, False)),
+                #(ui.mapZoomFit, lambda: mapView.fitInView(scene.itemsBoundingRect(), Qt.KeepAspectRatio))
+                (ui.mapZoomFit, fitVisible)):
             button.pressed.connect(func)
 
 
@@ -156,10 +170,10 @@ class MainWindow(FormBase):
         menu = QMenu(self)
         group = QActionGroup(menu)
         arrowResize090 = QIcon(':/plugins/image_selection/arrow-resize-090')
-        minMax = group.addAction(menu.addAction(arrowResize090, 'MinMax', lambda: scene.setContrastEnhancement(ContrastEnhancement.minMax)))
+        minMax = group.addAction(menu.addAction(arrowResize090, 'MinMax', lambda: scene.contrastEnhancementChanged.emit(ContrastEnhancement.minMax)))
         minMax.setCheckable(True)
         chart = QIcon(':/plugins/image_selection/chart')
-        histogram = group.addAction(menu.addAction(chart, 'Histogram', lambda: scene.setContrastEnhancement(ContrastEnhancement.histogram)))
+        histogram = group.addAction(menu.addAction(chart, 'Histogram', lambda: scene.contrastEnhancementChanged.emit(ContrastEnhancement.histogram)))
         histogram.setCheckable(True)
         histogram.setChecked(True)
         ui.aerialsContrastEnhancement.setMenu(menu)
@@ -192,7 +206,7 @@ class MainWindow(FormBase):
                          (ui.usageSelected, Usage.selected),
                          (ui.usageDiscarded, Usage.discarded))
         for button, usage in self.__usages:
-            button.toggled.connect(lambda checked, usage=usage: self.__onUsageChanged(usage, checked))
+            button.toggled.connect(lambda checked, usage=usage: self.__onVisualizationChanged(usages={usage: checked}))
             scene.aerialsLoaded.connect(lambda *_, button=button: button.setEnabled(True))
 
         ui.aerialsFreeze.toggled.connect(lambda checked: ui.mapView.setInteractive(not checked))
@@ -218,9 +232,9 @@ class MainWindow(FormBase):
 
 
     @pyqtSlot(bool)
-    def __onContrastEnhancementToggled(self, checked: bool) -> None:
+    def __onContrastEnhancementToggled(self, checked) -> None:
         if not checked:
-            self.ui.mapView.scene().setContrastEnhancement(ContrastEnhancement.none)
+            self.ui.mapView.scene().contrastEnhancementChanged.emit(ContrastEnhancement.none)
         else:
             self.ui.aerialsContrastEnhancement.menu().actions()[0].actionGroup().checkedAction().trigger()
         
@@ -230,17 +244,24 @@ class MainWindow(FormBase):
         visualization = Visualization.none
         if button.isChecked():
             visualization = button.menu().actions()[0].actionGroup().checkedAction().data()
-        usages = {usage: button.isChecked() for button, usage in self.__usages}
-        self.ui.mapView.scene().setVisualizationByAvailability(availability, visualization, usages)
+        self.__onVisualizationChanged(visualizations={availability: visualization})
 
 
-    @pyqtSlot(Usage, bool)
-    def __onUsageChanged(self, usage, checked) -> None:
-        visualizations = {
-            avail: button.menu().actions()[0].actionGroup().checkedAction().data() if button.isChecked() else Visualization.none
-            for button, avail in self.__availabilities}
-        self.ui.mapView.scene().setVisualizationByUsage(usage, checked, visualizations)
+    @pyqtSlot(set)
+    def __onAerialFilterChanged(self, imageIds: set[str]):
+        self.__filteredImageIds = imageIds
+        self.__onVisualizationChanged()
 
+
+    @pyqtSlot(dict, dict)
+    def __onVisualizationChanged(self, usages={}, visualizations={}):
+        if not usages:
+            usages = {usage: button.isChecked() for button, usage in self.__usages}
+        if not visualizations:
+            visualizations = {
+                avail: button.menu().actions()[0].actionGroup().checkedAction().data() if button.isChecked() else Visualization.none
+                for button, avail in self.__availabilities}
+        self.ui.mapView.scene().visualizationChanged.emit(usages, visualizations, self.__filteredImageIds)
 
 
 class StatusBarLogHandler(logging.Handler):

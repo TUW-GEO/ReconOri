@@ -158,7 +158,7 @@
              <item>
               <widget class="QToolButton" name="mapZoomNative">
                <property name="toolTip">
-                <string>Zoom to native map resolution.</string>
+                <string>Zoom map to its native resolution.</string>
                </property>
                <property name="icon">
                 <iconset resource="resources.qrc">
@@ -169,7 +169,7 @@
              <item>
               <widget class="QToolButton" name="mapZoomFit">
                <property name="toolTip">
-                <string>Zoom map to aerials.</string>
+                <string>Zoom map to visible aerials and AoI.</string>
                </property>
                <property name="icon">
                 <iconset resource="resources.qrc">

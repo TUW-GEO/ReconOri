@@ -45,11 +45,9 @@ class MapScene(QGraphicsScene):
 
     aerialUsageChanged = pyqtSignal(str, int)
     
-    contrastEnhancement = pyqtSignal(ContrastEnhancement)
+    contrastEnhancementChanged = pyqtSignal(ContrastEnhancement)
 
-    visualizationByAvailability = pyqtSignal(Availability, Visualization, dict)
-
-    visualizationByUsage = pyqtSignal(Usage, bool, dict)
+    visualizationChanged = pyqtSignal(dict, dict, set)
 
 
     def __init__(self, *args, epsg: int, config: configparser.ConfigParser, **kwargs) -> None:
@@ -75,21 +73,6 @@ class MapScene(QGraphicsScene):
         if fileName:
             self.__lastDir = str(Path(fileName).parent)
             self.loadAerialsFile(Path(fileName))
-
-
-    @pyqtSlot(ContrastEnhancement)
-    def setContrastEnhancement(self, contrastEnhancement):
-        self.contrastEnhancement.emit(contrastEnhancement)
-
-
-    @pyqtSlot(Availability, Visualization, dict)
-    def setVisualizationByAvailability(self, availability, visualization, usages) -> None:
-        self.visualizationByAvailability.emit(availability, visualization, usages)
-
-
-    @pyqtSlot(Usage, bool, dict)
-    def setVisualizationByUsage(self, usage, checked, visualizations) -> None:
-        self.visualizationByUsage.emit(usage, checked, visualizations)
 
 
     def unload(self):
@@ -282,7 +265,7 @@ class MapScene(QGraphicsScene):
             aerials[row[iId]] = aerial
 
         for image in images:
-            imgId, footprint = image.idAndFootprint()
+            imgId, footprint = image.id(), image.footprint()
             aerials[imgId].update([('footprint', footprint),
                                    ('availability', int(image.availability()))])
 

@@ -152,7 +152,7 @@ qgisplugin.aerialUsageChanged.connect(function(imgId, usage){
 
 // ip: uses the hidden link to send a text message to the plugin
 const sendObject = function (object) {
-  document.getElementById("link").href = JSON.stringify(object, null, 4);
+  document.getElementById("link").href = "#" +  encodeURIComponent(JSON.stringify(object));
   document.getElementById("link").click();
 }
 

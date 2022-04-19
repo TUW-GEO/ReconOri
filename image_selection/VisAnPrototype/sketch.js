@@ -2,12 +2,10 @@
   DoRIAH Image Selection - Visualization
   ip: Ignacio Perez-Messina
   TODO
-  + add filtering interaction
-  + timebin view
   + abstract timebin visualization
-  + find image pairs
   + add attack records with lines that follow all the way
   + calculate real coverages
+  + add hovering interaction
 */
 
 let aerials = [];
@@ -16,92 +14,219 @@ let footprints = {};
 let availability = {};
 let timebins = [];
 let aerialDates = [];
+let attackDates = [];
 let currentTimebin = '';
+let hovered = '';
+let data;
 
 //// SKETCH
+
+function preload() {
+  attacks = loadTable('data/Attack_List_St_Poelten.xlsx - Tabelle1.csv', 'header').rows;
+}
 
 function setup() {
   cnv = createCanvas(windowWidth,windowHeight);
   frameRate(4);
+  // only for st. Poelten attack records
+  attackDates = attacks.map( a => a.obj.DATUM).slice(0,attacks.length-1).map( a => {let d = a.split('/'); return d[2]+(d[1].length==1?'-0':'-')+d[1]+(d[0].length==1?'-0':'-')+d[0]});
 }
 
 function draw() {
+  hovered = resolveMouse();
+
   background(236);
   textSize(8), fill(0), noStroke();
   translate (0, 12);
-  drawTimemap();
-  if (currentTimebin === '') drawTimeline();
+  drawTimeline();
+  if (currentTimebin === '') drawTimemap();
   else drawTimebin(currentTimebin);
   // debug();
+
+  const drawAttack = function (r) {
+    strokeWeight(r/2), stroke(0);
+    line(0,0,0,r);
+    fill(0), noStroke();
+    beginShape();
+    vertex(0,-r/2), vertex(r/2,-r), vertex(r/2,0), vertex(0,r/2);
+    vertex(-r/2,0),  vertex(-r/2,-r), vertex(0,-r/2);
+    endShape();
+  }
+  attackDates.forEach( a => {
+    push(), translate(timelinemap(a),-4);
+    drawAttack(4);
+    pop();
+  })
 }
 
 //// VISUALIZATION
 
-const timelinemap = function (datum) {
-  // return map(Date.parse(datum),Date.parse(aerialDates[0]),Date.parse(aerialDates[aerialDates.length-1]), 20, width-20);
-  return map(Date.parse(datum),Date.parse('1943-01-01'),Date.parse('1946-01-01'), 20, width-20);
+const drawViewfinder = function (timebinData, r) {
+  noStroke(), fill(126);
+  arc(0,0,r,r,0,PI, CHORD);
+  noStroke(), fill(166);
+  arc(0,0,r,r,PI,0, CHORD);
+  stroke(0), fill(0);
+  arc(0,0,r/2,r/2,0,PI, CHORD);
+  noStroke(), fill(255);
+  arc(0,0,r/2,r/2,PI,0, CHORD);
+  
 }
 
-const drawTimemap = function () {
-  let years = ['1943','1944','1945','1946'];
-  textAlign(CENTER);
-  years.forEach( a => text(a,timelinemap(a.concat('-01-01')),0));
+const timelinemap = function (datum) {
+  return map(Date.parse(datum),Date.parse(aerialDates[0]),Date.parse(aerialDates[aerialDates.length-1]), 20, width-20);
 }
 
 const drawTimeline = function () {
+  let years = aerialDates.map( a => a.slice(0,4)).filter(onlyUnique);
+  textAlign(CENTER), textStyle(BOLD), textFont('Helvetica');
+  years.forEach( a => text(a,timelinemap(a.concat('-01-01')),0));
   aerialDates.forEach( a => {
     let x = timelinemap(a);
-    stroke(160), strokeWeight(5);
-    point (x,5);
+    strokeWeight(a===hovered || a===currentTimebin? 1:.2), noFill(), stroke(126);
+    line(x,5,x,0)
+  });
+}
+
+const drawTimemap = function () {
+  aerialDates.forEach( a => {
+    let x = timelinemap(a);
     let x2 = map(aerialDates.indexOf(a),0,aerialDates.length-1, 20, width-20);
-    strokeWeight(.2), noFill(), stroke(a === currentTimebin? 255: 0);
-    beginShape();
-    bezier(x, 5, x, 50/2, x2, 25, x2, 50);
-    endShape();
-    push(), noStroke(), fill(0);
-    text(a.slice(5),x2,height-12), pop();
+    fill(230,140,20,60), noStroke();
+    if (a===hovered) rect(x2-10,80,20,height-24-80);
+    let c = a === currentTimebin? color(255,30,30):color(126);
+    
+    
+
+    
     
     aerials.filter( b => b.meta.Datum === a).forEach( (b, i, arr) => {
-      push(), translate(x2,map(i,0,arr.length,55,height-20));
+      push(), translate(x2,min(80+i*20,map(i,0,arr.length,80,height-20)));
       drawAerial(b);
       pop();
-      
-      // noStroke();
-      // text(b.meta.Sortie,x2,55+i*5); // why not working for all?
     })
+
+    push(), translate(x2,55);
+    drawViewfinder([],20);
+    pop();
+
+    strokeWeight(a===hovered? 1:.2), noFill(), stroke(c);
+    // beginShape();
+    // bezier(x, 5, x, 50/2, x2, 25, x2, 50);
+    // endShape();
+    line(x,5,x2,50)
+    push(), noStroke(), fill(100);
+    text(a.slice(5).slice(a.slice(5,6)==='0'?1:0).replace('-','.'),x2,height-12), pop();
   });
+  
 }
 
 const drawTimebin = function (aerialDate) {
-  text(currentTimebin,width/2,12);
+  noStroke(), fill(126);
+  text(currentTimebin,timelinemap(currentTimebin),20);
+
   let timebin = aerials.filter( a => a.meta.Datum === aerialDate);
-  timebin.forEach( (a, i, arr) => {
-    push(), translate(map(i,-1,arr.length,0,width),height/2);
-    drawAerial(a);
-    stroke(0,50),strokeWeight(10), noFill();
-    let l = width/(arr.length+1);
-    if (arr[i+1] && a.meta.Sortie === arr[i+1].meta.Sortie  && a.meta.Abd+arr[i+1].meta.Abd-100 > 0) strokeWeight((a.meta.Abd+arr[i+1].meta.Abd-100)/10), arc(l/2,0,l,l,-PI,0);
-    noStroke(), fill(0);
-    text(a.meta.Sortie,0,20);
-    text(a.meta.Bildnr,0,30);
-    pop();
-  });
+  let flights = timebin.map( a => a.meta.Sortie ).filter(onlyUnique);
+  let details = timebin.filter( a => a.meta.MASSTAB <= 20000);
+  let overviews = timebin.filter ( a => a.meta.MASSTAB > 20000);
+
+  const drawTimebinRow = function(aerialRow, r) {
+    aerialRow.forEach( (a,i,arr) => {
+      let p = i/(arr.length-1)*PI-PI/2;
+      push(), translate(width/2,55), rotate(-i/(arr.length-1)*PI+PI/2);
+      stroke(0,50), noFill(), strokeWeight(5);
+      if (i > 0 && a.meta.Sortie == arr[i-1].meta.Sortie) arc(0,0,r*2,r*2,PI/2,PI/2+PI/(arr.length-1));
+      pop();
+    });
+    aerialRow.forEach( (a,i,arr) => {
+      let p = i/(arr.length-1)*PI-PI/2;
+      // let x = width/2+sin(p)*r;
+      // let y = 55+cos(p)*r;
+      push(), translate(width/2,55), rotate(-i/(arr.length-1)*PI+PI/2);
+      translate(0,r);
+      drawAerial(a);
+      noStroke(), fill(0), textStyle(NORMAL), textSize(6), textAlign(CENTER);
+      if (PI*(r+20)/arr.length > 22) text(a.meta.Bildnr,0,20);
+      textAlign(CENTER), textStyle(BOLD), rotate(-PI/2);
+      if (i == 0 || arr[i-1].meta.Sortie!==a.meta.Sortie) text(a.meta.Sortie,0,max(-20,-PI*r/arr.length/4));
+      pop();
+    });
+  }
+  push(), translate(width/2,55);
+  drawViewfinder([], 40), pop();
+  drawTimebinRow(details, height-130);
+  drawTimebinRow(overviews, height-90);
+
+  // timebin.forEach( (a, i, arr) => {
+  //   push(), translate(map(i,-1,arr.length,0,width),height-60);
+  //   timebin.forEach( (b,j) => {
+  //     if (j > i && a.meta.Sortie === b.meta.Sortie && a.meta.Abd+b.meta.Abd >= 200 ) {
+  //       let l = width/(timebin.length+1)*(j-i);
+  //       strokeWeight((a.meta.Abd+b.meta.Abd-100)/20), stroke(a.meta.Abd+b.meta.Abd == 200? color(0,20):color(0,20)), noFill();
+  //       arc(l/2,0,l,l/4,-PI, 0);
+  //     }
+  //   })
+  //   pop();
+  // });
+  // timebin.forEach( (a, i, arr) => {
+  //   let R = (height-110);
+  //   let p = i/(arr.length-1)*PI-PI/2;
+  //   let x = width/2+sin(p)*R;
+  //   let y = 55+cos(p)*R;
+  //   timebin.forEach( (b,j) => {
+  //     let p2 = j/(arr.length-1)*PI-PI/2;
+  //     let x2 = width/2+sin(p2)*R;
+  //     let y2 = 55+cos(p2)*R;
+  //     if (j > i && a.meta.Sortie === b.meta.Sortie && a.meta.Abd+b.meta.Abd >= 200 ) {
+  //       strokeWeight((a.meta.Abd+b.meta.Abd-100)/20), stroke(a.meta.Abd+b.meta.Abd == 200? color(0,20):color(0,20)), noFill();
+  //       let k = R;
+  //       let p3 = (p+p2)/2;
+  //       let x3 = width/2+sin(p3)*k;
+  //       let y3 = 55+cos(p3)*k;
+  //       let d = dist(x,y,x2,y2);
+  //       let r = dist(x,y,x3,y3);
+  //       let angle = 2*atan(d/2,r);
+  //       let h = (d/2)/sin(angle);
+  //       push(), translate(width/2,55), rotate(-(p+p2)/2+PI/2);
+        // arc(k,0,r,r,-angle/2,angle/2);
+        // arc(k,0,r,r,angle/2,-angle/2);
+        // pop();
+        // let p0 = ((j+i)/2)/(arr.length-1)*PI-PI/2;
+        // let x0 = width/2+sin(p0)*(height-mouseX);
+        // let y0 = 55+cos(p0)*(height-mouseX);
+        // x0 = width/2;
+        // y0 = 55;
+        // push(), translate((height-mouseX),(height-mouseX));
+        // drawArc(x0,y0,x2,y2,x,y);
+        // pop();
+        
+        // line(x,y,x2,y2);
+  //     }
+  //   })
+  // });
 }
 
 const drawAerial = function (aerial) {
-  stroke(0), strokeWeight(.8), drawingContext.setLineDash(aerial.meta.Abd == 100? 1:[2, 2]);
+  push(), stroke(0), strokeWeight(.8), drawingContext.setLineDash(aerial.meta.Abd == 100? 1:[2, 2]);
   fill(aerial.meta.LBDB? [238,195,99]:160);
-  ellipse(0,0,sqrt(aerial.meta.Abd/aerial.meta.MASSTAB)*200); // aerial.meta.MASSTAB <= 20000? 12:8 // aerial.meta.Abd/aerial.meta.MASSTAB*2000
-  push(), rotate((1-aerial.meta.Abd/100)*TAU/2-HALF_PI),stroke(2);
-  // arc(0,0,sqrt(aerial.meta.Abd/aerial.meta.MASSTAB)*200,sqrt(aerial.meta.Abd/aerial.meta.MASSTAB)*200,0,aerial.meta.Abd/100*TAU);
+  ellipse(0,0,sqrt(aerial.meta.Abd/aerial.meta.MASSTAB)*200);
+  rotate((1-aerial.meta.Abd/100)*TAU/2-HALF_PI),stroke(2);
   pop();
 }
 
 //// INTERACTION
 
+const resolveMouse = function () {
+  if (mouseY < 55) return '';
+  else {
+    if (currentTimebin === '') return aerialDates[floor(map(mouseX,10,width-10,0,aerialDates.length))];
+    else return currentTimebin;
+  }
+   
+}
+
 function mouseClicked() {
-  if (mouseY > 55) currentTimebin = aerialDates[floor(map(mouseX,10,width-10,0,aerialDates.length))];
-  else currentTimebin = '';
+  currentTimebin = resolveMouse();
   sendObject(aerials.filter( a => a.meta.Datum === currentTimebin).map(a => a.id));
 }
 
@@ -115,18 +240,38 @@ function windowResized() {
 qgisplugin.aerialsLoaded.connect(function(_aerials) {
   console.log(JSON.stringify(_aerials, null, 4));
   aerials = _aerials.sort( (a,b) => a.meta.Datum > b.meta.Datum).filter( a => a.footprint);
-  // aerials.forEach( a => {
-  //   a.meta.richness = a.meta.Abd/a.meta.MASSTAB;
-  // })
-  timebins = aerials.reduce( (bins, a) => { // EACH AERIAL appears twice, ONE WITH META ONE WITH FOOTPRINT ALSO
-    if (bins[bins.length-1].length == 0 || bins[bins.length-1][0] === a.meta.Datum) bins[bins.length-1].push(a.meta.Datum);
-    else bins.push([a.meta.Datum]);
-    return bins;
-  }, [[]] );
-  function onlyUnique(value, index, self) {
-    return self.indexOf(value) === index;
-  }
+  // timebins = aerials.reduce( (bins, a) => { // EACH AERIAL appears twice, ONE WITH META ONE WITH FOOTPRINT ALSO
+  //   if (bins[bins.length-1].length == 0 || bins[bins.length-1][0] === a.meta.Datum) bins[bins.length-1].push(a.meta.Datum);
+  //   else bins.push([a.meta.Datum]);
+  //   return bins;
+  // }, [[]] );
   aerialDates = aerials.map( a => a.meta.Datum).filter(onlyUnique);
+  let flights = aerials.map( a => a.meta.Sortie).filter(onlyUnique);
+  // data = {};
+  // flights.forEach( flight => {
+  //   flightAerials = aerials.filter( a => a.meta.Sortie === flight);
+  //   details = flightAerials.filter( a => a.meta.MASSTAB <= 20000);
+  //   overviews = flightAerials.filter( a => a.meta.MASSTAB > 20000);
+  //   const analyze = function (arr) {
+  //     let maxCvg = max(arr.map( a => a.meta.Abd));
+  //     let paired = (arr.reduce( (agg, a) => agg+(a.meta.Abd==100?1:0), 0) >= 2);
+  //     return {coverage: maxCvg, pair: paired}
+  //   }
+  //   data[flight] = {detail: analyze(details), overview: analyze(overviews)};
+  // })
+  // timebins.forEach( t => {
+
+  // })
+
+  // data = aerials.groupBy( a => a.meta.Sortie);
+  // Object.keys(data).forEach( k => {
+  //   data[k].detail = data[k].filter( a => a.meta.MASSTAB <= 20000);
+  //   let coverage = max(data[k].detail.map( a => a.meta.Abd));
+  //   let paired = (data[k].detail.filter( a => a.meta.Abd == 100).length >= 2)
+  //   data[k].detail = {coverage: coverage, paired: paired};
+  //   data[k].overview = data[k].filter( a => a.meta.MASSTAB > 20000);
+  // })
+  currentTimebin = '';
 });
   
 qgisplugin.areaOfInterestLoaded.connect(function(_aoi){
@@ -159,22 +304,23 @@ const sendObject = function (object) {
 //// DEBUGGING
 
 const debug = function () {
+  textAlign(LEFT), noStroke(), fill(0);
   aerials.forEach( (a,i) => {
     text(a.id+' '+a.footprint+' '+Date.parse(a.meta.Datum)+' '+a.meta.Datum.split('-')[2], 0, i*12);
   });
-  aoi.forEach( (a, i) => {
-    text(a.x+' '+a.y, 400, 12*i);
-  })
-  Object.keys(footprints).forEach( (a,i) => {
-    text(a, 400, 12*i);
-  })
-  aerialDates.forEach( (a,i) => {
+  // aoi.forEach( (a, i) => {
+  //   text(a.x+' '+a.y, 400, 12*i);
+  // })
+  attackDates.forEach( (a,i) => {
     text(a, 400, 12*i);
   });
-  timebins.forEach( (a,i) => { 
-    text(a, 600, 12*i);
-  });
-  availability.entries.forEach( (a,i) => {
-    text(a, 400, 12*i);
-  });
+  // availability.entries.forEach( (a,i) => {
+  //   text(a, 400, 12*i);
+  // });
+}
+
+//// UTILS
+
+function onlyUnique(value, index, self) {
+  return self.indexOf(value) === index;
 }

@@ -26,7 +26,6 @@ from qgis.PyQt.QtWidgets import QActionGroup, QDialogButtonBox, QMenu, QToolButt
 from qgis.PyQt.uic import loadUiType
 
 import configparser
-import functools
 import logging
 from pathlib import Path
 import traceback
@@ -210,6 +209,9 @@ class MainWindow(FormBase):
             scene.aerialsLoaded.connect(lambda *_, button=button: button.setEnabled(True))
 
         ui.aerialsFreeze.toggled.connect(lambda checked: ui.mapView.setInteractive(not checked))
+
+        scene.aerialsLoaded.connect(lambda *_: self.__onContrastEnhancementToggled(ui.aerialsContrastEnhancement.isChecked()))
+        scene.aerialsLoaded.connect(lambda *_: self.__onVisualizationChanged())
 
 
     def unload(self) -> None:

@@ -9,14 +9,14 @@
 
 from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, Qt, QPointF, QSettings
 from qgis.PyQt.QtGui import QPen, QPolygonF
-from qgis.PyQt.QtWidgets import QFileDialog, QGraphicsPolygonItem, QGraphicsScene, QMessageBox
+from qgis.PyQt.QtWidgets import QFileDialog, QGraphicsPolygonItem, QGraphicsScene, QInputDialog, QMessageBox
 
 import pandas as pd
 from osgeo import ogr, osr
 import sqlite3
 
+import collections
 import configparser
-import glob
 import json
 import logging
 from pathlib import Path
@@ -82,24 +82,34 @@ class MapScene(QGraphicsScene):
 
 
     def loadAoiFile(self, fileName: Path) -> None:
+        error = lambda msg: __class__.__error("Erroneous Area of Interest", msg)
+
         logger.info(f'File with the area of interest to load: {fileName}')
         ds = ogr.Open(str(fileName))
         if ds.GetLayerCount() > 1:
             logger.warning('Data source has multiple layers. Will use the first one.')
         layer = ds.GetLayer(0)
-        if layer.GetFeatureCount() != 1:
-            return logger.error('First layer does not have a single feature. Choose another file.')
+        if not layer.GetFeatureCount():
+            return error('First layer does not have any feature. Choose another file.')
+        if layer.GetFeatureCount() > 1:
+            logger.warning('First layer has several features. Will use the first one.')
         # For both KML and Shape, layer.GetFeatureCount() reports 1.
         # For KML, GetFeature(1) returns the only feature, while for Shape it must be GetFeature(0).
         # Hence, do not rely on GetFeature(idx), but on iteration, which works for both.
-        feature, = layer
+        feature, *_ = layer
         geom = feature.GetGeometryRef()
         geom.FlattenTo2D()
-        if geom.GetGeometryType() != ogr.wkbPolygon:
-            return logger.error(f"First layer's first feature is not a polygon, but a {geom.GetGeometryName()}. Choose another file.")
         if not geom.IsSimple():
-            return logger.error("First layer's first feature is not a simple polygon. Choose another file.")
+            return error("First layer's first feature is not a simple geometry. Choose another file.")
         geom.TransformTo(self.__wcs)
+        if geom.GetGeometryType() in (ogr.wkbPoint, ogr.wkbLineString):
+            bufferRadius, ok = QInputDialog.getDouble(None, f'Buffer {geom.GetGeometryName()}', 'radius [m]', 100, 1)
+            if not ok:
+                return
+            geom = geom.Buffer(bufferRadius)
+        elif geom.GetGeometryType() != ogr.wkbPolygon:
+            return error(f"First layer's first feature is not a polygon, point, or polyline, but a {geom.GetGeometryName()}. "
+                         "Choose another file.")
         assert geom.GetGeometryCount() >= 1
         outerRing = geom.GetGeometryRef(0)
         pts = outerRing.GetPoints()
@@ -124,9 +134,8 @@ class MapScene(QGraphicsScene):
 
     def loadAerialsFile(self, fileName: Path) -> None:
         logger.info(f'Spreadsheet with image meta data to load: {fileName}')
-        if self.__db is not None:
-            self.__db.close()
         dbPath = fileName.with_suffix('.sqlite')
+        rmDb = False
         if dbPath.exists():
             button = QMessageBox.question(
                 None, 'Data base exists', f'Data base {dbPath} already exists.<br/>Open and load orientations? Otherwise, it will be overwritten.',
@@ -134,30 +143,30 @@ class MapScene(QGraphicsScene):
             if button == QMessageBox.Abort:
                 return
             if button == QMessageBox.Discard:
-                dbPath.unlink()
-      
-        if self.__aoi is not None:
-            self.removeItem(self.__aoi)
-        self.clear()
-        if self.__aoi is not None:
-            self.addItem(self.__aoi)
+                rmDb = True
 
-        AerialImage.previewRootDir = Path(self.__config['PREVIEWS']['rootDir'])
-        if not AerialImage.previewRootDir.is_absolute():
-            AerialImage.previewRootDir = fileName.parent / AerialImage.previewRootDir
-
-        imageRootDir = Path(self.__config['IMAGES']['rootDir'])
-        if not imageRootDir.is_absolute():
-            imageRootDir = fileName.parent / imageRootDir
-        AerialImage.imageRootDir = imageRootDir
-        imgExt = '.ecw'
-
-        fsImgFiles = set(Path(el) for el in glob.iglob(str(imageRootDir / ('**/*' + imgExt)), recursive=True))
         sheet_name='Geo_Abfrage_SQL'
         df = pd.read_excel(fileName, sheet_name=sheet_name, true_values=['Ja', 'ja'], false_values=['Nein', 'nein'])
         if not self.__cleanData(df, sheet_name):
             return
 
+        AerialImage.previewRootDir = Path(self.__config['PREVIEWS']['rootDir'])
+        if not AerialImage.previewRootDir.is_absolute():
+            AerialImage.previewRootDir = fileName.parent / AerialImage.previewRootDir
+        AerialImage.imageRootDir = Path(self.__config['IMAGES']['rootDir'])
+        if not AerialImage.imageRootDir.is_absolute():
+            AerialImage.imageRootDir = fileName.parent / AerialImage.imageRootDir
+
+        if self.__aoi is not None:
+            self.removeItem(self.__aoi)
+        self.clear()
+        if self.__aoi is not None:
+            self.addItem(self.__aoi)
+        if self.__db is not None:
+            self.__db.close()
+            self.__db = None
+        if rmDb:
+            dbPath.unlink()
         self.__db = sqlite3.connect(dbPath, isolation_level=None)
         self.__db.execute('PRAGMA foreign_keys = ON')
         AerialImage.createTables(self.__db)
@@ -170,13 +179,12 @@ class MapScene(QGraphicsScene):
         # Also, errors during setup will leave an existing DB in its original state.
         self.__db.execute('BEGIN TRANSACTION')
         for row in df.itertuples(index=False):
-            #fn = f'{row.Datum.year}-{row.Datum.month:02}-{row.Datum.day:02}_{row.Sortie}_{row.Bildnr}' + imgExt
-            #imgFilePath = imageRootDir / fn
-            imgId = Path(row.Sortie) / f'{row.Bildnr}{imgExt}'
-            imgFilePath = imageRootDir / imgId
-            if not row.LBDB and imgFilePath in fsImgFiles:
+            #fn = f'{row.Datum.year}-{row.Datum.month:02}-{row.Datum.day:02}_{row.Sortie}_{row.Bildnr}.ecw'
+            imgId = Path(row.Sortie) / f'{row.Bildnr}.ecw'
+            imgFilePath = AerialImage.imageRootDir / imgId
+            if not row.LBDB and imgFilePath.exists():
                 shouldBeMissing.append(imgFilePath.name)
-            elif row.LBDB and imgFilePath not in fsImgFiles:
+            elif row.LBDB and not imgFilePath.exists():
                 shouldBeThere.append(imgFilePath.name)
             xlsImgFiles.append(imgFilePath)
             csDb = osr.SpatialReference()
@@ -194,60 +202,25 @@ class MapScene(QGraphicsScene):
         for view in self.views():
             view.fitInView(self.itemsBoundingRect(), Qt.KeepAspectRatio)
 
-        if any((shouldBeMissing, shouldBeThere)):
-            msgs = []
-            if shouldBeMissing:
-                msgs.append('{} out of {} files should be missing according to {}, but they are present: {}'.format(
-                    len(shouldBeMissing), len(xlsImgFiles), sheet_name, ', '.join(shouldBeMissing)))
-            if shouldBeThere:
-                msgs.append('{} out of {} files should be present according to {}, but they are missing: {}'.format(
-                    len(shouldBeThere), len(xlsImgFiles), sheet_name, ', '.join(shouldBeThere)))
-            for msg in msgs:
-                logger.warning(msg)
-            QMessageBox.warning(None, "Inconsistency", _truncateMsg('\n'.join(msgs)))
-
-        xlsImgFiles = set(xlsImgFiles)
-        spare = fsImgFiles - xlsImgFiles
-        if spare:
-            msg = '{} files are present, but not in {}: {}'.format(len(spare), sheet_name, ', '.join(el.name for el in spare))
+        msgs = []
+        if shouldBeMissing:
+            msgs.append('{} out of {} files should be missing according to {}, but they are present: {}'.format(
+                len(shouldBeMissing), len(xlsImgFiles), sheet_name, ', '.join(shouldBeMissing)))
+        if shouldBeThere:
+            msgs.append('{} out of {} files should be present according to {}, but they are missing: {}'.format(
+                len(shouldBeThere), len(xlsImgFiles), sheet_name, ', '.join(shouldBeThere)))
+        for msg in msgs:
             logger.warning(msg)
-            QMessageBox.warning(None, "Inconsistency", _truncateMsg(msg))
+            QMessageBox.warning(None, 'Inconsistency', _truncateMsg(msg))
 
-        logger.info('{} of {} images available.'.format(
-            sum(el.image.availability() == Availability.image for el in aerialObjects), len(aerialObjects)))
+        images = [el.image() for el in aerialObjects]
+        availabilityCounts = collections.Counter((image.availability() for image in images))
+        title = 'Availabilities of {} aerials'.format(len(aerialObjects))
+        msgs = [f'{el.name}:\t{availabilityCounts[el]}' for el in reversed(Availability)]
+        logger.info(title + ': ' + ','.join(msgs))
+        QMessageBox.information(None, title, title + '\n' + '\n'.join(msgs))
 
-        self.emitAerialsLoaded([el.image for el in aerialObjects])
-
-
-    def __cleanData(self, df: pd.DataFrame, sheet_name: str) -> bool:
-        def error(msg):
-            logger.error(msg)
-            QMessageBox.critical(None, "Erroneous Coordinate Reference System", msg)
-            return False
-
-        df['Datum'] = df['Datum'].dt.date  # strip time of day
-
-        # EPSG codes' column seems to be named either 'EPSG-Code', or 'EPSGCode'.
-        # Standardize the name into a Python identifier.
-        iEpsgs = [idx for idx, el in enumerate(df.columns) if 'epsg' in el.lower()]
-        iXWgs84s = [idx for idx, el in enumerate(df.columns) if 'xwgs84' in el.lower()]
-        iYWgs84s = [idx for idx, el in enumerate(df.columns) if 'ywgs84' in el.lower()]
-        for idxs, name in [(iEpsgs, 'EPSG code'), (iXWgs84s, 'WGS84 longitude'), (iYWgs84s, 'WGS84 latitude')]:
-            if len(idxs) > 1:
-                return error('Multiple columns in {} seem to provide {}: {}.'.format(sheet_name, name, ', '.join(df.columns[idx] for idx in idxs)))
-        if iEpsgs and (iXWgs84s or iYWgs84s):
-            return error(f'{sheet_name} defines columns both for EPSG code and WGS84 coordinates.')
-        if iEpsgs:
-            df.rename(columns={df.columns[iEpsgs[0]]: "EPSG_Code"}, inplace=True)
-        elif iXWgs84s or iYWgs84s:
-            if not (iXWgs84s and iYWgs84s):
-                return error(f'{sheet_name} defines only one WGS84 coordinate.')
-            #series = pd.Series([4326] * len(df))
-            df['EPSG_Code'] = [4326] * len(df)
-            df.rename(columns={df.columns[iXWgs84s[0]]: "x", df.columns[iYWgs84s[0]]: "y"}, inplace=True)
-        else:
-            return error(f"{sheet_name} seems to provide no information on coordinate system. Columns are: {', '.join(df.columns)}")
-        return True
+        self.emitAerialsLoaded(images)
 
 
     def emitAerialsLoaded(self, images: Optional[list[AerialImage]] = None) -> None:
@@ -291,3 +264,37 @@ class MapScene(QGraphicsScene):
     def __lastDir(self, value: str):
         settings = QSettings("TU WIEN", "Image Selection", self)
         settings.setValue("lastDir", value)
+
+    @staticmethod
+    def __error(title, msg):
+        logger.error(msg)
+        QMessageBox.critical(None, title, msg)
+        return False
+
+    @staticmethod
+    def __cleanData(df: pd.DataFrame, sheet_name: str) -> bool:
+        error = lambda msg: __class__.__error("Erroneous Coordinate Reference System", msg)
+
+        df['Datum'] = df['Datum'].dt.date  # strip time of day
+
+        # EPSG codes' column seems to be named either 'EPSG-Code', or 'EPSGCode'.
+        # Standardize the name into a Python identifier.
+        iEpsgs = [idx for idx, el in enumerate(df.columns) if 'epsg' in el.lower()]
+        iXWgs84s = [idx for idx, el in enumerate(df.columns) if 'xwgs84' in el.lower()]
+        iYWgs84s = [idx for idx, el in enumerate(df.columns) if 'ywgs84' in el.lower()]
+        for idxs, name in [(iEpsgs, 'EPSG code'), (iXWgs84s, 'WGS84 longitude'), (iYWgs84s, 'WGS84 latitude')]:
+            if len(idxs) > 1:
+                return error('Multiple columns in {} seem to provide {}: {}.'.format(sheet_name, name, ', '.join(df.columns[idx] for idx in idxs)))
+        if iEpsgs and (iXWgs84s or iYWgs84s):
+            return error(f'{sheet_name} defines columns both for EPSG code and for WGS84 coordinates.')
+        if iEpsgs:
+            df.rename(columns={df.columns[iEpsgs[0]]: "EPSG_Code"}, inplace=True)
+        elif iXWgs84s or iYWgs84s:
+            if not (iXWgs84s and iYWgs84s):
+                return error(f'{sheet_name} defines only one WGS84 coordinate.')
+            #series = pd.Series([4326] * len(df))
+            df['EPSG_Code'] = [4326] * len(df)
+            df.rename(columns={df.columns[iXWgs84s[0]]: "x", df.columns[iYWgs84s[0]]: "y"}, inplace=True)
+        else:
+            return error(f"{sheet_name} seems to provide no information on coordinate system. Columns are: {', '.join(df.columns)}")
+        return True

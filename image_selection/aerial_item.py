@@ -52,6 +52,7 @@ from pathlib import Path
 import sqlite3
 import threading
 from typing import Any, Optional, Union
+import weakref
 
 from . import GdalPushLogHandler
 from .preview_window import ContrastEnhancement, enhanceContrast, PreviewWindow
@@ -103,31 +104,32 @@ class AerialObject(QObject):
         super().__init__()
         point = AerialPoint()
         image = AerialImage(imgId, posScene, meta, point, db)
-        self.__point = point
-        self.image = image
+        self.__point = weakref.ref(point)
+        self.image = weakref.ref(image)
         point.setImage(image)
         image.setVisible(False)
         scene.contrastEnhancementChanged.connect(image.setContrastEnhancement)
-        scene.visualizationChanged.connect(self.setVisualization, Qt.QueuedConnection)
+        scene.visualizationChanged.connect(self.setVisualization)
         toolTip = [f'<tr><td>{name}</td><td>{value}</td></tr>' for name, value in meta._asdict().items()]
         toolTip = ''.join(['<table>'] + toolTip + ['</table>'])
         for el in point, image:
             el.setToolTip(toolTip)
             # Add the items to the scene only now, such that they have not emitted scene signals during their setup.
             scene.addItem(el)
-
-        self.__point.__keepMeAlive = self
+        image.__keepMeAlive = self
 
 
     @pyqtSlot(dict, dict, set)
     def setVisualization(self, usages: dict[Usage, bool], visualizations: dict[Availability, Visualization], filteredImageIds: set[str]):
-        usageIsOn = usages.get(self.image.usage())
-        visualization = visualizations.get(self.image.availability())
-        if usageIsOn is None or visualization is None:
-            return
-        isFiltered = not filteredImageIds or self.image.id() in filteredImageIds
-        self.__point.setVisible(visualization == Visualization.asPoint and usageIsOn and isFiltered)
-        self.image.setVisible(visualization == Visualization.asImage and usageIsOn and isFiltered)
+        if image := self.image():
+            usageIsOn = usages.get(image.usage())
+            visualization = visualizations.get(image.availability())
+            if usageIsOn is None or visualization is None:
+                return
+            isFiltered = not filteredImageIds or image.id() in filteredImageIds
+            image.setVisible(visualization == Visualization.asImage and usageIsOn and isFiltered)
+            if point := self.__point():
+                point.setVisible(visualization == Visualization.asPoint and usageIsOn and isFiltered)
 
 
 class AerialPoint(QGraphicsEllipseItem):
@@ -141,14 +143,15 @@ class AerialPoint(QGraphicsEllipseItem):
         self.__transformState = TransformState.original
         self.__cross = _makeOverlay('cross', self)
         self.__tick = _makeOverlay('tick', self)
-        self.__image: Optional[AerialImage] = None
+        self.__image: Optional[weakref.ref] = None
 
 
     def mouseDoubleClickEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         if event.button() == Qt.LeftButton:
             self.setVisible(False)
-            self.__image.setVisible(True)
-            self.__image.setFocus(Qt.OtherFocusReason)
+            if image := self.__image():
+                image.setVisible(True)
+                image.setFocus(Qt.OtherFocusReason)
         else:
             super().mouseDoubleClickEvent(event)
 
@@ -175,7 +178,7 @@ class AerialPoint(QGraphicsEllipseItem):
 
 
     def setImage(self, image: 'AerialImage') -> None:
-        self.__image = image
+        self.__image = weakref.ref(image)
         self.setAvailability(image.availability())
         self.setUsage(image.usage())
         self.setTransformState(image.transformState())

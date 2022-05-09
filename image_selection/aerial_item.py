@@ -36,7 +36,7 @@ However, this sounds slow.
 
 from qgis.PyQt.QtCore import pyqtSlot, QEvent, QObject, QPointF, QSize, QRect, Qt
 from qgis.PyQt.QtGui import QBitmap, QBrush, QColor, QCursor, QFocusEvent, QIcon, QImage, QKeyEvent, QPen, QPainter, QPixmap, QTransform
-from qgis.PyQt.QtWidgets import (QDialog, QGraphicsEllipseItem, QGraphicsItem, QMenu, QGraphicsPixmapItem,
+from qgis.PyQt.QtWidgets import (QDialog, QGraphicsEffect, QGraphicsEllipseItem, QGraphicsItem, QMenu, QGraphicsPixmapItem,
                                  QGraphicsScene, QGraphicsSceneContextMenuEvent, QGraphicsSceneMouseEvent,
                                  QGraphicsSceneWheelEvent, QStyle, QStyleOptionGraphicsItem, QWhatsThis, QWidget)
 
@@ -98,6 +98,15 @@ class Visualization(enum.Enum):
     asImage = enum.auto()
 
 
+class InversionEffect(QGraphicsEffect):
+    def draw(self, painter):
+        pixmap, offset = self.sourcePixmap(Qt.DeviceCoordinates)
+        img = pixmap.toImage() 
+        img.invertPixels()
+        painter.setWorldTransform(QTransform())
+        painter.drawPixmap(offset, QPixmap.fromImage(img))
+
+
 class AerialObject(QObject):
 
     def __init__(self, scene: QGraphicsScene, posScene: QPointF, imgId: str, meta, db: sqlite3.Connection):
@@ -108,15 +117,19 @@ class AerialObject(QObject):
         self.image = weakref.ref(image)
         point.setImage(image)
         image.setVisible(False)
+        self.__timerId = None
         scene.contrastEnhancementChanged.connect(image.setContrastEnhancement)
         scene.visualizationChanged.connect(self.setVisualization)
         toolTip = [f'<tr><td>{name}</td><td>{value}</td></tr>' for name, value in meta._asdict().items()]
         toolTip = ''.join(['<table>'] + toolTip + ['</table>'])
         for el in point, image:
             el.setToolTip(toolTip)
+            effect = InversionEffect()
+            effect.setEnabled(False)
+            el.setGraphicsEffect(effect)
             # Add the items to the scene only now, such that they have not emitted scene signals during their setup.
             scene.addItem(el)
-        image.__keepMeAlive = self
+        image.object = self
 
 
     @pyqtSlot(dict, dict, set)
@@ -130,6 +143,29 @@ class AerialObject(QObject):
             image.setVisible(visualization == Visualization.asImage and usageIsOn and isFiltered)
             if point := self.__point():
                 point.setVisible(visualization == Visualization.asPoint and usageIsOn and isFiltered)
+
+
+    def animate(self):
+        wasAnimated = self.__timerId is not None
+        if not wasAnimated:
+            self.__timerId = self.startTimer(500)
+
+
+    def timerEvent(self, event) -> None:
+        for item in (self.image(), self.__point()):
+            if item:
+                if effect := item.graphicsEffect():
+                    effect.setEnabled(not effect.isEnabled())
+
+
+    def stopAnimation(self):
+        if self.__timerId is not None:
+            self.killTimer(self.__timerId)
+            self.__timerId = None
+            for item in (self.image(), self.__point()):
+                if item:
+                    if effect := item.graphicsEffect():
+                        effect.setEnabled(False)
 
 
 class AerialPoint(QGraphicsEllipseItem):

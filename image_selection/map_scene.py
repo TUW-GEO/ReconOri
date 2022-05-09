@@ -75,6 +75,18 @@ class MapScene(QGraphicsScene):
             self.loadAerialsFile(Path(fileName))
 
 
+    @pyqtSlot(set)
+    def highlightAerial(self, imageIds):
+        logger.info(f'highlight {imageIds}')
+        for item in self.items():
+            if isinstance(item, AerialImage):
+                if imageIds:
+                    if item.id() in imageIds:
+                        item.object.animate()
+                else:
+                    item.object.stopAnimation()
+
+
     def unload(self):
         AerialImage.unload()
         if self.__db is not None:
@@ -180,7 +192,7 @@ class MapScene(QGraphicsScene):
         self.__db.execute('BEGIN TRANSACTION')
         for row in df.itertuples(index=False):
             #fn = f'{row.Datum.year}-{row.Datum.month:02}-{row.Datum.day:02}_{row.Sortie}_{row.Bildnr}.ecw'
-            imgId = Path(row.Sortie) / f'{row.Bildnr}.ecw'
+            imgId = (Path(row.Sortie) / f'{row.Bildnr}.ecw').as_posix()
             imgFilePath = AerialImage.imageRootDir / imgId
             if not row.LBDB and imgFilePath.exists():
                 shouldBeMissing.append(imgFilePath.name)

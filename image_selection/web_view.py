@@ -39,6 +39,8 @@ class WebView(QWebView):
 
     aerialFilterChanged = pyqtSignal(set)
 
+    highlightAerial = pyqtSignal(set)
+
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.setWhatsThis('Hit F5 to re-load.' + (' Hit F4 to open Web Inspector.' if webInspectorSupport else ''))
@@ -65,6 +67,7 @@ class WebView(QWebView):
         # Let Webkit handle no links at all, but trigger QWebView's signal linkClicked(QUrl) instead.
         page.setLinkDelegationPolicy(QWebPage.DelegateAllLinks)
         self.linkClicked.connect(self.__onWebLinkClicked)
+        page.linkHovered.connect(self.__onWebLinkHovered)
 
         frame = page.mainFrame()
         for ori in Qt.Orientation.Horizontal, Qt.Orientation.Vertical:
@@ -177,6 +180,15 @@ class WebView(QWebView):
         imgIds = json.loads(url.fragment(QUrl.FullyDecoded))
         logger.info(f'onWebLinkClicked: {imgIds}')
         self.aerialFilterChanged.emit(set(imgIds))
+
+    
+    @pyqtSlot(str, str, str)
+    def __onWebLinkHovered(self, link, title, textContent) -> None:
+        if link:
+            fragment = urllib.parse.urlparse(link).fragment
+            self.highlightAerial.emit({urllib.parse.unquote(fragment)})
+        else:
+            self.highlightAerial.emit(set())
 
 
     @pyqtSlot(list)

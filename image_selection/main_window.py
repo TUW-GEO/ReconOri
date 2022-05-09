@@ -76,6 +76,7 @@ class MainWindow(FormBase):
         scene.aerialUsageChanged.connect(webView.aerialUsageChanged)
         self.__filteredImageIds: set[str] = set()
         webView.aerialFilterChanged.connect(self.__onAerialFilterChanged)
+        webView.highlightAerial.connect(scene.highlightAerial)
         # Having re-loaded the web page (with possibly changed JavaScript), re-transmit to the page the data we have.
         # Otherwise, the whole PlugIn would need to be re-loaded, meaning a shut-down and re-start of the HTTP-server, which takes time.
         webView.loadFinished.connect(lambda ok: scene.emitAerialsLoaded() if ok else None)
@@ -211,7 +212,7 @@ class MainWindow(FormBase):
         ui.aerialsFreeze.toggled.connect(lambda checked: ui.mapView.setInteractive(not checked))
 
         scene.aerialsLoaded.connect(lambda *_: self.__onContrastEnhancementToggled(ui.aerialsContrastEnhancement.isChecked()))
-        scene.aerialsLoaded.connect(lambda *_: self.__onVisualizationChanged())
+        scene.aerialsLoaded.connect(lambda *_: self.__onAerialFilterChanged(set()))
 
 
     def unload(self) -> None:

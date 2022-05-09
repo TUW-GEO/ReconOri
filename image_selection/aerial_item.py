@@ -679,7 +679,8 @@ Double-click to close.<br/>
 
 
     def footprint(self):
-        return [{'x': pt.x(), 'y': pt.y()} for pt in self.mapToScene(self.boundingRect())[:-1]]
+        # CS QGraphicsScene -> WCS: invert y-coordinate
+        return [{'x': pt.x(), 'y': -pt.y()} for pt in self.mapToScene(self.boundingRect())[:-1]]
 
 
 def _pixMapHeightFor(width: int, size: QSize) -> int:

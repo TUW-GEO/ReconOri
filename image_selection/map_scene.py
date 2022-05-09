@@ -207,6 +207,7 @@ class MapScene(QGraphicsScene):
             if csDb.EPSGTreatsAsNorthingEasting() or csDb.EPSGTreatsAsLatLong():
                 x, y = y, x
             wcsCtr = db2wcs.TransformPoint(x, y)
+            # WCS -> CS QGraphicsScene: invert y-coordinate
             aerialObjects.append(AerialObject(self, QPointF(wcsCtr[0], -wcsCtr[1]), str(imgId), row, self.__db))
 
         self.__db.execute('COMMIT TRANSACTION')
@@ -263,7 +264,8 @@ class MapScene(QGraphicsScene):
         scenePos = self.__aoi.pos()
         polyg = self.__aoi.polygon()
         self.areaOfInterestLoaded.emit(
-            [{'x': pt_.x(), 'y': pt_.y()}
+            # CS QGraphicsScene -> WCS: invert y-coordinate
+            [{'x': pt_.x(), 'y': -pt_.y()}
              for pt in polyg for pt_ in (pt + scenePos,)])
         
 

@@ -2,10 +2,10 @@
   DoRIAH Image Selection - Visualization
   ip: Ignacio Perez-Messina
   TODO
-  + abstract timebin visualization
-  + add attack records with lines that follow all the way
   + calculate real coverages
   + add hovering interaction
+  + add usage and availability
+  + improve layouting of timebin view as an arc
 */
 
 let aerials = [];
@@ -23,20 +23,18 @@ let visible = [];
 //// SKETCH
 
 function preload() {
-  attacks = loadTable('data/Attack_List_St_Poelten.xlsx - Tabelle1.csv', 'header').rows;
+  attacks = loadTable('data/AttackList_Vienna.xlsx - Tabelle1.csv', 'header').rows;
 }
 
 function setup() {
   cnv = createCanvas(windowWidth,windowHeight);
   frameRate(14);
-  // only for st. Poelten attack records
-  attackDates = attacks.map( a => a.obj.DATUM).slice(0,attacks.length-1).map( a => {let d = a.split('/'); return d[2]+(d[1].length==1?'-0':'-')+d[1]+(d[0].length==1?'-0':'-')+d[0]});
+  // only for non st. Poelten attack records (DATUM vs. Datum)
+  attackDates = attacks.filter(a => a.obj.Datum).map( a => a.obj.Datum).slice(0,attacks.length-1).map( a => {let d = a.split('/'); return d[2]+(d[1].length==1?'-0':'-')+d[1]+(d[0].length==1?'-0':'-')+d[0]});
 }
 
 function draw() {
   hovered = resolveMouse();
-  // sendObject(visible.filter( a => dist(a.visualization.pos[0], a.visualization.pos[1], mouseX, mouseY) <= a.visualization.size), 'hover');
-
   background(236);
   textSize(8), fill(0), noStroke();
   translate (0, 12);
@@ -69,12 +67,12 @@ const drawViewfinder = function (timebin, r) {
   let overviews = timebin.filter ( a => a.meta.MASSTAB > 20000);
 
   const getMaxCvg = function (aerials) {
-    return max(aerials.map( a=> a.meta.Abd));
+    return max(aerials.map( a=> a.visualization.Cvg));
   }
   const getPaired = function (aerials, flights) {
     return flights.reduce( (v, flight) => {
       let flightAerials = aerials.filter( a => a.meta.Sortie === flight);
-      return v || (flightAerials.reduce ( (agg, a) => agg+(a.meta.Abd==100?1:0), 0) >= 2? true:false);
+      return v || (flightAerials.reduce ( (agg, a) => agg+(a.visualization.Cvg==100?1:0), 0) >= 2? true:false);
     }, false)
   }
 
@@ -150,36 +148,6 @@ const drawTimebin = function (aerialDate) {
   let overviews = timebin.filter ( a => a.meta.MASSTAB > 20000);
 
   const drawTimebinRow = function(aerialRow, r) {
-    // if (aerialRow.length > 1) {
-    //   let agg = [];
-    //   aerialRow.forEach( a => {
-    //     if (agg.length == 0) agg.push(a);
-    //     else agg.forEach( b => {
-    //       if (!Array.isArray(b) && b.meta.Sortie === a.meta.Sortie && new String(a.meta.Bildnr).slice(1) === new String(b.meta.Bildnr).slice(1)) {
-    //         agg.splice(agg.indexOf(b),1 );
-    //         agg.push([b,a]);
-    //       }
-    //       else agg.push(a);
-    //     });
-        
-    //   })
-    //   aerialRow = agg.map( a => Array.isArray(a)?a:[a]);
-    // }
-    // console.log(aerialRow);
-    
-    // aerialRow = aerialRow.reduce( (agg, a) => {
-    //   let pair = agg.forEach( b => {
-    //     if (b.length == 1 && b[0].meta.Sortie === a.meta.Sortie && new String(a.meta.Bildnr).slice(1) === new String(b[0].meta.Bildnr).slice(1)) b.push(a)
-    //     else agg.push([a]);
-    //     return agg; 
-    //   });
-    //   filter( b => b.length == 1 && b[0].meta.Sortie === a.meta.Sortie && new String(a.meta.Bildnr).slice(1) === new String(b[0].meta.Bildnr).slice(1));
-    //   console.log(agg);
-    //   console.log(pair);
-    //   pair.length == 1? agg[agg.indexOf(pair)].push(a):agg.push([a]);
-    //   return agg;
-    // }, []);
-    // console.log(aerialRow);
     aerialRow.sort( (a,b) => new String(a.meta.Bildnr).slice(1) < new String(b.meta.Bildnr).slice(1) ? 1:-1 ).sort( (a,b) => a.meta.Sortie > b.meta.Sortie?1:-1);
     // draw flight arcs
     aerialRow.forEach( (a,i,arr) => { 
@@ -207,67 +175,34 @@ const drawTimebin = function (aerialDate) {
       pop();
     });
   }
+  // const drawPolygons = function (aerials) {
+  //   aerials.forEach(( a, i ) => {
+  //     if (aerial.visualization) {
+  //       fill(255,0,0,20), stroke('red'), strokeWeight(.2), textAlign(LEFT);
+  //       // text(a.visualization.aoiIntersection[0],0 ,i*8);
+  //       push(), translate(width/2, height/2);
+  //       beginShape();
+  //       a.visualization.aoiIntersection[0].forEach( p => {
+  //         vertex(p[0]/100000,p[1]/100000);
+  //       });
+  //       endShape();
+  //       pop();
+  //     }
+  //   })
+  // }
   push(), translate(width/2,55);
   drawViewfinder(timebin, 40), pop();
   drawTimebinRow(details, height-130);
   drawTimebinRow(overviews, height-90);
-
-  // timebin.forEach( (a, i, arr) => {
-  //   push(), translate(map(i,-1,arr.length,0,width),height-60);
-  //   timebin.forEach( (b,j) => {
-  //     if (j > i && a.meta.Sortie === b.meta.Sortie && a.meta.Abd+b.meta.Abd >= 200 ) {
-  //       let l = width/(timebin.length+1)*(j-i);
-  //       strokeWeight((a.meta.Abd+b.meta.Abd-100)/20), stroke(a.meta.Abd+b.meta.Abd == 200? color(0,20):color(0,20)), noFill();
-  //       arc(l/2,0,l,l/4,-PI, 0);
-  //     }
-  //   })
-  //   pop();
-  // });
-  // timebin.forEach( (a, i, arr) => {
-  //   let R = (height-110);
-  //   let p = i/(arr.length-1)*PI-PI/2;
-  //   let x = width/2+sin(p)*R;
-  //   let y = 55+cos(p)*R;
-  //   timebin.forEach( (b,j) => {
-  //     let p2 = j/(arr.length-1)*PI-PI/2;
-  //     let x2 = width/2+sin(p2)*R;
-  //     let y2 = 55+cos(p2)*R;
-  //     if (j > i && a.meta.Sortie === b.meta.Sortie && a.meta.Abd+b.meta.Abd >= 200 ) {
-  //       strokeWeight((a.meta.Abd+b.meta.Abd-100)/20), stroke(a.meta.Abd+b.meta.Abd == 200? color(0,20):color(0,20)), noFill();
-  //       let k = R;
-  //       let p3 = (p+p2)/2;
-  //       let x3 = width/2+sin(p3)*k;
-  //       let y3 = 55+cos(p3)*k;
-  //       let d = dist(x,y,x2,y2);
-  //       let r = dist(x,y,x3,y3);
-  //       let angle = 2*atan(d/2,r);
-  //       let h = (d/2)/sin(angle);
-  //       push(), translate(width/2,55), rotate(-(p+p2)/2+PI/2);
-        // arc(k,0,r,r,-angle/2,angle/2);
-        // arc(k,0,r,r,angle/2,-angle/2);
-        // pop();
-        // let p0 = ((j+i)/2)/(arr.length-1)*PI-PI/2;
-        // let x0 = width/2+sin(p0)*(height-mouseX);
-        // let y0 = 55+cos(p0)*(height-mouseX);
-        // x0 = width/2;
-        // y0 = 55;
-        // push(), translate((height-mouseX),(height-mouseX));
-        // drawArc(x0,y0,x2,y2,x,y);
-        // pop();
-        
-        // line(x,y,x2,y2);
-  //     }
-  //   })
-  // });
 }
 
 const drawAerial = function (aerial) {
-  let r = sqrt(aerial.meta.Abd/aerial.meta.MASSTAB)*200;
+  let r = sqrt(aerial.visualization.Cvg/aerial.meta.MASSTAB)*4000;
   let nr = new String(aerial.meta.Bildnr);
   let mod = nr.slice(0,1) === '3'? -5:nr.slice(0,1) === '4'?5:0;
-  push(), stroke(0), strokeWeight(.8), drawingContext.setLineDash(aerial.meta.Abd == 100? 1:[2, 2]);
+  push(), stroke(0), strokeWeight(.8), drawingContext.setLineDash(aerial.visualization.Cvg == 100? 1:[2, 2]);
   fill(aerial.meta.LBDB? [238,195,99]:160);
-  ellipse(-mod,0,r);
+  r>0?ellipse(-mod,0,r):point(0,0);
   pop();
 }
 
@@ -301,44 +236,32 @@ function windowResized() {
 qgisplugin.aerialsLoaded.connect(function(_aerials) {
   console.log(JSON.stringify(_aerials, null, 4));
   aerials = _aerials.sort( (a,b) => a.meta.Datum > b.meta.Datum).filter( a => a.footprint);
-  aerials.forEach( a => a.visualization = {});
-  // timebins = aerials.reduce( (bins, a) => { // EACH AERIAL appears twice, ONE WITH META ONE WITH FOOTPRINT ALSO
-  //   if (bins[bins.length-1].length == 0 || bins[bins.length-1][0] === a.meta.Datum) bins[bins.length-1].push(a.meta.Datum);
-  //   else bins.push([a.meta.Datum]);
-  //   return bins;
-  // }, [[]] );
   aerialDates = aerials.map( a => a.meta.Datum).filter(onlyUnique);
-  let flights = aerials.map( a => a.meta.Sortie).filter(onlyUnique);
-  // data = {};
-  // flights.forEach( flight => {
-  //   flightAerials = aerials.filter( a => a.meta.Sortie === flight);
-  //   details = flightAerials.filter( a => a.meta.MASSTAB <= 20000);
-  //   overviews = flightAerials.filter( a => a.meta.MASSTAB > 20000);
-  //   const analyze = function (arr) {
-  //     let maxCvg = max(arr.map( a => a.meta.Abd));
-  //     let paired = (arr.reduce( (agg, a) => agg+(a.meta.Abd==100?1:0), 0) >= 2);
-  //     return {coverage: maxCvg, pair: paired}
-  //   }
-  //   data[flight] = {detail: analyze(details), overview: analyze(overviews)};
-  // })
-  // timebins.forEach( t => {
-
-  // })
-
-  // data = aerials.groupBy( a => a.meta.Sortie);
-  // Object.keys(data).forEach( k => {
-  //   data[k].detail = data[k].filter( a => a.meta.MASSTAB <= 20000);
-  //   let coverage = max(data[k].detail.map( a => a.meta.Abd));
-  //   let paired = (data[k].detail.filter( a => a.meta.Abd == 100).length >= 2)
-  //   data[k].detail = {coverage: coverage, paired: paired};
-  //   data[k].overview = data[k].filter( a => a.meta.MASSTAB > 20000);
-  // })
   currentTimebin = '';
 });
   
 qgisplugin.areaOfInterestLoaded.connect(function(_aoi){
+  const toPolygon = function (footprint) {
+    let convertedCoorArr = [footprint.map( a => turf.toWgs84([a.x,a.y]).reverse())];
+    convertedCoorArr[0].push(convertedCoorArr[0][0]);
+    return turf.polygon(convertedCoorArr);
+  }
+
   console.log("Area of interest loaded: " + JSON.stringify(_aoi, null, 4));
   aoi = _aoi;
+  let aoiPoly =  toPolygon(aoi);
+  aoiArea = turf.area(aoiPoly);
+  console.log("Area of AOI: " + aoiArea);
+
+  aerials.forEach( a => {
+    let aerialPoly = toPolygon(a.footprint);
+    let intersection = turf.intersect( aerialPoly, aoiPoly);
+    let cvg = intersection? turf.area(intersection): 0;
+    a.visualization = {
+      poly: aerialPoly, 
+      Cvg: cvg/aoiArea, 
+      aoiIntersection: intersection}
+  }); 
 });
 
 qgisplugin.aerialFootPrintChanged.connect(function(imgId, _footprint) {
@@ -361,6 +284,7 @@ qgisplugin.aerialUsageChanged.connect(function(imgId, usage){
 const sendObject = function (object, interaction) {
   document.getElementById(interaction).href = "#" +  encodeURIComponent(JSON.stringify(object));
   document.getElementById(interaction).click();
+  return 0;
 }
 
 //// DEBUGGING

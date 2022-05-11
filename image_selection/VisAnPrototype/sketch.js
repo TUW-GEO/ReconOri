@@ -239,6 +239,10 @@ qgisplugin.aerialsLoaded.connect(function(_aerials) {
   aerialDates = aerials.map( a => a.meta.Datum).filter(onlyUnique);
   currentTimebin = '';
 });
+
+qgisplugin.attackDataLoaded.connect(function(_attackData){
+  console.log("Attack data: " + JSON.stringify(_attackData, null, 4));
+});
   
 qgisplugin.areaOfInterestLoaded.connect(function(_aoi){
   const toPolygon = function (footprint) {

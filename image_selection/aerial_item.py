@@ -68,6 +68,8 @@ class Availability(enum.IntEnum):
         obj.color = color
         return obj
 
+    color: Union[Qt.GlobalColor, QColor]
+
     missing = Qt.gray
     findPreview = QColor(126, 177, 229) # Qt.blue
     preview = QColor(110, 195, 144) # Qt.green
@@ -87,6 +89,8 @@ class TransformState(enum.IntEnum):
         obj._value_ = value
         obj.penStyle = penStyle
         return obj
+
+    penStyle: Qt.PenStyle
 
     original = Qt.DotLine
     changed = Qt.SolidLine
@@ -248,6 +252,8 @@ class AerialImage(QGraphicsPixmapItem):
     __transparencyCursor = QCursor(QPixmap(':/plugins/image_selection/eye'))
 
     __threadPool: Optional[concurrent.futures.ThreadPoolExecutor] = None
+
+    object: AerialObject
 
     # To be set beforehand by the scene:
 

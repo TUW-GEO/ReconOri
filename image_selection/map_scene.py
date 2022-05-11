@@ -37,6 +37,8 @@ class MapScene(QGraphicsScene):
 
     aerialsLoaded = pyqtSignal(list)
 
+    attackDataLoaded = pyqtSignal(list)
+
     areaOfInterestLoaded = pyqtSignal(list)
 
     aerialFootPrintChanged = pyqtSignal(str, list)
@@ -55,25 +57,31 @@ class MapScene(QGraphicsScene):
         self.__wcs = osr.SpatialReference()
         self.__wcs.ImportFromEPSG(epsg)
         self.__db = None
+        self.__attackData = None
         self.__aoi = None
         self.__config = config
 
 
     @pyqtSlot()
-    def selectAoiFile(self):
-        fileName = QFileDialog.getOpenFileName(None, "Open the area of interest as a polygon", self.__lastDir, "Polygon formats (*.kml;*.shp);;Any type (*.*)")[0]
-        if fileName:
-            self.__lastDir = str(Path(fileName).parent)
-            self.loadAoiFile(Path(fileName))
-
-
-    @pyqtSlot()
     def selectAerialsFile(self):
-        fileName = QFileDialog.getOpenFileName(None, "Open DB query result", self.__lastDir, "Excel sheets (*.xls);;Any type (*.*)")[0]
+        fileName = QFileDialog.getOpenFileName(None, "Load aerial meta data", self.__lastDir, "Excel sheets (*.xls;*.xlsx);;Any type (*.*)")[0]
         if fileName:
             self.__lastDir = str(Path(fileName).parent)
             self.loadAerialsFile(Path(fileName))
 
+    @pyqtSlot()
+    def selectAttackDataFile(self):
+        fileName = QFileDialog.getOpenFileName(None, "Load attack data", self.__lastDir, "Excel sheets (*.xls;*.xlsx);;Any type (*.*)")[0]
+        if fileName:
+            self.__lastDir = str(Path(fileName).parent)
+            self.loadAttackDataFile(Path(fileName))
+
+    @pyqtSlot()
+    def selectAoiFile(self):
+        fileName = QFileDialog.getOpenFileName(None, "Load an area of interest as a polygon, or as polyline / point to buffer", self.__lastDir, "Geometry formats (*.kml;*.shp);;Any type (*.*)")[0]
+        if fileName:
+            self.__lastDir = str(Path(fileName).parent)
+            self.loadAoiFile(Path(fileName))
 
     @pyqtSlot(set)
     def highlightAerial(self, imageIds):
@@ -159,7 +167,7 @@ class MapScene(QGraphicsScene):
 
         sheet_name='Geo_Abfrage_SQL'
         df = pd.read_excel(fileName, sheet_name=sheet_name, true_values=['Ja', 'ja'], false_values=['Nein', 'nein'])
-        if not self.__cleanData(df, sheet_name):
+        if not self.__cleanAerialData(df, sheet_name):
             return
 
         AerialImage.previewRootDir = Path(self.__config['PREVIEWS']['rootDir'])
@@ -236,6 +244,47 @@ class MapScene(QGraphicsScene):
         self.emitAerialsLoaded(images)
 
 
+    def loadAttackDataFile(self, fileName: Path) -> None:
+        def date2str(arg):
+            if isinstance(arg, str):
+                return arg
+            return f'{arg.day:02}.{arg.month:02}.{arg.year}'  # a datetime.datetime
+
+        logger.info(f'Spreadsheet with attack data to load: {fileName}')
+        # Excel stores dates as numeric values (type=1; displayed according to the cell format),
+        # and pd converts these to datetime.datetime.
+        # LBDB seems to typically store attack dates as such (type=1).
+        # However, 'Projekte LBDB\Image_Selection_Projektbeispiel\Attack_List_St_Poelten.xlsx'
+        # contains as last attack a range of dates, stored as TEXT (type=2):
+        # '11.-15.04.1945'
+        # -> convert all attack dates (type=1) to a similar string, formatted like LBDBs format for dates. E.g.:
+        # '08.12.1944'
+        # Need to treat column names case insensitively:
+        # - Attack_List_St_Poelten.xlsx stores them in all upper case, 
+        # - Projekte LBDB\Image_Selection_Projektbeispiel\Image_Selection_Sample_Vienna\AttackList_Vienna.xlsx in mixed case.
+        df = pd.read_excel(fileName, sheet_name='Tabelle1', converters=dict.fromkeys(['DATUM', 'Datum', 'datum'], date2str))
+        # Homogenize the column names.
+        df.rename(mapper=str.capitalize, axis='columns', inplace=True)
+        # If we only read the column of attack dates, the rest could be skipped. 
+        # However, in addition to the dates, the fuse types (column 'Bombentyp') may be needed by the browser page.
+        # Reading at least these 2 columns complicates things.
+        # AttackList_Vienna.xlsx contains a non-empty cell (a comment) in its 55th row,
+        # to the right of the right-most actual column.
+        # read_excel reads an 'Unnamed:8'-column for that.
+        df.drop(columns=[el for el in df.columns if el.startswith('Unnamed:')], inplace=True)
+        # Below the actual data, AttackList_Vienna.xlsx contains empty cells merged horizontally.
+        # read_excel returns rows for these with all-NaN values.
+        df.dropna(how='all', inplace=True)
+        # AttackList_Vienna.xlsx contains vertically merged cells in its actual data:
+        # multiple attacks on the same day (and by the same 'Airforce', from the same 'Quelle'),
+        # where the cell in column 'Datum' (and 'Airforce', 'Quelle') is merged for all these attacks.
+        # read_excel returns NaN for all but the first row of such vertically merged cells.
+        # Use fillna to replace such NaN with the preceding not-NaN.
+        df.fillna(method='ffill', inplace=True)
+        self.__attackData = df.to_dict('records')
+        self.emitAttackDataLoaded()
+
+
     def emitAerialsLoaded(self, images: Optional[list[AerialImage]] = None) -> None:
         if self.__db is None:
             return
@@ -257,16 +306,18 @@ class MapScene(QGraphicsScene):
 
         self.aerialsLoaded.emit(list(aerials.values()))
 
+    def emitAttackDataLoaded(self):
+        if self.__attackData is not None:
+            self.attackDataLoaded.emit(self.__attackData)
 
     def emitAreaOfInterestLoaded(self):
-        if self.__aoi is None:
-            return
-        scenePos = self.__aoi.pos()
-        polyg = self.__aoi.polygon()
-        self.areaOfInterestLoaded.emit(
-            # CS QGraphicsScene -> WCS: invert y-coordinate
-            [{'x': pt_.x(), 'y': -pt_.y()}
-             for pt in polyg for pt_ in (pt + scenePos,)])
+        if self.__aoi is not None:
+            scenePos = self.__aoi.pos()
+            polyg = self.__aoi.polygon()
+            self.areaOfInterestLoaded.emit(
+                # CS QGraphicsScene -> WCS: invert y-coordinate
+                [{'x': pt_.x(), 'y': -pt_.y()}
+                for pt in polyg for pt_ in (pt + scenePos,)])
         
 
     @property
@@ -286,7 +337,7 @@ class MapScene(QGraphicsScene):
         return False
 
     @staticmethod
-    def __cleanData(df: pd.DataFrame, sheet_name: str) -> bool:
+    def __cleanAerialData(df: pd.DataFrame, sheet_name: str) -> bool:
         error = lambda msg: __class__.__error("Erroneous Coordinate Reference System", msg)
 
         df['Datum'] = df['Datum'].dt.date  # strip time of day

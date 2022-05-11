@@ -203,23 +203,9 @@
               </widget>
              </item>
              <item>
-              <widget class="QToolButton" name="loadAoi">
-               <property name="toolTip">
-                <string>Load the area of interest.</string>
-               </property>
-               <property name="text">
-                <string/>
-               </property>
-               <property name="icon">
-                <iconset resource="resources.qrc">
-                 <normaloff>:/plugins/image_selection/layer-shape-polygon</normaloff>:/plugins/image_selection/layer-shape-polygon</iconset>
-               </property>
-              </widget>
-             </item>
-             <item>
               <widget class="QToolButton" name="loadAerials">
                <property name="toolTip">
-                <string>Load a spread sheet with aerial image meta data.</string>
+                <string>Load aerial image meta data.</string>
                </property>
                <property name="text">
                 <string/>
@@ -227,6 +213,34 @@
                <property name="icon">
                 <iconset resource="resources.qrc">
                  <normaloff>:/plugins/image_selection/films</normaloff>:/plugins/image_selection/films</iconset>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QToolButton" name="loadAttackData">
+               <property name="toolTip">
+                <string>Load attack data.</string>
+               </property>
+               <property name="text">
+                <string />
+               </property>
+               <property name="icon">
+                <iconset resource="resources.qrc">
+                 <normaloff>:/plugins/image_selection/calendar</normaloff>:/plugins/image_selection/calendar</iconset>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QToolButton" name="loadAoi">
+               <property name="toolTip">
+                <string>Load an area of interest.</string>
+               </property>
+               <property name="text">
+                <string/>
+               </property>
+               <property name="icon">
+                <iconset resource="resources.qrc">
+                 <normaloff>:/plugins/image_selection/layer-shape-polygon</normaloff>:/plugins/image_selection/layer-shape-polygon</iconset>
                </property>
               </widget>
              </item>

@@ -14,6 +14,7 @@
         <file alias="flag-gray">resources/flag-gray.png</file>
         <file alias="contrast-stretch">resources/contrast.png</file>
         <file alias="films">resources/films.png</file>
+        <file alias="calendar">resources/calendar-blue.png</file>
         <file alias="picture">resources/picture.png</file>
         <file alias="freeze">resources/weather-snowflake.png</file>
         <file alias="target">resources/target.png</file>

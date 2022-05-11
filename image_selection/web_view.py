@@ -195,11 +195,13 @@ class WebView(QWebView):
     def onAerialsLoaded(self, aerials) -> None:
         self.__exposedToWebJavaScript.aerialsLoaded.emit(QVariant(aerials))
 
+    @pyqtSlot(list)
+    def onAttackDataLoaded(self, attackData) -> None:
+        self.__exposedToWebJavaScript.attackDataLoaded.emit(QVariant(attackData))
 
     @pyqtSlot(list)
     def onAreaOfInterestLoaded(self, aoi) -> None:
         self.__exposedToWebJavaScript.areaOfInterestLoaded.emit(QVariant(aoi))
-
 
     @pyqtSlot(str, list)
     def onAerialFootPrintChanged(self, imgId, footPrint) -> None:
@@ -227,6 +229,8 @@ class WebPage(QWebPage):
 class ExposedToWebJavaScript(QObject):
 
     aerialsLoaded = pyqtSignal(QVariant)
+
+    attackDataLoaded = pyqtSignal(QVariant)
 
     areaOfInterestLoaded = pyqtSignal(QVariant)
 

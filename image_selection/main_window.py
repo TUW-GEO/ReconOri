@@ -70,6 +70,7 @@ class MainWindow(FormBase):
         scene = self.ui.mapView.scene()
         webView = self.ui.webView
         scene.aerialsLoaded.connect(webView.onAerialsLoaded)
+        scene.attackDataLoaded.connect(webView.onAttackDataLoaded)
         scene.areaOfInterestLoaded.connect(webView.onAreaOfInterestLoaded)
         scene.aerialFootPrintChanged.connect(webView.onAerialFootPrintChanged)
         scene.aerialAvailabilityChanged.connect(webView.aerialAvailabilityChanged)
@@ -80,6 +81,7 @@ class MainWindow(FormBase):
         # Having re-loaded the web page (with possibly changed JavaScript), re-transmit to the page the data we have.
         # Otherwise, the whole PlugIn would need to be re-loaded, meaning a shut-down and re-start of the HTTP-server, which takes time.
         webView.loadFinished.connect(lambda ok: scene.emitAerialsLoaded() if ok else None)
+        webView.loadFinished.connect(lambda ok: scene.emitAttackDataLoaded() if ok else None)
         webView.loadFinished.connect(lambda ok: scene.emitAreaOfInterestLoaded() if ok else None)
 
         #ui.scene.loadAerialsFile(Path(r'P:\Projects\19_DoRIAH\07_Work_Data\OwnCloud\Projekte LBDB\Meeting_2021-06-10_Testprojekte\Testprojekt1\Recherche_Metadaten_Testprojekt1.xls'))
@@ -165,6 +167,7 @@ class MainWindow(FormBase):
         ui = self.ui
         scene = ui.mapView.scene()
         ui.loadAoi.clicked.connect(scene.selectAoiFile)
+        ui.loadAttackData.clicked.connect(scene.selectAttackDataFile)
         ui.loadAerials.clicked.connect(scene.selectAerialsFile)
 
         menu = QMenu(self)

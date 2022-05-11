@@ -149,9 +149,9 @@ Only necessary when `resources.qrc` has changed. If so, call in OSGeo4W shell:
 ... image_selection>pyrcc5 -o resources_rc.py resources.qrc
 ```
 
-## Debugging the PlugIn
+## IDE
 
-Do NOT install the QGIS PlugIn `debugvs`, because that uses `ptvsd`, which has been superseded by `debugpy`. 
+For debugging, do NOT install the QGIS PlugIn `debugvs`, because that uses `ptvsd`, which has been superseded by `debugpy`. 
 
 In OSGeo4W shell:
 
@@ -177,6 +177,18 @@ Unfortunately, Python support within Visual Studio is still buggy.
 Recommended!
 
 https://gist.github.com/AsgerPetersen/2000eb6f3e3307bd25190b19493dd9a3
+
+For static type checking, use pylance as language server:
+
+`"python.languageServer": "Pylance"`
+
+and set
+
+`"python.analysis.typeCheckingMode": "basic"`
+
+(both configured in `.vscode/settings.json`). Also, in OSGeo4W-shell, so Qt-types are not all flagged:
+
+`pip install PyQt5-stubs`
 
 ## Icons
 

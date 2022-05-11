@@ -1,3 +1,5 @@
 {
-    "python.pythonPath": "${env:ProgramFiles}/QGIS 3.16.14/bin/python.exe"
+    "python.pythonPath": "${env:ProgramFiles}/QGIS 3.16.14/bin/python.exe",
+    "python.languageServer": "Pylance",
+    "python.analysis.typeCheckingMode": "basic"
 }

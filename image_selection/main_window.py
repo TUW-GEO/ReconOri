@@ -22,7 +22,7 @@
 """
 from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QElapsedTimer, QMargins, QRectF, Qt
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QActionGroup, QDialogButtonBox, QMenu, QToolButton, QWhatsThis 
+from qgis.PyQt.QtWidgets import QActionGroup, QDialogButtonBox, QMenu, QToolButton, QWhatsThis
 from qgis.PyQt.uic import loadUiType
 
 import configparser
@@ -46,7 +46,6 @@ logger = logging.getLogger(__name__)
 class MainWindow(FormBase):
 
     showLogMessage = pyqtSignal(str)
-
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -86,7 +85,6 @@ class MainWindow(FormBase):
 
         #ui.scene.loadAerialsFile(Path(r'P:\Projects\19_DoRIAH\07_Work_Data\OwnCloud\Projekte LBDB\Meeting_2021-06-10_Testprojekte\Testprojekt1\Recherche_Metadaten_Testprojekt1.xls'))
 
-
     def __initMap(self):
         ui = self.ui
         with GdalPushLogHandler():
@@ -99,7 +97,7 @@ class MainWindow(FormBase):
                 (True, austria, '', 'https://maps.wien.gv.at/basemap/1.0.0/WMTSCapabilities.xml'),
                 (False, austria, 'BEV ', 'https://data.bev.gv.at/geoserver/BEVdataKAT/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities&CRS=EPSG:3857'),
                 (True, vienna, 'Stadt Wien ', 'https://maps.wien.gv.at/wmts/1.0.0/WMTSCapabilities.xml'),
-                (False, globe, '', 'WMS:http://ows.terrestris.de/osm/service')]:
+                    (False, globe, '', 'WMS:http://ows.terrestris.de/osm/service')]:
                 base = gdal.Open(url)
                 for path, desc in base.GetSubDatasets():
                     desc = desc.removeprefix('Layer ')
@@ -114,18 +112,18 @@ class MainWindow(FormBase):
                         assert len(layers) == 1
                         path = (
                             '<GDAL_WMTS>'
-                                f'<GetCapabilitiesUrl>{url}</GetCapabilitiesUrl>'
-                                f'<Layer>{layers[0]}</Layer>'
-                                #'<OfflineMode>true</OfflineMode>'
-                                '<Cache />'
-                                f'<Timeout>{HttpTimeout.seconds}</Timeout>'
+                            f'<GetCapabilitiesUrl>{url}</GetCapabilitiesUrl>'
+                            f'<Layer>{layers[0]}</Layer>'
+                            # '<OfflineMode>true</OfflineMode>'
+                            '<Cache />'
+                            f'<Timeout>{HttpTimeout.seconds}</Timeout>'
                             '</GDAL_WMTS>')
                     ui.mapSelect.addItem(icon, prefix + desc, path)
                 ui.mapSelect.insertSeparator(ui.mapSelect.count())
 
         # bbox Austria EPSG:3857
         maxX, maxY = 1913530, 6281290
-        minX, minY =  977650, 5838030
+        minX, minY = 977650, 5838030
         epsg = 3857
         scene = MapScene(minX, -maxY, maxX - minX, maxY - minY, self, epsg=epsg, config=self.__config)
         mapView = ui.mapView
@@ -135,8 +133,9 @@ class MainWindow(FormBase):
 
         mapView.isReading.connect(lambda b: ui.progressBar.setMaximum(0 if b else 1))
         mapView.datasetResolution.connect(lambda f: ui.mapResolution.setText(f'Map resolution: {f:.2f}m'))
-        mapView.reportResponseTime.connect(lambda x: ui.responseTime.setText(f'Response time: {x // 60:02.0f}:{x % 60:05.2f}'))
-        
+        mapView.reportResponseTime.connect(lambda x: ui.responseTime.setText(
+            f'Response time: {x // 60:02.0f}:{x % 60:05.2f}'))
+
         self.__responseElapsedTimer = QElapsedTimer()
         self.__responseElapsedTimer.start()
         self.startTimer(250)
@@ -156,13 +155,12 @@ class MainWindow(FormBase):
             mapView.fitInView(rect, Qt.KeepAspectRatio)
 
         for button, func in (
-                (ui.mapZoomIn , lambda: mapView.zoom(+1, False)),
+                (ui.mapZoomIn, lambda: mapView.zoom(+1, False)),
                 (ui.mapZoomOut, lambda: mapView.zoom(-1, False)),
                 (ui.mapZoomNative, lambda: mapView.zoom(None, False)),
                 #(ui.mapZoomFit, lambda: mapView.fitInView(scene.itemsBoundingRect(), Qt.KeepAspectRatio))
                 (ui.mapZoomFit, fitVisible)):
             button.pressed.connect(func)
-
 
     def __initAerials(self):
         ui = self.ui
@@ -174,10 +172,12 @@ class MainWindow(FormBase):
         menu = QMenu(self)
         group = QActionGroup(menu)
         arrowResize090 = QIcon(':/plugins/image_selection/arrow-resize-090')
-        minMax = group.addAction(menu.addAction(arrowResize090, 'MinMax', lambda: scene.contrastEnhancementChanged.emit(ContrastEnhancement.minMax)))
+        minMax = group.addAction(menu.addAction(arrowResize090, 'MinMax',
+                                 lambda: scene.contrastEnhancementChanged.emit(ContrastEnhancement.minMax)))
         minMax.setCheckable(True)
         chart = QIcon(':/plugins/image_selection/chart')
-        histogram = group.addAction(menu.addAction(chart, 'Histogram', lambda: scene.contrastEnhancementChanged.emit(ContrastEnhancement.histogram)))
+        histogram = group.addAction(menu.addAction(chart, 'Histogram',
+                                    lambda: scene.contrastEnhancementChanged.emit(ContrastEnhancement.histogram)))
         histogram.setCheckable(True)
         histogram.setChecked(True)
         ui.aerialsContrastEnhancement.setMenu(menu)
@@ -191,7 +191,9 @@ class MainWindow(FormBase):
         target = QIcon(':/plugins/image_selection/target')
         picture = QIcon(':/plugins/image_selection/picture')
         for button, avail in self.__availabilities:
-            func = lambda button=button, avail=avail: self.__onAvailabilityChanged(button, avail)
+            def func(button=button, avail=avail):
+                return self.__onAvailabilityChanged(button, avail)
+
             button.toggled.connect(lambda checked, func=func: func())
             menu = QMenu(self)
             group = QActionGroup(menu)
@@ -215,9 +217,9 @@ class MainWindow(FormBase):
 
         ui.aerialsFreeze.toggled.connect(lambda checked: ui.mapView.setInteractive(not checked))
 
-        scene.aerialsLoaded.connect(lambda *_: self.__onContrastEnhancementToggled(ui.aerialsContrastEnhancement.isChecked()))
+        scene.aerialsLoaded.connect(
+            lambda *_: self.__onContrastEnhancementToggled(ui.aerialsContrastEnhancement.isChecked()))
         scene.aerialsLoaded.connect(lambda *_: self.__onAerialFilterChanged(set()))
-
 
     def unload(self) -> None:
         try:
@@ -232,11 +234,9 @@ class MainWindow(FormBase):
         except:
             traceback.print_exc()
 
-
     def timerEvent(self, event) -> None:
         secs = self.__responseElapsedTimer.elapsed() / 1000
         self.ui.responseElapsed.setText(f'{secs // 60:02.0f}:{secs % 60:02.0f} ago')
-
 
     @pyqtSlot(bool)
     def __onContrastEnhancementToggled(self, checked) -> None:
@@ -244,7 +244,6 @@ class MainWindow(FormBase):
             self.ui.mapView.scene().contrastEnhancementChanged.emit(ContrastEnhancement.none)
         else:
             self.ui.aerialsContrastEnhancement.menu().actions()[0].actionGroup().checkedAction().trigger()
-        
 
     @pyqtSlot(QToolButton, Availability)
     def __onAvailabilityChanged(self, button, availability) -> None:
@@ -253,12 +252,10 @@ class MainWindow(FormBase):
             visualization = button.menu().actions()[0].actionGroup().checkedAction().data()
         self.__onVisualizationChanged(visualizations={availability: visualization})
 
-
     @pyqtSlot(set)
     def __onAerialFilterChanged(self, imageIds: set[str]):
         self.__filteredImageIds = imageIds
         self.__onVisualizationChanged()
-
 
     @pyqtSlot(dict, dict)
     def __onVisualizationChanged(self, usages={}, visualizations={}):
@@ -266,7 +263,8 @@ class MainWindow(FormBase):
             usages = {usage: button.isChecked() for button, usage in self.__usages}
         if not visualizations:
             visualizations = {
-                avail: button.menu().actions()[0].actionGroup().checkedAction().data() if button.isChecked() else Visualization.none
+                avail: button.menu().actions()[0].actionGroup().checkedAction(
+                ).data() if button.isChecked() else Visualization.none
                 for button, avail in self.__availabilities}
         self.ui.mapView.scene().visualizationChanged.emit(usages, visualizations, self.__filteredImageIds)
 
@@ -275,7 +273,8 @@ class StatusBarLogHandler(logging.Handler):
     def __init__(self, level: int, signal) -> None:
         super().__init__(level)
         self.__signal = signal
-        formatter = logging.Formatter('{asctime}.{msecs:.0f} {levelname}: {name} - {message}', style='{', datefmt='%H:%M:%S')
+        formatter = logging.Formatter('{asctime}.{msecs:.0f} {levelname}: {name} - {message}',
+                                      style='{', datefmt='%H:%M:%S')
         self.setFormatter(formatter)
 
     def emit(self, record: logging.LogRecord) -> None:

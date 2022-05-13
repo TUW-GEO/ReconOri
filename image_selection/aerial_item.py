@@ -72,9 +72,9 @@ class Availability(enum.IntEnum):
     color: Union[Qt.GlobalColor, QColor]
 
     missing = Qt.gray
-    findPreview = QColor(126, 177, 229) # Qt.blue
-    preview = QColor(110, 195, 144) # Qt.green
-    image = QColor(238, 195, 59) # Qt.yellow
+    findPreview = QColor(126, 177, 229)  # Qt.blue
+    preview = QColor(110, 195, 144)  # Qt.green
+    image = QColor(238, 195, 59)  # Qt.yellow
 
 
 class Usage(enum.IntEnum):
@@ -106,7 +106,7 @@ class Visualization(enum.Enum):
 class InversionEffect(QGraphicsEffect):
     def draw(self, painter):
         pixmap, offset = self.sourcePixmap(Qt.DeviceCoordinates)
-        img = pixmap.toImage() 
+        img = pixmap.toImage()
         img.invertPixels()
         painter.setWorldTransform(QTransform())
         painter.drawPixmap(offset, QPixmap.fromImage(img))
@@ -136,7 +136,6 @@ class AerialObject(QObject):
             scene.addItem(el)
         image.object = self
 
-
     @pyqtSlot(dict, dict, set)
     def setVisualization(self, usages: dict[Usage, bool], visualizations: dict[Availability, Visualization], filteredImageIds: set[str]):
         if image := self.image():
@@ -149,19 +148,16 @@ class AerialObject(QObject):
             if point := self.__point():
                 point.setVisible(visualization == Visualization.asPoint and usageIsOn and isFiltered)
 
-
     def animate(self):
         wasAnimated = self.__timerId is not None
         if not wasAnimated:
             self.__timerId = self.startTimer(500)
-
 
     def timerEvent(self, event) -> None:
         for item in (self.image(), self.__point()):
             if item:
                 if effect := item.graphicsEffect():
                     effect.setEnabled(not effect.isEnabled())
-
 
     def stopAnimation(self):
         if self.__timerId is not None:
@@ -186,7 +182,6 @@ class AerialPoint(QGraphicsEllipseItem):
         self.__tick = _makeOverlay('tick', self)
         self.__image: Optional[weakref.ref] = None
 
-
     def mouseDoubleClickEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         if event.button() == Qt.LeftButton:
             self.setVisible(False)
@@ -196,7 +191,6 @@ class AerialPoint(QGraphicsEllipseItem):
         else:
             super().mouseDoubleClickEvent(event)
 
-
     def sceneEvent(self, event: QEvent) -> bool:
         if event.type() != QEvent.WhatsThis:
             return super().sceneEvent(event)
@@ -204,19 +198,15 @@ class AerialPoint(QGraphicsEllipseItem):
         QWhatsThis.showText(cast(QHelpEvent, event).globalPos(), whatsThis)
         return True
 
-
     def focusInEvent(self, event: QFocusEvent) -> None:
         self.__setPen()
         super().focusInEvent(event)
-
 
     def focusOutEvent(self, event: QFocusEvent) -> None:
         self.__setPen()
         super().focusOutEvent(event)
 
-
     # end of overrides
-
 
     def setImage(self, image: 'AerialImage') -> None:
         self.__image = weakref.ref(image)
@@ -224,21 +214,17 @@ class AerialPoint(QGraphicsEllipseItem):
         self.setUsage(image.usage())
         self.setTransformState(image.transformState())
 
-
     def setAvailability(self, availability: Availability) -> None:
         self.setBrush(QBrush(availability.color))
-
 
     def setUsage(self, usage: Usage) -> None:
         self.setZValue(usage)
         self.__cross.setVisible(usage == Usage.discarded)
         self.__tick.setVisible(usage == Usage.selected)
 
-
     def setTransformState(self, transformState: TransformState) -> None:
         self.__transformState = transformState
         self.__setPen()
-
 
     def __setPen(self) -> None:
         self.setPen(QPen(Qt.black, 2 if self.hasFocus() else 1, self.__transformState.penStyle))
@@ -283,19 +269,16 @@ class AerialImage(QGraphicsPixmapItem):
                 path TEXT,
                 previewRect TEXT,
                 meta TEXT NOT NULL
-            ) ''')        
-
+            ) ''')
 
     @staticmethod
     def unload():
         if __class__.__threadPool is not None:
             __class__.__threadPool.shutdown(wait=False, cancel_futures=True)
 
-
     @staticmethod
     def __zValueFor(usage: Usage) -> int:
         return usage + max(Usage)
-
 
     def __init__(self, imgId: str, pos: QPointF, meta, point: AerialPoint, db: sqlite3.Connection):
         super().__init__()
@@ -303,7 +286,7 @@ class AerialImage(QGraphicsPixmapItem):
         self.setFlag(QGraphicsItem.ItemIsFocusable)
         self.setFlag(QGraphicsItem.ItemSendsGeometryChanges)
         self.setShapeMode(QGraphicsPixmapItem.BoundingRectShape)
-        self.setTransformationMode(Qt.SmoothTransformation)            
+        self.setTransformationMode(Qt.SmoothTransformation)
         self.__origPos = pos
         self.__radiusBild = meta.Radius_Bild
         self.__point = point
@@ -318,7 +301,7 @@ class AerialImage(QGraphicsPixmapItem):
         self.__cross = _makeOverlay('cross', self, QGraphicsItem.ItemIgnoresTransformations)
         self.__tick = _makeOverlay('tick', self, QGraphicsItem.ItemIgnoresTransformations)
 
-        if row := db.execute('SELECT usage, scenePos, trafo FROM aerials WHERE id == ?', [imgId] ).fetchone():
+        if row := db.execute('SELECT usage, scenePos, trafo FROM aerials WHERE id == ?', [imgId]).fetchone():
             self.__setUsage(Usage(row[0]))
             self.setPos(QPointF(*json.loads(row[1])))
             self.setTransform(QTransform(*json.loads(row[2])))
@@ -341,14 +324,13 @@ class AerialImage(QGraphicsPixmapItem):
                  json.dumps([pos.x(), pos.y()]),
                  json.dumps(np.eye(3).ravel().tolist()),
                  str(path) if path.exists() else None,
-                 json.dumps(meta._asdict(), default=toJson)] )
+                 json.dumps(meta._asdict(), default=toJson)])
             self.__setUsage(Usage.unset)
             self.__resetTransform()
             self.__setTransformState(TransformState.original)
 
         self.__deriveAvailability()
         self.__setPixMap()
-
 
     def itemChange(self, change: QGraphicsItem.GraphicsItemChange, v: Any) -> Any:
         if change == QGraphicsItem.ItemVisibleHasChanged:
@@ -377,7 +359,6 @@ class AerialImage(QGraphicsPixmapItem):
 
         return super().itemChange(change, v)
 
-
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         if not self.hasFocus():
             # Prevent this from being moved just because another item on top has ignored the event.
@@ -395,12 +376,10 @@ class AerialImage(QGraphicsPixmapItem):
             # Otherwise, super ignores the event, and so I would not receive a corresp. release event.
             super().mousePressEvent(event)
 
-
     def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         self.setOpacity(self.__opacity)
         self.__chooseCursor(event)
         super().mouseReleaseEvent(event)
-
 
     def mouseDoubleClickEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         if event.button() == Qt.LeftButton:
@@ -409,7 +388,6 @@ class AerialImage(QGraphicsPixmapItem):
             self.__point.setFocus(Qt.OtherFocusReason)
         else:
             super().mouseDoubleClickEvent(event)
-
 
     def wheelEvent(self, event: QGraphicsSceneWheelEvent) -> None:
         if self.availability() < Availability.preview or not self.hasFocus():
@@ -424,7 +402,7 @@ class AerialImage(QGraphicsPixmapItem):
             self.setOpacity(self.__opacity)
             return
 
-        pos = event.pos() # in units of image pixels; ignores self.offset() i.e. (0, 0) is the image center.
+        pos = event.pos()  # in units of image pixels; ignores self.offset() i.e. (0, 0) is the image center.
         x, y = pos.x(), pos.y()
         if not event.modifiers() & Qt.ControlModifier:
             # self.mapToScene(pt) seems to return:
@@ -457,18 +435,15 @@ class AerialImage(QGraphicsPixmapItem):
         # or equivalently:
         # self.setPos(self.pos() + origin)
 
-        
     def keyPressEvent(self, event: QKeyEvent) -> None:
         self.__chooseCursor(event)
         super().keyPressEvent(event)
-
 
     def keyReleaseEvent(self, event: QKeyEvent) -> None:
         # Note: if QMainWindow has a QMenuBar, then only every other release of the Alt key lands here.
         # Qt Designer may set a QMenuBar in .ui
         self.__chooseCursor(event)
         super().keyReleaseEvent(event)
-
 
     def sceneEvent(self, event: QEvent) -> bool:
         if event.type() != QEvent.WhatsThis:
@@ -493,16 +468,13 @@ Double-click to close.<br/>
         QWhatsThis.showText(cast(QHelpEvent, event).globalPos(), whatsThis)
         return True
 
-
     def focusInEvent(self, event: QFocusEvent) -> None:
         self.setZValue(max(Usage) * 2 + 1)
         super().focusInEvent(event)
 
-
     def focusOutEvent(self, event: QFocusEvent) -> None:
         self.setZValue(self.__zValueFor(self.usage()))
         super().focusOutEvent(event)
-
 
     def contextMenuEvent(self, event: QGraphicsSceneContextMenuEvent) -> None:
         menu = QMenu('menu')
@@ -512,16 +484,18 @@ Double-click to close.<br/>
         menu.addSection('Usage')
         usage = self.usage()
         if usage != Usage.unset:
-            menu.addAction(QIcon(':/plugins/image_selection/selection'), 'Unset', lambda: self.__setUsage(Usage.unset))
+            menu.addAction(QIcon(':/plugins/image_selection/selection'),
+                           'Unset', lambda: self.__setUsage(Usage.unset))
         if usage != Usage.selected:
-            menu.addAction(QIcon(':/plugins/image_selection/tick'), 'Select', lambda: self.__setUsage(Usage.selected))
+            menu.addAction(QIcon(':/plugins/image_selection/tick'),
+                           'Select', lambda: self.__setUsage(Usage.selected))
         if usage != Usage.discarded:
-            menu.addAction(QIcon(':/plugins/image_selection/cross'), 'Discard', lambda: self.__setUsage(Usage.discarded))
+            menu.addAction(QIcon(':/plugins/image_selection/cross'),
+                           'Discard', lambda: self.__setUsage(Usage.discarded))
         menu.addSeparator()
         if self.__transformState == TransformState.changed:
             menu.addAction(QIcon(':/plugins/image_selection/home'), 'Reset transform', self.__resetTransform)
         menu.exec(event.screenPos())
-
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: Optional[QWidget] = None) -> None:
         pm = None
@@ -551,11 +525,11 @@ Double-click to close.<br/>
 
     # end of overrides
 
-
     def __setPixMap(self, pm: Optional[QPixmap] = None):
         if pm is None:
             pixMapWidth = __class__.__pixMapWidth
-            path, previewRect = self.__db.execute('SELECT path, previewRect FROM aerials WHERE id == ?', [self.__id]).fetchone()
+            path, previewRect = self.__db.execute('SELECT path, previewRect FROM aerials WHERE id == ?',
+                                                  [self.__id]).fetchone()
             if previewRect:
                 *_, width, height = json.loads(previewRect)
             elif path:
@@ -574,9 +548,9 @@ Double-click to close.<br/>
             if scene := self.scene():
                 scene.aerialFootPrintChanged.emit(self.__id, self.footprint())
 
-
     def __requestPixMap(self):
-        path, previewRect = self.__db.execute('SELECT path, previewRect FROM aerials WHERE id == ?', [self.__id]).fetchone()
+        path, previewRect = self.__db.execute('SELECT path, previewRect FROM aerials WHERE id == ?',
+                                              [self.__id]).fetchone()
 
         if self.__availability in (Availability.preview, Availability.image):
             if not self.__loadedPixMapParams or self.__loadedPixMapParams != (self.__currentContrast, path, previewRect):
@@ -585,28 +559,25 @@ Double-click to close.<br/>
 
                 if previewRect is not None:
                     previewRect = QRect(*json.loads(previewRect))
-                future = __class__.__threadPool.submit(_getPixMap, Path(path), self.__pixMapWidth, self.__currentContrast, previewRect or QRect())
+                future = __class__.__threadPool.submit(_getPixMap, Path(path), self.__pixMapWidth,
+                                                       self.__currentContrast, previewRect or QRect())
                 future.add_done_callback(self.__pixMapReady)
 
         self.__loadedPixMapParams = self.__currentContrast, path, previewRect
-
 
     def __pixMapReady(self, future) -> None:
         with self.__futurePixmapLock:
             self.__futurePixmap = future
         self.update()
 
-
     def setContrastEnhancement(self, contrast: ContrastEnhancement):
         self.__currentContrast = contrast
         if self.isVisible():
             self.__requestPixMap()
 
-
     def availability(self) -> Availability:
         assert self.__availability is not None
         return self.__availability
-
 
     def __deriveAvailability(self) -> None:
         path, rect = self.__db.execute('SELECT path, previewRect FROM aerials WHERE id == ?', [self.__id]).fetchone()
@@ -622,13 +593,11 @@ Double-click to close.<br/>
         self.__availability = availability
         self.__point.setAvailability(availability)
 
-
     def usage(self) -> Usage:
         value, = self.__db.execute(
             'SELECT usage FROM aerials WHERE id == ?',
             [self.__id]).fetchone()
         return Usage(value)
-
 
     def __setUsage(self, usage: Usage) -> None:
         self.setZValue(self.__zValueFor(usage))
@@ -641,26 +610,21 @@ Double-click to close.<br/>
             'UPDATE aerials SET usage = ? WHERE id == ?',
             [usage, self.__id])
 
-
     def transformState(self) -> TransformState:
         return self.__transformState
-
 
     def __setTransformState(self, transformState: TransformState) -> None:
         self.__transformState = transformState
         self.__point.setTransformState(transformState)
 
-
     def __originalTransform(self) -> QTransform:
         scale = self.__radiusBild / (__class__.__pixMapWidth / 2)
         return QTransform.fromScale(scale, scale)
-
 
     def __resetTransform(self):
         self.setTransform(self.__originalTransform())
         self.setPos(self.__origPos)
         self.__setTransformState(TransformState.original)
-
 
     def __chooseCursor(self, event: Union[QKeyEvent, QGraphicsSceneMouseEvent]):
         if event.modifiers() & Qt.AltModifier:
@@ -669,7 +633,6 @@ Double-click to close.<br/>
             self.setCursor(self.__rotateCursor)
         else:
             self.unsetCursor()
-
 
     def __findPreview(self):
         filmDir = self.previewRootDir / Path(self.__id).parent
@@ -684,10 +647,8 @@ Double-click to close.<br/>
             self.__deriveAvailability()
             self.__requestPixMap()
 
-
     def id(self):
         return self.__id
-
 
     def footprint(self):
         # CS QGraphicsScene -> WCS: invert y-coordinate
@@ -698,7 +659,7 @@ def _pixMapHeightFor(width: int, size: QSize) -> int:
     return round(size.height() / size.width() * width)
 
 
-def _getPixMap(path: Path, width: int, contrast: ContrastEnhancement, rect = QRect()):
+def _getPixMap(path: Path, width: int, contrast: ContrastEnhancement, rect=QRect()):
     with GdalPushLogHandler():
         ds = gdal.Open(str(path))
         if rect.isNull():
@@ -711,10 +672,10 @@ def _getPixMap(path: Path, width: int, contrast: ContrastEnhancement, rect = QRe
         assert ds.RasterCount in (1, 3)
         iBands = [1] * 3 if ds.RasterCount == 1 else [1, 2, 3]
         ds.ReadRaster1(rect.left(), rect.top(), rect.width(), rect.height(),
-                    width, height, gdal.GDT_Byte, iBands,
-                    buf_pixel_space=4, buf_line_space=width * 4, buf_band_space=1,
-                    resample_alg=gdal.GRIORA_Gauss,
-                    inputOutputBuf=ptr)
+                       width, height, gdal.GDT_Byte, iBands,
+                       buf_pixel_space=4, buf_line_space=width * 4, buf_band_space=1,
+                       resample_alg=gdal.GRIORA_Gauss,
+                       inputOutputBuf=ptr)
 
     enhanceContrast(img, contrast)
     return QPixmap.fromImage(img)

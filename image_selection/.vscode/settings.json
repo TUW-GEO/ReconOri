@@ -1,5 +1,6 @@
 {
     "python.pythonPath": "${env:ProgramFiles}/QGIS 3.16.14/bin/python.exe",
     "python.languageServer": "Pylance",
-    "python.analysis.typeCheckingMode": "basic"
+    "python.analysis.typeCheckingMode": "basic",
+    "python.formatting.autopep8Args": ["--max-line-length", "120"]
 }

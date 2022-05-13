@@ -27,7 +27,7 @@ from .aerial_item import ContrastEnhancement, AerialObject, AerialImage, Availab
 logger = logging.getLogger(__name__)
 
 
-def _truncateMsg(msg: str, maxLen = 500):
+def _truncateMsg(msg: str, maxLen=500):
     if len(msg) > maxLen:
         return msg[:maxLen] + ' ...'
     return msg
@@ -46,11 +46,10 @@ class MapScene(QGraphicsScene):
     aerialAvailabilityChanged = pyqtSignal(str, int, str)
 
     aerialUsageChanged = pyqtSignal(str, int)
-    
+
     contrastEnhancementChanged = pyqtSignal(ContrastEnhancement)
 
     visualizationChanged = pyqtSignal(dict, dict, set)
-
 
     def __init__(self, *args, epsg: int, config: configparser.ConfigParser, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -61,24 +60,26 @@ class MapScene(QGraphicsScene):
         self.__aoi = None
         self.__config = config
 
-
     @pyqtSlot()
     def selectAerialsFile(self):
-        fileName = QFileDialog.getOpenFileName(None, "Load aerial meta data", self.__lastDir, "Excel sheets (*.xls;*.xlsx);;Any type (*.*)")[0]
+        fileName = QFileDialog.getOpenFileName(None, "Load aerial meta data",
+                                               self.__lastDir, "Excel sheets (*.xls;*.xlsx);;Any type (*.*)")[0]
         if fileName:
             self.__lastDir = str(Path(fileName).parent)
             self.loadAerialsFile(Path(fileName))
 
     @pyqtSlot()
     def selectAttackDataFile(self):
-        fileName = QFileDialog.getOpenFileName(None, "Load attack data", self.__lastDir, "Excel sheets (*.xls;*.xlsx);;Any type (*.*)")[0]
+        fileName = QFileDialog.getOpenFileName(None, "Load attack data",
+                                               self.__lastDir, "Excel sheets (*.xls;*.xlsx);;Any type (*.*)")[0]
         if fileName:
             self.__lastDir = str(Path(fileName).parent)
             self.loadAttackDataFile(Path(fileName))
 
     @pyqtSlot()
     def selectAoiFile(self):
-        fileName = QFileDialog.getOpenFileName(None, "Load an area of interest as a polygon, or as polyline / point to buffer", self.__lastDir, "Geometry formats (*.kml;*.shp);;Any type (*.*)")[0]
+        fileName = QFileDialog.getOpenFileName(None, "Load an area of interest as a polygon, or as polyline / point to buffer",
+                                               self.__lastDir, "Geometry formats (*.kml;*.shp);;Any type (*.*)")[0]
         if fileName:
             self.__lastDir = str(Path(fileName).parent)
             self.loadAoiFile(Path(fileName))
@@ -94,12 +95,10 @@ class MapScene(QGraphicsScene):
                 else:
                     item.object.stopAnimation()
 
-
     def unload(self):
         AerialImage.unload()
         if self.__db is not None:
             self.__db.close()
-
 
     def loadAoiFile(self, fileName: Path) -> None:
         def error(msg):
@@ -152,7 +151,6 @@ class MapScene(QGraphicsScene):
             view.fitInView(self.itemsBoundingRect(), Qt.KeepAspectRatio)
         self.emitAreaOfInterestLoaded()
 
-
     def loadAerialsFile(self, fileName: Path) -> None:
         logger.info(f'Spreadsheet with image meta data to load: {fileName}')
         dbPath = fileName.with_suffix('.sqlite')
@@ -166,7 +164,7 @@ class MapScene(QGraphicsScene):
             if button == QMessageBox.Discard:
                 rmDb = True
 
-        sheet_name='Geo_Abfrage_SQL'
+        sheet_name = 'Geo_Abfrage_SQL'
         df = pd.read_excel(fileName, sheet_name=sheet_name, true_values=['Ja', 'ja'], false_values=['Nein', 'nein'])
         if not self.__cleanAerialData(df, sheet_name):
             return
@@ -244,7 +242,6 @@ class MapScene(QGraphicsScene):
 
         self.emitAerialsLoaded(images)
 
-
     def loadAttackDataFile(self, fileName: Path) -> None:
         def date2str(arg):
             if isinstance(arg, str):
@@ -261,12 +258,13 @@ class MapScene(QGraphicsScene):
         # -> convert all attack dates (type=1) to a similar string, formatted like LBDBs format for dates. E.g.:
         # '08.12.1944'
         # Need to treat column names case insensitively:
-        # - Attack_List_St_Poelten.xlsx stores them in all upper case, 
+        # - Attack_List_St_Poelten.xlsx stores them in all upper case,
         # - Projekte LBDB\Image_Selection_Projektbeispiel\Image_Selection_Sample_Vienna\AttackList_Vienna.xlsx in mixed case.
-        df = pd.read_excel(fileName, sheet_name='Tabelle1', converters=dict.fromkeys(['DATUM', 'Datum', 'datum'], date2str))
+        df = pd.read_excel(fileName, sheet_name='Tabelle1',
+                           converters=dict.fromkeys(['DATUM', 'Datum', 'datum'], date2str))
         # Homogenize the column names.
         df.rename(mapper=str.capitalize, axis='columns', inplace=True)
-        # If we only read the column of attack dates, the rest could be skipped. 
+        # If we only read the column of attack dates, the rest could be skipped.
         # However, in addition to the dates, the fuse types (column 'Bombentyp') may be needed by the browser page.
         # Reading at least these 2 columns complicates things.
         # AttackList_Vienna.xlsx contains a non-empty cell (a comment) in its 55th row,
@@ -284,7 +282,6 @@ class MapScene(QGraphicsScene):
         df.fillna(method='ffill', inplace=True)
         self.__attackData = df.to_dict('records')
         self.emitAttackDataLoaded()
-
 
     def emitAerialsLoaded(self, images: Optional[list[AerialImage]] = None) -> None:
         if self.__db is None:
@@ -318,8 +315,7 @@ class MapScene(QGraphicsScene):
             self.areaOfInterestLoaded.emit(
                 # CS QGraphicsScene -> WCS: invert y-coordinate
                 [{'x': pt_.x(), 'y': -pt_.y()}
-                for pt in polyg for pt_ in (pt + scenePos,)])
-        
+                 for pt in polyg for pt_ in (pt + scenePos,)])
 
     @property
     def __lastDir(self):

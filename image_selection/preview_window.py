@@ -21,6 +21,7 @@ from typing import Optional
 
 from . import GdalPushLogHandler
 
+
 class GraphicsView(QGraphicsView):
 
     def __init__(self, *args, **kwargs) -> None:
@@ -81,7 +82,7 @@ class PreviewWindow(FormBase):
         self.__keepMeAlive = contrastGroup
         ui.splitter.setSizes([100, 500])
         ui.buttonBox.button(QDialogButtonBox.Ok).setEnabled(False)
-        assert filmDir.exists() # otherwise, the dialog will never be shown?
+        assert filmDir.exists()  # otherwise, the dialog will never be shown?
         model = QFileSystemModel(self)
         model.directoryLoaded.connect(lambda _: self.__hideColumns(model.columnCount()))
         idx = model.setRootPath(str(filmDir))
@@ -93,20 +94,17 @@ class PreviewWindow(FormBase):
         ui.graphicsView.setScene(scene)
         ui.graphicsView.rubberBandChanged.connect(lambda _, fromPt, toPt: self.__selectionChanged(QRectF(fromPt, toPt)))
 
-
     def selection(self) -> tuple[Path, QRect]:
         if self.__rect is None:
             return Path(), QRect()
         view = self.ui.treeView
         return Path(view.model().filePath(view.selectionModel().currentIndex())), self.__rect.rect().toRect()
 
-
     def __setContrastEnhancement(self, enhancement: int) -> None:
         self.__contrastEnhancement = ContrastEnhancement(enhancement)
         self.__showFile(self.ui.treeView.selectionModel().currentIndex(), False)
 
-
-    def __showFile(self, idx: QModelIndex, resetTransform = True ) -> None:
+    def __showFile(self, idx: QModelIndex, resetTransform=True) -> None:
         model = self.ui.treeView.model()
         if model.isDir(idx):
             return
@@ -123,11 +121,11 @@ class PreviewWindow(FormBase):
                 assert ds.RasterCount in (1, 3)
                 iBands = [1] * 3 if ds.RasterCount == 1 else [1, 2, 3]
                 ds.ReadRaster1(0, 0, ds.RasterXSize, ds.RasterYSize,
-                            ds.RasterXSize, ds.RasterYSize, gdal.GDT_Byte, iBands,
-                            buf_pixel_space=4, buf_line_space=ds.RasterXSize * 4, buf_band_space=1,
-                            resample_alg=gdal.GRIORA_NearestNeighbour,
-                            inputOutputBuf=ptr)
-        
+                               ds.RasterXSize, ds.RasterYSize, gdal.GDT_Byte, iBands,
+                               buf_pixel_space=4, buf_line_space=ds.RasterXSize * 4, buf_band_space=1,
+                               resample_alg=gdal.GRIORA_NearestNeighbour,
+                               inputOutputBuf=ptr)
+
             enhanceContrast(img, self.__contrastEnhancement)
 
             graphicsView = self.ui.graphicsView
@@ -146,12 +144,10 @@ class PreviewWindow(FormBase):
         finally:
             self.unsetCursor()
 
-
     def __hideColumns(self, columnCount: int) -> None:
         # Hide file size, type, etc.
         for idx in range(1, columnCount):
             self.ui.treeView.hideColumn(idx)
-
 
     def __selectionChanged(self, sceneRect: QRectF) -> None:
         if sceneRect.isNull():

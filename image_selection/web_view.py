@@ -63,7 +63,6 @@ class WebView(QWebView):
         else:
             page = WebPage(self)
             self.setPage(page)
-        
 
         # Let Webkit handle no links at all, but trigger QWebView's signal linkClicked(QUrl) instead.
         page.setLinkDelegationPolicy(QWebPage.DelegateAllLinks)
@@ -84,10 +83,9 @@ class WebView(QWebView):
         assert self.__httpd is not None
         #self.setUrl(QUrl.fromLocalFile(str(Path(__file__).parent / 'VisAnPrototype/index.html')))
         self.setUrl(QUrl(f'http://localhost:{self.__httpd.server_port}/'))
-        #self.setUrl(QUrl('https://webkit.org/blog-files/webgl/SpiritBox.html'))
-        #self.setUrl(QUrl('https://p5js.org/examples/hello-p5-animation.html'))
+        # self.setUrl(QUrl('https://webkit.org/blog-files/webgl/SpiritBox.html'))
+        # self.setUrl(QUrl('https://p5js.org/examples/hello-p5-animation.html'))
 
-        
         # Provide the option to inspect the web page with QWebInspector.
         # If the visualization did not suppress the context menu, then this could simply be:
         # set QWebSettings.WebAttribute.DeveloperExtrasEnabled above.
@@ -102,20 +100,18 @@ class WebView(QWebView):
         # shortcut.setContext(Qt.ApplicationShortcut)
         # shortcut.setKey(Qt.Key_F4)
         # shortcut.activated.connect(self.__onWebInspect)
-        
+
         # #F5 - reload page
         # shortcut = QShortcut(self)
         # shortcut.setKey(Qt.Key_F5)
         # #shortcut.activated.connect(self.reload)
         # shortcut.activated.connect(lambda: self.page().triggerAction(QWebPage.WebAction.ReloadAndBypassCache))
 
-
     def unload(self) -> None:
         if self.__httpd is not None:
             logger.debug('Shutting down httpd ...')
             self.__httpd.shutdown()
             logger.debug('httpd shut down.')
-
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if self.__httpd is not None:
@@ -127,11 +123,10 @@ class WebView(QWebView):
                 return self.page().triggerAction(QWebPage.WebAction.ReloadAndBypassCache)
         super().keyPressEvent(event)
 
-
     def __createHttpd(self) -> None:
         # https://gist.github.com/kwk/5387c0e8d629d09f93665169879ccb86
         directory = (Path(__file__).parent / 'VisAnPrototype').resolve(strict=True)
-        Handler=functools.partial(RequestHandler, directory=directory)
+        Handler = functools.partial(RequestHandler, directory=directory)
         # Pass port=0 to let the OS choose an unused port. This fails sometimes with high port numbers.
         # So pass a specific port that works and is hopefully unused.
         port = 8010
@@ -155,7 +150,6 @@ class WebView(QWebView):
 
         logger.debug(f'{thread.name} serves {directory} at {url}')
 
-
     @pyqtSlot()
     def __onWebInspect(self) -> None:
         if self.__webInspectorDialog is None:
@@ -172,11 +166,9 @@ class WebView(QWebView):
 
         self.__webInspectorDialog.setVisible(not self.__webInspectorDialog.isVisible())
 
-
     @pyqtSlot()
     def __onWebJavaScriptWindowObjectCleared(self) -> None:
         self.page().mainFrame().addToJavaScriptWindowObject('qgisplugin', self.__exposedToWebJavaScript)
-
 
     @pyqtSlot(QUrl)
     def __onWebLinkClicked(self, url: QUrl) -> None:
@@ -184,7 +176,6 @@ class WebView(QWebView):
         logger.info(f'onWebLinkClicked: {imgIds}')
         self.aerialFilterChanged.emit(set(imgIds))
 
-    
     @pyqtSlot(str, str, str)
     def __onWebLinkHovered(self, link, title, textContent) -> None:
         if link:
@@ -192,7 +183,6 @@ class WebView(QWebView):
             self.highlightAerial.emit({urllib.parse.unquote(fragment)})
         else:
             self.highlightAerial.emit(set())
-
 
     @pyqtSlot(list)
     def onAerialsLoaded(self, aerials) -> None:

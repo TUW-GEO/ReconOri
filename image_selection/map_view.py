@@ -35,18 +35,17 @@ class NoWheelScrollBar(QScrollBar):
 
     def wheelEvent(self, event: QWheelEvent) -> None:
         event.ignore()
-        
+
 
 class MapView(QGraphicsView):
 
     reportResponseTime = pyqtSignal(float)
 
     newImage = pyqtSignal()
-    
-    isReading = pyqtSignal(bool)
-    
-    datasetResolution = pyqtSignal(float)
 
+    isReading = pyqtSignal(bool)
+
+    datasetResolution = pyqtSignal(float)
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -63,7 +62,7 @@ class MapView(QGraphicsView):
         # Otherwise, QGraphicsView.wheelEvent would accept all wheel events in the end.
         self.setHorizontalScrollBar(NoWheelScrollBar(Qt.Horizontal, self))
         self.setVerticalScrollBar(NoWheelScrollBar(Qt.Vertical, self))
-        
+
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setCacheMode(QGraphicsView.CacheBackground)
@@ -90,19 +89,17 @@ class MapView(QGraphicsView):
     </ul>
   </li>
 </ul>''')
-        
+
         self.epsg: Optional[int] = None  # How to set this in __init__ via ui.setupUi?
         self.__readThread = None
         self.__mapLock = threading.Lock()
         self.__sceneRectAndImg = None
         self.__mapResolution = -1.
 
-
     def resizeEvent(self, event) -> None:
         # Also called upon (first) show. Calling this in 'load' does not help, because the viewport size has not been adapted yet.
         self.zoom(0)
         super().resizeEvent(event)
-        
 
     # def drawForeground(self, painter: QPainter, rect: QRectF):
     #     rect = self.mapToScene(self.viewport().rect()).boundingRect()
@@ -121,15 +118,13 @@ class MapView(QGraphicsView):
     #     #for radius in (9.5, 11.5):  # Flughafen
     #     for radius in (45,):  # Hauptkläranlage Wien
     #         painter.drawEllipse(ctr, radius, radius)
-        
 
     def drawBackground(self, painter: QPainter, sceneRect: QRectF) -> None:
         super().drawBackground(painter, sceneRect)
         with self.__mapLock:
             sceneRectAndImg = self.__sceneRectAndImg
-        if sceneRectAndImg is not None: 
+        if sceneRectAndImg is not None:
             painter.drawImage(*sceneRectAndImg)
-
 
     def paintEvent(self, event: QPaintEvent) -> None:
         if self.__readThread is not None:
@@ -139,10 +134,10 @@ class MapView(QGraphicsView):
             # Note: exposedSceneRect may partially lie outside the scene limits, even without rect.adjust
             exposedSceneRect: QRectF = self.mapToScene(rect).boundingRect()
             pxPerMeter = self.transform().determinant() ** .5
-            exposedWcsRect = QRectF(exposedSceneRect.left(), -exposedSceneRect.top(), exposedSceneRect.width(), -exposedSceneRect.height())
+            exposedWcsRect = QRectF(exposedSceneRect.left(), -exposedSceneRect.top(),
+                                    exposedSceneRect.width(), -exposedSceneRect.height())
             self.__readThread.requestImage(exposedWcsRect, pxPerMeter)
         super().paintEvent(event)
-
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         super().keyPressEvent(event)
@@ -153,7 +148,6 @@ class MapView(QGraphicsView):
         elif event.key() == Qt.Key_Minus:
             self.zoom(-1, False)
 
-
     def wheelEvent(self, event: QWheelEvent) -> None:
         super().wheelEvent(event)
         if event.isAccepted():
@@ -161,7 +155,6 @@ class MapView(QGraphicsView):
         numDegrees = event.angleDelta()
         numSteps = math.ceil(float(numDegrees.y()) / 8. / 15.)
         self.zoom(numSteps)
-
 
     def viewportEvent(self, event: QEvent) -> bool:
         if event.type() == QEvent.WhatsThis:
@@ -171,13 +164,12 @@ class MapView(QGraphicsView):
 
         return super().viewportEvent(event)
 
-
     # end of overrides
-
 
     def load(self, datasetPath: str) -> None:
         self.unload()
-        self.__readThread = MapReadThread(datasetPath, self.receiveImage, self.reportResponseTime.emit, self.isReading.emit)
+        self.__readThread = MapReadThread(datasetPath, self.receiveImage,
+                                          self.reportResponseTime.emit, self.isReading.emit)
         dataCs = osr.SpatialReference(self.__readThread.dataset.GetProjection())
         sceneCs = osr.SpatialReference()
         sceneCs.ImportFromEPSG(self.epsg)
@@ -186,10 +178,11 @@ class MapView(QGraphicsView):
                 dataCs.GetAuthorityCode('PROJCS'), self.epsg))
         self.__mapResolution = self.__readThread.mapResolution
         self.datasetResolution.emit(self.__mapResolution)
-        
+
         wcsFromPx = self.__readThread.dataset.GetGeoTransform()
-        wcsLeftTop  = QPointF(*gdal.ApplyGeoTransform(wcsFromPx, 0., 0.))
-        wcsRightBot = QPointF(*gdal.ApplyGeoTransform(wcsFromPx, self.__readThread.dataset.RasterXSize, self.__readThread.dataset.RasterYSize))
+        wcsLeftTop = QPointF(*gdal.ApplyGeoTransform(wcsFromPx, 0., 0.))
+        wcsRightBot = QPointF(*gdal.ApplyGeoTransform(wcsFromPx,
+                              self.__readThread.dataset.RasterXSize, self.__readThread.dataset.RasterYSize))
         wcsRect = QRectF(wcsLeftTop, wcsRightBot)
         sceneRectF = QRectF(wcsRect.x(), -wcsRect.y(), wcsRect.width(), -wcsRect.height())
 
@@ -208,7 +201,7 @@ class MapView(QGraphicsView):
         self.setSceneRect(sceneRectF)
         if not self.mapToScene(self.viewport().rect()).boundingRect().intersects(sceneRectF):
             self.ensureVisible(sceneRectF, 0, 0)
-        
+
         with self.__mapLock:
             self.__sceneRectAndImg = None
 
@@ -216,7 +209,7 @@ class MapView(QGraphicsView):
         assert self.__readThread.is_alive()
         #self.invalidateScene(self.scene().sceneRect(), QGraphicsScene.BackgroundLayer)
         self.resetCachedContent()
-        #self.zoom(0) # dataset resolution may have changed -> maybe zoom out.
+        # self.zoom(0) # dataset resolution may have changed -> maybe zoom out.
 
         itemsBoundingRect = self.scene().itemsBoundingRect()
         if not itemsBoundingRect.isNull() and not sceneRectF.contains(itemsBoundingRect):
@@ -224,11 +217,9 @@ class MapView(QGraphicsView):
                                 "Items lie outside of map's bounding rectangle and will become invisible.<br/>"
                                 'Choose a different map with larger coverage to view them, again.')
 
-
     def unload(self):
         if self.__readThread is not None:
             self.__readThread.stop()
-
 
     def receiveImage(self, img: QImage, wcsRect: QRect) -> None:
         self.newImage.emit()
@@ -237,7 +228,6 @@ class MapView(QGraphicsView):
             self.__sceneRectAndImg = sceneRectF, img
         self.invalidateScene(sceneRectF, QGraphicsScene.BackgroundLayer)
 
-
     def zoom(self, numSteps: Optional[int], underMouse: bool = True) -> None:
         currScale = self.viewportTransform().determinant() ** .5
         currExp = math.log2(currScale * self.__mapResolution)
@@ -245,7 +235,7 @@ class MapView(QGraphicsView):
             wantedScale = 2 ** (round(currExp) + numSteps) / self.__mapResolution
         else:
             wantedScale = 1 / self.__mapResolution
-        
+
         maxScale = 4. / self.__mapResolution
 
         sceneRect = self.sceneRect()
@@ -255,7 +245,7 @@ class MapView(QGraphicsView):
             viewportRect.height() / sceneRect.height())
 
         wantedScale = min(maxScale, max(minScale, wantedScale))
-        
+
         factor = wantedScale / currScale
 
         if not underMouse:
@@ -280,7 +270,7 @@ class MapReadThread(threading.Thread):
             if self.dataset.GetDriver().ShortName == 'WMS':
                 # Make WMS also use the file cache.
                 # Unlike with WMTS, it seems difficult to guess the right XML without opening the dataset first. Do so on demand only.
-                text = self.dataset.GetMetadataItem('XML','WMS')
+                text = self.dataset.GetMetadataItem('XML', 'WMS')
                 root = xml.etree.ElementTree.fromstring(text)
                 cache = root.find('Cache')
                 timeout = root.find('Timeout')
@@ -292,7 +282,7 @@ class MapReadThread(threading.Thread):
                         elem.text = str(HttpTimeout.seconds)
                     self.dataset = gdal.Open(xml.etree.ElementTree.tostring(root, encoding='unicode'))
 
-        geoTrafo = np.array(self.dataset.GetGeoTransform()).reshape((2,3))
+        geoTrafo = np.array(self.dataset.GetGeoTransform()).reshape((2, 3))
         self.mapResolution: float = np.abs(np.linalg.det(geoTrafo[:, 1:])) ** .5
         self.__stop = threading.Event()
         self.__cbImageRead = cbImageRead
@@ -302,8 +292,8 @@ class MapReadThread(threading.Thread):
         self.__job = QRectF(), -1.
         self.__exc = None
         assert self.dataset.RasterCount in (3, 4)
-        assert all(self.dataset.GetRasterBand(idx + 1).DataType == gdal.GDT_Byte for idx in range(self.dataset.RasterCount))
-        
+        assert all(self.dataset.GetRasterBand(idx + 1).DataType == gdal.GDT_Byte
+                   for idx in range(self.dataset.RasterCount))
 
     def requestImage(self, wcsRect: QRectF, pxPerMeter: float) -> None:
         with self.__jobCondition:
@@ -313,7 +303,6 @@ class MapReadThread(threading.Thread):
                 raise Exception(f'Thread {self.name} is dead.')
             self.__job = wcsRect, pxPerMeter
             self.__jobCondition.notify()
-
 
     def stop(self):
         if self.is_alive():
@@ -331,7 +320,6 @@ class MapReadThread(threading.Thread):
             if self.__exc is not None:
                 raise Exception(f'Error in thread {self.name}') from self.__exc
 
-
     def run(self) -> None:
         with GdalPushLogHandler():
             try:
@@ -339,14 +327,13 @@ class MapReadThread(threading.Thread):
             except Exception as oops:
                 with self.__jobCondition:
                     self.__exc = oops
-                
+
         self.__cbIsReading(False)
 
-
     def __run(self) -> None:
-        #gdal.SetThreadLocalConfigOption('GDAL_HTTP_LOW_SPEED_LIMIT', '1024')  # bytes per second
-        #gdal.SetThreadLocalConfigOption('GDAL_HTTP_LOW_SPEED_TIME', '1')  # seconds
-        #gdal.SetCacheMax(0)
+        # gdal.SetThreadLocalConfigOption('GDAL_HTTP_LOW_SPEED_LIMIT', '1024')  # bytes per second
+        # gdal.SetThreadLocalConfigOption('GDAL_HTTP_LOW_SPEED_TIME', '1')  # seconds
+        # gdal.SetCacheMax(0)
 
         # Initial element values of self.__job:
         wcsRect = QRectF()
@@ -384,7 +371,7 @@ class MapReadThread(threading.Thread):
 
             self.__cbIsReading(True)
             assert viewPxPerMeter > 0
-            
+
             # Note QRect's right() function returns left() + width() - 1, and the bottom() function returns top() + height() - 1.
             # >>> r = QRect(0, 0, 1, 1); (r.width(), r.height()), (r.right(), r.bottom())
             # ((1, 1), (0, 0))
@@ -393,12 +380,15 @@ class MapReadThread(threading.Thread):
             # >>> >>> r = QRect(QPoint(0, 0), QPoint(1, 1)); (r.width(), r.height()), (r.right(), r.bottom())
             # ((2, 2), (1, 1))
             # -> When constructing a QRect from 2 QPoints, then the second one is the bottom right pixel WITHIN the rect.
-            pxLeftTop = QPoint(*[math.floor(el) for el in gdal.ApplyGeoTransform(pxFromWcs, wcsRect.left(), wcsRect.top())])
-            pxRightBot = QPoint(*[math.ceil(el) for el in gdal.ApplyGeoTransform(pxFromWcs, wcsRect.right(), wcsRect.bottom())])
+            pxLeftTop = QPoint(*[math.floor(el)
+                               for el in gdal.ApplyGeoTransform(pxFromWcs, wcsRect.left(), wcsRect.top())])
+            pxRightBot = QPoint(*[math.ceil(el)
+                                for el in gdal.ApplyGeoTransform(pxFromWcs, wcsRect.right(), wcsRect.bottom())])
             pxRect = QRect(pxLeftTop, pxRightBot)
             pxRect &= QRect(0, 0, RasterXSize, RasterYSize)
             if pxRect.width() == 0 or pxRect.height() == 0:
-                continue # Surely inside scene rect, but completely outside of dataset bbox, e.g. Stadt Wien maps viewed outside of Wien.
+                # Surely inside scene rect, but completely outside of dataset bbox, e.g. Stadt Wien maps viewed outside of Wien.
+                continue
 
             # WMTS may not provide their highest resolution everywhere.
             # In these locations, reading a Dataset or Band that is not an overview fails.
@@ -457,7 +447,7 @@ class MapReadThread(threading.Thread):
                 # One way to achieve 32-bit-aligned contiguous memory, considering that the data type size is 8 bit, is to always use 4 channels.
                 img = QImage(pxRectOvr.width(), pxRectOvr.height(), QImage.Format_RGBA8888)
                 if RasterCount < 4:
-                    img.fill(Qt.white) # make opaque
+                    img.fill(Qt.white)  # make opaque
                 ptr = img.scanLine(0)
                 assert int(ptr) % 4 == 0
                 assert (int(img.scanLine(1)) - int(ptr)) % 4 == 0
@@ -494,14 +484,13 @@ class MapReadThread(threading.Thread):
                 break
 
             self.__cbImageRead(img, __class__.__wcsRectFromPxRect(wcsFromPx, pxRectOvr, scale))
-            
 
     @staticmethod
     def __wcsRectFromPxRect(wcsFromPx, pxRect: QRect, scale: float = 1.) -> QRectF:
         left, top = pxRect.left(), pxRect.top()
         width, height = pxRect.width(), pxRect.height()
         # Top left corner of top left pixel.
-        wcsLeftTop  = QPointF(*gdal.ApplyGeoTransform(wcsFromPx, left * scale, top * scale))
+        wcsLeftTop = QPointF(*gdal.ApplyGeoTransform(wcsFromPx, left * scale, top * scale))
         # Bottom right corner of bottom right pixel.
         wcsRightBot = QPointF(*gdal.ApplyGeoTransform(wcsFromPx, (left + width) * scale, (top + height) * scale))
         return QRectF(wcsLeftTop, wcsRightBot)

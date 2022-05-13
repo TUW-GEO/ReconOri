@@ -75,10 +75,9 @@ class GdalPushLogHandler:
         # gdal.SetThreadLocalConfigOption('GDAL_HTTP_LOW_SPEED_LIMIT', '1024')  # bytes per second
         # gdal.SetThreadLocalConfigOption('GDAL_HTTP_LOW_SPEED_TIME', '1')  # seconds
 
-
     def __exit__(self, type, value, traceback):
         from osgeo import gdal
-        
+
         gdal.PopErrorHandler()
         gdal.SetThreadLocalConfigOption('CPL_DEBUG', None)
         gdal.SetThreadLocalConfigOption('CPL_CURL_VERBOSE', None)
@@ -98,7 +97,8 @@ def classFactory(iface: QgisInterface):
     _logger = logging.getLogger(__name__)
     # Please note that without logging to a file by setting a filename the logging may be multithreaded which heavily slows down the output.
     _logFileHandler = logging.FileHandler(filename=Path(__file__).parent / 'log.txt', mode='w')
-    logFormatter = logging.Formatter('{asctime}.{msecs:.0f} {levelname}: {name} - {message}', style='{', datefmt='%H:%M:%S')
+    logFormatter = logging.Formatter('{asctime}.{msecs:.0f} {levelname}: {name} - {message}',
+                                     style='{', datefmt='%H:%M:%S')
     logFormatter.default_time_format = '%H:%M:%S'
     _logFileHandler.setFormatter(logFormatter)
     _logger.addHandler(_logFileHandler)
@@ -127,6 +127,6 @@ def classFactory(iface: QgisInterface):
             debugpy.listen(('localhost', port))
             _logger.info(f'Debug adapter listening on port {port}.')
 
-    # debugpy.wait_for_client()  # blocks execution until client is attached    
+    # debugpy.wait_for_client()  # blocks execution until client is attached
 
     return ImageSelection(iface)

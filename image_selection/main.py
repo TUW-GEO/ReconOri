@@ -37,8 +37,8 @@ from typing import Optional
 # Hence, better use importlib to do a relative import without importing anything from it.
 importlib.import_module('..resources_rc', __name__)
 
-from .main_window import MainWindow
 from . import getLoggerAndFileHandler
+from .main_window import MainWindow
 
 
 logger = logging.getLogger(__name__)
@@ -53,14 +53,12 @@ class ImageSelection:
         self.menu = '&DoRIAH Image Selection'
         self.dlg = None
 
-
     def add_action(self, icon_path: str, text: str, callback: Callable, parent: Optional[QWidget] = None) -> None:
         action = QAction(QIcon(icon_path), text, parent)
         action.triggered.connect(callback)
         self.iface.addToolBarIcon(action)
         self.iface.addPluginToMenu(self.menu, action)
         self.actions.append(action)
-
 
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
@@ -70,7 +68,6 @@ class ImageSelection:
             'Select Images',
             self.run,
             self.iface.mainWindow())
-
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
@@ -86,7 +83,6 @@ class ImageSelection:
         if self.dlg:
             self.dlg.close()
         time.sleep(0.5)  # Give the log monitor some time to notice the last logs, before the log file may be re-opened.
-
 
     def run(self):
         """Run method that performs all the real work"""

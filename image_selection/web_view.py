@@ -19,10 +19,11 @@ import http.server
 import json
 # must not import logging before PyQt, or logging will fail within pydevd!
 import logging
+from pathlib import Path
 import threading
+from typing import Optional
 import urllib.parse
 import urllib.request
-from pathlib import Path
 
 showWeb = True
 webInspectorSupport = False
@@ -44,7 +45,7 @@ class WebView(QWebView):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.setWhatsThis('Hit F5 to re-load.' + (' Hit F4 to open Web Inspector.' if webInspectorSupport else ''))
-        self.__httpd = None
+        self.__httpd: Optional[http.server.HTTPServer] = None
         self.__webInspectorDialog = None
 
         if not showWeb:
@@ -80,6 +81,7 @@ class WebView(QWebView):
         self.aerialAvailabilityChanged.connect(self.__exposedToWebJavaScript.aerialAvailabilityChanged)
         self.aerialUsageChanged.connect(self.__exposedToWebJavaScript.aerialUsageChanged)
 
+        assert self.__httpd is not None
         #self.setUrl(QUrl.fromLocalFile(str(Path(__file__).parent / 'VisAnPrototype/index.html')))
         self.setUrl(QUrl(f'http://localhost:{self.__httpd.server_port}/'))
         #self.setUrl(QUrl('https://webkit.org/blog-files/webgl/SpiritBox.html'))
@@ -136,6 +138,7 @@ class WebView(QWebView):
         self.__httpd = http.server.HTTPServer(('localhost', port), Handler)
 
         def serve_forever():
+            assert self.__httpd is not None
             try:
                 with self.__httpd:
                     self.__httpd.serve_forever()

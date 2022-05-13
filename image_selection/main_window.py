@@ -93,6 +93,7 @@ class MainWindow(FormBase):
             austria = QIcon(':/plugins/image_selection/austria')
             vienna = QIcon(':/plugins/image_selection/vienna')
             globe = QIcon(':/plugins/image_selection/globe-green')
+            defIdx = 0
             # QGIS seems to set the CWD to %USERPROFILE%/Documents, and the default WMTS cache path is ./gdalwmscache
             for isWMTS, icon, prefix, url in [
                 (True, austria, '', 'https://maps.wien.gv.at/basemap/1.0.0/WMTSCapabilities.xml'),

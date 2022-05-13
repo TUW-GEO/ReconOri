@@ -35,9 +35,9 @@ However, this sounds slow.
  """
 
 from qgis.PyQt.QtCore import pyqtSlot, QEvent, QObject, QPointF, QSize, QRect, Qt
-from qgis.PyQt.QtGui import QBitmap, QBrush, QColor, QCursor, QFocusEvent, QIcon, QImage, QKeyEvent, QPen, QPainter, QPixmap, QTransform
+from qgis.PyQt.QtGui import QBitmap, QBrush, QColor, QCursor, QFocusEvent, QHelpEvent, QIcon, QImage, QKeyEvent, QPen, QPainter, QPixmap, QTransform
 from qgis.PyQt.QtWidgets import (QDialog, QGraphicsEffect, QGraphicsEllipseItem, QGraphicsItem, QMenu, QGraphicsPixmapItem,
-                                 QGraphicsScene, QGraphicsSceneContextMenuEvent, QGraphicsSceneMouseEvent,
+                                 QGraphicsSceneContextMenuEvent, QGraphicsSceneMouseEvent,
                                  QGraphicsSceneWheelEvent, QStyle, QStyleOptionGraphicsItem, QWhatsThis, QWidget)
 
 import numpy as np
@@ -51,11 +51,12 @@ import logging
 from pathlib import Path
 import sqlite3
 import threading
-from typing import Any, Optional, Union
+from typing import cast, Any, Optional, Union
 import weakref
 
 from . import GdalPushLogHandler
 from .preview_window import ContrastEnhancement, enhanceContrast, PreviewWindow
+from . import map_scene
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +114,7 @@ class InversionEffect(QGraphicsEffect):
 
 class AerialObject(QObject):
 
-    def __init__(self, scene: QGraphicsScene, posScene: QPointF, imgId: str, meta, db: sqlite3.Connection):
+    def __init__(self, scene: 'map_scene.MapScene', posScene: QPointF, imgId: str, meta, db: sqlite3.Connection):
         super().__init__()
         point = AerialPoint()
         image = AerialImage(imgId, posScene, meta, point, db)
@@ -189,7 +190,7 @@ class AerialPoint(QGraphicsEllipseItem):
     def mouseDoubleClickEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         if event.button() == Qt.LeftButton:
             self.setVisible(False)
-            if image := self.__image():
+            if self.__image is not None and (image := self.__image()):
                 image.setVisible(True)
                 image.setFocus(Qt.OtherFocusReason)
         else:
@@ -200,7 +201,7 @@ class AerialPoint(QGraphicsEllipseItem):
         if event.type() != QEvent.WhatsThis:
             return super().sceneEvent(event)
         whatsThis = 'An aerial image shown as point. Double-click to open.'
-        QWhatsThis.showText(event.globalPos(), whatsThis)
+        QWhatsThis.showText(cast(QHelpEvent, event).globalPos(), whatsThis)
         return True
 
 
@@ -489,7 +490,7 @@ Hold left mouse button + Alt to temporally hide the image.<br/>
 
 Double-click to close.<br/>
 '''
-        QWhatsThis.showText(event.globalPos(), whatsThis)
+        QWhatsThis.showText(cast(QHelpEvent, event).globalPos(), whatsThis)
         return True
 
 
@@ -538,12 +539,15 @@ Double-click to close.<br/>
         #   "QGraphicsItem does not support use of cosmetic pens with a non-zero width."
         # But obviously, it does support them, at least on Windows.
         width = 2 if option.state & QStyle.State_HasFocus else 1
+        assert self.__availability is not None
         pen = QPen(self.__availability.color, width, self.__transformState.penStyle)
         pen.setCosmetic(True)
         painter.setPen(pen)
         painter.drawRect(self.boundingRect())
         painter.restore()
 
+    def scene(self) -> 'map_scene.MapScene':
+        return cast(map_scene.MapScene, super().scene())
 
     # end of overrides
 
@@ -600,6 +604,7 @@ Double-click to close.<br/>
 
 
     def availability(self) -> Availability:
+        assert self.__availability is not None
         return self.__availability
 
 

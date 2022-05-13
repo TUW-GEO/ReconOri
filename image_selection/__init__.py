@@ -25,8 +25,11 @@ This script initializes the plugin, making it known to QGIS.
 from qgis.gui import QgisInterface
 
 import enum
+import logging
+from pathlib import Path
 import shutil
 import sys
+from typing import Optional
 
 
 # WMTS opens a WMS dataset for each overview level, passing timeout as option.
@@ -39,11 +42,13 @@ class HttpTimeout(enum.IntEnum):
     seconds = 10
 
 
-_logger = None
-_logFileHandler = None
+_logger: Optional[logging.Logger] = None
+_logFileHandler: Optional[logging.FileHandler] = None
 
 
 def getLoggerAndFileHandler():
+    assert _logger is not None
+    assert _logFileHandler is not None
     return _logger, _logFileHandler
 
 
@@ -85,9 +90,6 @@ class GdalPushLogHandler:
 
 def classFactory(iface: QgisInterface):
     #from osgeo import gdal
-
-    import logging
-    from pathlib import Path
 
     from .main import ImageSelection
 

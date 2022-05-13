@@ -8,7 +8,7 @@
 #  ***************************************************************************
 
 from qgis.PyQt.QtCore import Qt, QEvent, QLineF, QPoint, QPointF, QRect, QRectF, pyqtSignal
-from qgis.PyQt.QtGui import QBrush, QImage, QKeyEvent, QPainter, QPaintEvent, QPen, QWheelEvent
+from qgis.PyQt.QtGui import QBrush, QHelpEvent, QImage, QKeyEvent, QPainter, QPaintEvent, QPen, QWheelEvent
 from qgis.PyQt.QtWidgets import QGraphicsView, QGraphicsScene, QMessageBox, QScrollBar
 from qgis.PyQt import sip
 
@@ -17,7 +17,7 @@ import logging
 import math
 import threading
 import time
-from typing import Optional
+from typing import cast, Optional
 import xml.etree.ElementTree
 
 import numpy as np
@@ -95,7 +95,7 @@ class MapView(QGraphicsView):
         self.__readThread = None
         self.__mapLock = threading.Lock()
         self.__sceneRectAndImg = None
-        self.__mapResolution = None
+        self.__mapResolution = -1.
 
 
     def resizeEvent(self, event) -> None:
@@ -165,7 +165,7 @@ class MapView(QGraphicsView):
 
     def viewportEvent(self, event: QEvent) -> bool:
         if event.type() == QEvent.WhatsThis:
-            for item in self.items(event.pos()):
+            for item in self.items(cast(QHelpEvent, event).pos()):
                 if self.scene().sendEvent(item, event):
                     return True
 
@@ -293,13 +293,13 @@ class MapReadThread(threading.Thread):
                     self.dataset = gdal.Open(xml.etree.ElementTree.tostring(root, encoding='unicode'))
 
         geoTrafo = np.array(self.dataset.GetGeoTransform()).reshape((2,3))
-        self.mapResolution = np.abs(np.linalg.det(geoTrafo[:, 1:])) ** .5
+        self.mapResolution: float = np.abs(np.linalg.det(geoTrafo[:, 1:])) ** .5
         self.__stop = threading.Event()
         self.__cbImageRead = cbImageRead
         self.__cbResponseTime = cbResponseTime
         self.__cbIsReading = cbIsReading
         self.__jobCondition = threading.Condition(threading.Lock())
-        self.__job: tuple[Optional[QRectF], Optional[float]] = None, None
+        self.__job = QRectF(), -1.
         self.__exc = None
         assert self.dataset.RasterCount in (3, 4)
         assert all(self.dataset.GetRasterBand(idx + 1).DataType == gdal.GDT_Byte for idx in range(self.dataset.RasterCount))
@@ -348,8 +348,9 @@ class MapReadThread(threading.Thread):
         #gdal.SetThreadLocalConfigOption('GDAL_HTTP_LOW_SPEED_TIME', '1')  # seconds
         #gdal.SetCacheMax(0)
 
-        wcsRect: Optional[QRectF] = None
-        viewPxPerMeter: Optional[float] = None
+        # Initial element values of self.__job:
+        wcsRect = QRectF()
+        viewPxPerMeter = -1.
 
         wcsFromPx = self.dataset.GetGeoTransform()
         pxFromWcs = gdal.InvGeoTransform(wcsFromPx)

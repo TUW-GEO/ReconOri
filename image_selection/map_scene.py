@@ -102,7 +102,8 @@ class MapScene(QGraphicsScene):
 
 
     def loadAoiFile(self, fileName: Path) -> None:
-        error = lambda msg: __class__.__error("Erroneous Area of Interest", msg)
+        def error(msg):
+            __class__.__error("Erroneous Area of Interest", msg)
 
         logger.info(f'File with the area of interest to load: {fileName}')
         ds = ogr.Open(str(fileName))
@@ -338,7 +339,8 @@ class MapScene(QGraphicsScene):
 
     @staticmethod
     def __cleanAerialData(df: pd.DataFrame, sheet_name: str) -> bool:
-        error = lambda msg: __class__.__error("Erroneous Coordinate Reference System", msg)
+        def error(msg):
+            return __class__.__error("Erroneous Coordinate Reference System", msg)
 
         df['Datum'] = df['Datum'].dt.date  # strip time of day
 
@@ -349,7 +351,7 @@ class MapScene(QGraphicsScene):
         iYWgs84s = [idx for idx, el in enumerate(df.columns) if 'ywgs84' in el.lower()]
         for idxs, name in [(iEpsgs, 'EPSG code'), (iXWgs84s, 'WGS84 longitude'), (iYWgs84s, 'WGS84 latitude')]:
             if len(idxs) > 1:
-                return error('Multiple columns in {} seem to provide {}: {}.'.format(sheet_name, name, ', '.join(df.columns[idx] for idx in idxs)))
+                return error('Multiple columns in {} seem to provide {}: {}.'.format(sheet_name, name, ', '.join(str(df.columns[idx]) for idx in idxs)))
         if iEpsgs and (iXWgs84s or iYWgs84s):
             return error(f'{sheet_name} defines columns both for EPSG code and for WGS84 coordinates.')
         if iEpsgs:

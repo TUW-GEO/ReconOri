@@ -25,7 +25,9 @@ At any point, an aerial belongs to each of these categories:
 
 All states are indicated graphically. Use the buttons above the map view to control if aerials with the respective state shall be shown or not.
 
-Tested with QGIS 3.16.14 LTR, installed with the *standalone installer (MSI)*. Does not work with the QGIS 3.16.14 *network installer*, since that comes with Python 3.7 instead of 3.9. Does not work with older releases, but should work with newer ones.
+Tested with QGIS 3.22 LTR, installed with the *standalone installer (MSI)*.
+
+May still work with QGIS 3.16.14 *standalone installer (MSI)*. Does not work with the QGIS 3.16.14 *network installer*, since that comes with Python 3.7 instead of 3.9.  Does not work with even older releases, but should work with newer ones.
 
 ## Compilation
 

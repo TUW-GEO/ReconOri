@@ -22,7 +22,7 @@
 """
 from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QElapsedTimer, QMargins, QRectF, Qt
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QActionGroup, QDialogButtonBox, QMenu, QToolButton, QWhatsThis
+from qgis.PyQt.QtWidgets import QActionGroup, QDialogButtonBox, QMenu, QMessageBox, QToolButton, QWhatsThis
 from qgis.PyQt.uic import loadUiType
 
 import configparser
@@ -97,8 +97,15 @@ class MainWindow(FormBase):
                 (True, austria, '', 'https://maps.wien.gv.at/basemap/1.0.0/WMTSCapabilities.xml'),
                 (False, austria, 'BEV ', 'https://data.bev.gv.at/geoserver/BEVdataKAT/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities&CRS=EPSG:3857'),
                 (True, vienna, 'Stadt Wien ', 'https://maps.wien.gv.at/wmts/1.0.0/WMTSCapabilities.xml'),
-                    (False, globe, '', 'WMS:http://ows.terrestris.de/osm/service')]:
-                base = gdal.Open(url)
+                (False, globe, '', 'WMS:http://ows.terrestris.de/osm/service')]:
+                try:
+                    base = gdal.Open(url)
+                except RuntimeError as ex:
+                    logger.exception(f'Failed to open {url}', exc_info=ex)
+                    QMessageBox.warning(
+                        self, 'Server connection failed',
+                        f'Failed to open {url}\n. Respective maps will be missing. This may be a temporary problem.\n' + str(ex))
+                    continue
                 for path, desc in base.GetSubDatasets():
                     desc = desc.removeprefix('Layer ')
                     if desc == 'Geoland Basemap Orthofoto':

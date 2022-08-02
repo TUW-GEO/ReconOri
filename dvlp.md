@@ -140,6 +140,7 @@ To make the PlugIn accessible to the QGIS PlugIn manager, either
   ```
 
 - `set QGIS_PLUGINPATH=E:\P\Projects\19_DoRIAH\ImageSelection\QGisPlugIn`
+   Note: QGIS_PLUGINPATH may contain multiple directories separated by ";"
 
 ## Compiling the PlugIn
 
@@ -178,7 +179,11 @@ Recommended!
 
 https://gist.github.com/AsgerPetersen/2000eb6f3e3307bd25190b19493dd9a3
 
-For static type checking, use pylance as language server:
+Install the Python extension for VS Code, open "image_selection" as workspace, and select `C:\Program Files\QGIS 3.22.8\bin\python-qgis-ltr.bat` as Python interpreter.
+
+#### Static Type Checking
+
+use pylance as language server:
 
 `"python.languageServer": "Pylance"`
 
@@ -189,6 +194,11 @@ and set
 (both configured in `.vscode/settings.json`). Also, in OSGeo4W-shell, so Qt-types are not all flagged:
 
 `pip install PyQt5-stubs`
+
+#### Reformatting
+
+Use autopep8. Simply wait for VS Code to prompt for its installation. VS Code will then install autopep8 into the Python interpreter selected for the workspace.
+
 
 ## Icons
 

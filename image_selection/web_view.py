@@ -66,7 +66,7 @@ class WebView(QWebView):
 
         # Let Webkit handle no links at all, but trigger QWebView's signal linkClicked(QUrl) instead.
         page.setLinkDelegationPolicy(QWebPage.DelegateAllLinks)
-        self.linkClicked.connect(self.__onWebLinkClicked)
+        page.linkClicked.connect(self.__onWebLinkClicked)
         page.linkHovered.connect(self.__onWebLinkHovered)
 
         frame = page.mainFrame()
@@ -79,6 +79,8 @@ class WebView(QWebView):
 
         self.aerialAvailabilityChanged.connect(self.__exposedToWebJavaScript.aerialAvailabilityChanged)
         self.aerialUsageChanged.connect(self.__exposedToWebJavaScript.aerialUsageChanged)
+        self.__exposedToWebJavaScript.filterAerials.connect(self.__onFilterAerials)
+        self.__exposedToWebJavaScript.highlightAerials.connect(self.__onHighlightAerials)
 
         assert self.__httpd is not None
         #self.setUrl(QUrl.fromLocalFile(str(Path(__file__).parent / 'VisAnPrototype/index.html')))
@@ -171,7 +173,7 @@ class WebView(QWebView):
         self.page().mainFrame().addToJavaScriptWindowObject('qgisplugin', self.__exposedToWebJavaScript)
 
     @pyqtSlot(QUrl)
-    def __onWebLinkClicked(self, url: QUrl) -> None:
+    def __onWebLinkClicked(self, url) -> None:
         imgIds = json.loads(url.fragment(QUrl.FullyDecoded))
         logger.info(f'onWebLinkClicked: {imgIds}')
         self.aerialFilterChanged.emit(set(imgIds))
@@ -199,6 +201,17 @@ class WebView(QWebView):
     @pyqtSlot(str, list)
     def onAerialFootPrintChanged(self, imgId, footPrint) -> None:
         self.__exposedToWebJavaScript.aerialFootPrintChanged.emit(imgId, QVariant(footPrint))
+
+
+    @pyqtSlot(list)
+    def __onFilterAerials(self, imgIds) -> None:
+        logger.info(f'onFilterAerials: {imgIds}')
+        self.aerialFilterChanged.emit(set(imgIds))
+
+    @pyqtSlot(list)
+    def __onHighlightAerials(self, imgIds) -> None:
+        self.highlightAerial.emit(set(imgIds))
+
 
 
 class RequestHandler(http.server.SimpleHTTPRequestHandler):
@@ -232,3 +245,7 @@ class ExposedToWebJavaScript(QObject):
     aerialAvailabilityChanged = pyqtSignal(str, int, str)
 
     aerialUsageChanged = pyqtSignal(str, int)
+
+    filterAerials = pyqtSignal(list)
+
+    highlightAerials = pyqtSignal(list)

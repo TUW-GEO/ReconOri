@@ -15,7 +15,7 @@ const calculateAttackCvg = function () {
             selectedImages = [...selectedImages, ...aerials.filter( aerial => aerial.meta.Datum === d).filter( aerial => aerial.meta.selected)];
         })
         a.coverage = aggregateCoverage(selectedImages.map( b => b.polygon.aoi));
-        })
+    })
 }
 
 //// COMMUNICATION
@@ -99,9 +99,8 @@ qgisplugin.areaOfInterestLoaded.connect(function(_aoi){
                 let possiblePairsPoly =  possiblePairs.reduce( (poly, b) => turf.union(b.polygon.aoi,poly), possiblePairs[0].polygon.aoi);
                 pairedIntersection = turf.intersect( a.polygon.aoi, possiblePairsPoly );
                 a.interest.paired = pairedIntersection? turf.area(pairedIntersection)/turf.area(a.polygon.aoi):0;
-                a.meta.interest = (a.meta.Cvg + (pairedIntersection? turf.area(pairedIntersection)/aoiArea:0))*(a.meta.LBDB?2:1);
-            } else a.meta.interest = a.meta.Cvg*(a.meta.LBDB?2:1);
-            a.interest.pre = a.meta.interest;
+                a.interest.pre = (a.meta.Cvg + (pairedIntersection? turf.area(pairedIntersection)/aoiArea:0))*(a.meta.LBDB?2:1);
+            } else a.interest.pre = a.meta.Cvg*(a.meta.LBDB?2:1);
         })
         overviews.forEach( a => {
             a.interest.type = 'overview'
@@ -109,9 +108,8 @@ qgisplugin.areaOfInterestLoaded.connect(function(_aoi){
             let detailPoly = details.reduce( (poly, b) => turf.union(b.polygon.aoi,poly), details[0].polygon.aoi);
             let intersectionPoly = turf.intersect( a.polygon.aoi, detailPoly );
             a.interest.overlap = -(intersectionPoly? turf.area(intersectionPoly)/turf.area(a.polygon.aoi):0);
-            a.meta.interest = .5*(a.meta.Cvg - (intersectionPoly? turf.area(intersectionPoly)/aoiArea:0))*(a.meta.LBDB?2:1);
-            } a.meta.interest = .5*a.meta.Cvg*(a.meta.LBDB?2:1);
-            a.interest.pre = a.meta.interest;
+            a.interest.pre = .5*(a.meta.Cvg - (intersectionPoly? turf.area(intersectionPoly)/aoiArea:0))*(a.meta.LBDB?2:1);
+            } a.interest.pre = .5*a.meta.Cvg*(a.meta.LBDB?2:1);
         // shared information-based timebin-secluded interest measure calculation
         // timebin.forEach( b => {
         //   if (a.polygon.aoi && b.polygon.aoi && a != b) {
@@ -123,9 +121,24 @@ qgisplugin.areaOfInterestLoaded.connect(function(_aoi){
         })
         
         // normalize interest by range within timebin
-        let ranges = timebin.map( a => a.meta.interest).reduce ( (agg, a) => [Math.min(agg[0],a),Math.max(agg[1],a)], [0,0]);
-        timebin.forEach( a => {a.meta.interest = a.meta.interest/ranges[1]; a.interest.post=a.meta.interest});
+        // let ranges = timebin.map( a => a.interest.pre).reduce ( (agg, a) => [Math.min(agg[0],a),Math.max(agg[1],a)], [0,0]);
+        // timebin.forEach( a => {
+        //     a.interest.post = a.interest.pre/ranges[1];
+        //     a.meta.interest = a.interest.post;
+        // });
     })
+    // normalize interest within a 31-day period before and after 
+    aerials.forEach( a => {
+        let aerialSet = aerials.filter( b => Math.abs(a.time.getTime()- b.time.getTime()) < 1000 * 3600 * 24 * 31 );
+        let ranges = aerialSet.map( a => a.interest.pre).reduce ( (agg, a) => {
+            if (a) return [Math.min(agg[0],a),Math.max(agg[1],a)];
+            else return agg;
+        }, [0,0]);
+        console.log(JSON.stringify(ranges));
+        a.interest.post = a.interest.pre/ranges[1];
+        a.meta.interest = a.interest.post;
+    })
+
     attackDates.unshift(aerialDates[0]); // add a zero-attack
     attacks = attackDates.map( (a, i) => {
         atTime = new Date(a).getTime();
@@ -164,6 +177,7 @@ qgisplugin.aerialUsageChanged.connect(function(imgId, usage){
     let aerial = aerials.filter( a => a.id === imgId)[0];
     aerial.usage = usage;
     aerial.meta.selected = (usage == 2? true: false);
+    log.write((usage == 2?'select':'discard'),aerial.id,aerial.interest.post);
     calculateAttackCvg();
 });
   
@@ -171,7 +185,12 @@ qgisplugin.aerialUsageChanged.connect(function(imgId, usage){
 
 // ip: uses the hidden link to send a text message to the plugin
 const sendObject = function (object, link) {
-    document.getElementById(link).href = "#" +  encodeURIComponent(JSON.stringify(object));
-    document.getElementById(link).click();
+    // if (link === 'link') document.getElementById(link).href = "#" +  encodeURIComponent(JSON.stringify(object));
+    if (link === 'filter') qgisplugin.filterAerials(object);
+    else if (link === 'unfilter') qgisplugin.filterAerials([]);
+    else if (link === 'highlight') qgisplugin.highlightAerials(object);
+    else if (link === 'unhighlight') qgisplugin.highlightAerials([]);
+
+    // document.getElementById(link).click();
     return 0;
 }

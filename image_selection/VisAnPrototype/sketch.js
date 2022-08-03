@@ -2,19 +2,14 @@
   DoRIAH Image Selection - Visualization
   ip: Ignacio Perez-Messina
   TODO
-  + add time filter
-  + add other filters (transparencies)
-  + make button to change timemode
-  + move viewfinders to attacks (and erase viewfinder for flights, just leave interattack interest: in-direct answer)
+  + add log
+  + normalize orienting guidance within interattack periods
   + add hovering interaction
-  + add usage and availability
-  + add different time layouts
   + add prescribing guidance
 
   IMPORTANT DEV NOTICE
   + using certain p5 functions (e.g., abs, map, probably ones that overload js) at certain points makes plugin crash on reload
-  + only 3 AOIs working: st. polten, 04 & 10 (since interest function implemented)
-  + 2 datasets from Vienna are not working
+  + only 3 AOIs working: st. polten, 04 & 10 (since interest function implemented): 'Franz_Barwig_Weg12', 'Breitenleer_Str' not working
 */
 
 let aoiPoly, aoiArea;
@@ -29,7 +24,8 @@ let timebins = [];
 let aerialDates = [];
 let attackData;
 let currentTimebin = '';
-let hovered = '', hoveredAerial = '';
+let hoveredFlag, hoveredAerial = '';
+let hovered = '';
 let data;
 let visible = [];
 let isSmall = true; // for small AOIs such as St.Poelten and Vienna
@@ -42,6 +38,7 @@ let clickables = [];
 let hoverables = [];
 let aniSpeed = .5;
 let timeline = {};
+let log = { log: []};
 
 //// SKETCH
 
@@ -55,11 +52,23 @@ function setup() {
   cnv = createCanvas(windowWidth,windowHeight);
   frameRate(14);
 
+  // LOG OBJECT
+  log.write = function (operation_, obj_, guidance_) {
+    this.log.push({
+      operation: operation_,
+      obj: obj_,
+      t: new Date(),
+      guidance: guidance_
+    })
+  }
+  log.write('START','',orientingOn);
+
   // TIMELINE OBJECT
   timeline.reset = function () {
     timeline.range = [Date.parse(aerialDates[0]),Date.parse(aerialDates[aerialDates.length-1])];
     timeline.filterOn = false;
-    sendObject([], 'link');
+    sendObject([], 'unfilter');
+    log.write('timeFilter',0,'');
   }
   timeline.reset();
   timeline.map = function (datum) {
@@ -67,6 +76,14 @@ function setup() {
   }
   timeline.inversemap = function (x) {
     return map(x, 20, width-20, this.range[0], this.range[1]);
+  }
+  timeline.filter = function (x1,x2) {
+    if (!this.filterOn) {
+      this.range = [this.inversemap(x1), this.inversemap(x2)];
+      this.filterOn = true;
+      sendObject(aerials.filter( a => a.time >= this.range[0] && a.time <= this.range[1]).map(a => a.id), 'filter');
+      log.write('timeFilter',this.range,'')
+    } else this.reset();
   }
   
   // PRESELECTED IMAGES FILE PROCESSING
@@ -107,21 +124,52 @@ function setup() {
     }
   }
   // clickables.push(timeModeButton);
+  // FINISH BUTTON
+  const finishButton = {
+    id: 'finishButton',
+    pos: [width-5,height-5],
+    r: 3,
+    draw: function () {
+      push(), noStroke(), fill(200,50,50);
+      ellipse(this.pos[0], this.pos[1], this.r*2), pop();
+    },
+    click: function () {
+      log.write('finish','','');
+      console.log(JSON.stringify(log.log));
+    }
+  }
+  clickables.push(finishButton);
 }
 
 
 function draw() {
-  // hovered = resolveMouse();
-  // hoveredAerial = resolveMouseAerial();
   background(255);//236
+  
   textSize(8), fill(0), noStroke();
   // translate (0, 12);
   drawTimeline();
-  // drawCvgMatrix();
+  // drawCvgMatrix(); 
   if (currentTimebin === '') drawTimemap();
   else drawTimebin(currentTimebin);
   if (aoi) attackDates.forEach( (a,i) => drawAttack(attacks[i], 4))
   clickables.forEach( a => a.draw()); // timemodebutton
+
+  hoveredAerial = resolveMouseAerial();
+  if (hoveredAerial) {
+    if (!hoveredFlag) sendObject(hoveredAerial.id, 'highlight');
+    hoveredFlag = true
+    push(), translate(hoveredAerial.vis.pos[0],hoveredAerial.vis.pos[1]);
+    fill(255,80), stroke(255);
+    rect(0,0,120,-100);
+    fill('black'), textSize(11), textAlign(LEFT);
+    Object.keys(hoveredAerial.interest).forEach( (k,i) => {
+      text(k+': '+(typeof(hoveredAerial.interest[k])==='number'?round(hoveredAerial.interest[k],2):hoveredAerial.interest[k]),10,-78+12*i);
+    }) 
+    pop();
+  } else {
+    if (hoveredFlag) sendObject([], 'unhighlight');
+    hoveredFlag = false;
+  }
 }
 
 //// VISUALIZATION /////
@@ -374,14 +422,6 @@ const drawAerial = function (aerial) {
   if (aerial.meta.LBDB) ellipse ( 0, -r/3*2, r/3*2)
   noStroke(), fill(100), textSize(7), textAlign(aerial.meta.p==1?LEFT:RIGHT);
   if (currentTimebin) text(aerial.meta.Bildnr, 15*(aerial.meta.p==1?1:-1), 3);
-  if (aerial == hoveredAerial) {
-    fill(255,60), stroke(255);
-    rect(0,0,120,-100);
-    fill('black'), textSize(11), textAlign(LEFT);
-    Object.keys(aerial.interest).forEach( (k,i) => {
-      text(k+': '+(typeof(aerial.interest[k])==='number'?round(aerial.interest[k],2):aerial.interest[k]),10,-78+12*i);
-    }) 
-  }
   // noFill(), stroke(0), strokeWeight(1);
   // ellipse(-mod,0,aerial.meta.Abd/5);
   pop();
@@ -400,28 +440,19 @@ const resolveMouse = function () {
   }
 }
 const resolveMouseAerial = function () {
-  return aerials.filter( a => a.meta.Datum === currentTimebin && dist(a.vis.pos[0], a.vis.pos[1], mouseX, mouseY) <= a.vis.r)[0];
+  return aerials.filter( a => dist(a.vis.pos[0], a.vis.pos[1], mouseX, mouseY) <= a.vis.r)[0];
 }
 
 function mousePressed() {
   if (mouseY < 20) dragStart = mouseX;
-  return false;
 }
 
 function mouseReleased() {
-  if (mouseY < 20) {
-    if (!timeline.filterOn) {
-      timeline.range = [timeline.inversemap(dragStart), timeline.inversemap(mouseX)];
-      timeline.filterOn = true;
-      sendObject(aerials.filter( a => Date.parse(a.meta.Datum) >= timeline.range[0] && Date.parse(a.meta.Datum) <= timeline.range[1]).map(a => a.id), 'link');
-    } else timeline.reset();
-  }
-  return false;
+  if (mouseY < 20) timeline.filter(dragStart,mouseX);
 }
 
 function mouseClicked() {
   clickables.forEach( a => (dist(a.pos[0],a.pos[1],mouseX,mouseY) <= a.r)? a.click():null );
-  return false;
   // currentTimebin = resolveMouse();
   // sendObject(aerials.filter( a => a.meta.Datum === currentTimebin).map(a => a.id), 'link');
 

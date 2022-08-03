@@ -16,7 +16,6 @@ from qgis.PyQt.QtWebKitWidgets import QWebInspector, QWebPage, QWebView
 import functools
 import http
 import http.server
-import json
 # must not import logging before PyQt, or logging will fail within pydevd!
 import logging
 from pathlib import Path
@@ -63,11 +62,6 @@ class WebView(QWebView):
         else:
             page = WebPage(self)
             self.setPage(page)
-
-        # Let Webkit handle no links at all, but trigger QWebView's signal linkClicked(QUrl) instead.
-        page.setLinkDelegationPolicy(QWebPage.DelegateAllLinks)
-        page.linkClicked.connect(self.__onWebLinkClicked)
-        page.linkHovered.connect(self.__onWebLinkHovered)
 
         frame = page.mainFrame()
         for ori in Qt.Orientation.Horizontal, Qt.Orientation.Vertical:
@@ -171,20 +165,6 @@ class WebView(QWebView):
     @pyqtSlot()
     def __onWebJavaScriptWindowObjectCleared(self) -> None:
         self.page().mainFrame().addToJavaScriptWindowObject('qgisplugin', self.__exposedToWebJavaScript)
-
-    @pyqtSlot(QUrl)
-    def __onWebLinkClicked(self, url) -> None:
-        imgIds = json.loads(url.fragment(QUrl.FullyDecoded))
-        logger.info(f'onWebLinkClicked: {imgIds}')
-        self.aerialFilterChanged.emit(set(imgIds))
-
-    @pyqtSlot(str, str, str)
-    def __onWebLinkHovered(self, link, title, textContent) -> None:
-        if link:
-            fragment = urllib.parse.urlparse(link).fragment
-            self.highlightAerial.emit({urllib.parse.unquote(fragment)})
-        else:
-            self.highlightAerial.emit(set())
 
     @pyqtSlot(list)
     def onAerialsLoaded(self, aerials) -> None:

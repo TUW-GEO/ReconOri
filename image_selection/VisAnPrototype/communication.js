@@ -20,21 +20,33 @@ const calculateAttackCvg = function () {
 
 //// COMMUNICATION
 
+// wk 2022-08-04: exceptions must not escape from Qt slots!
+const handleErrors = function(func) {
+    return function(...args) {
+        try {
+            return func(...args);
+        }
+        catch(error) {
+            console.error(error);
+        }
+    }
+}
+
 // INBOUND
-qgisplugin.aerialsLoaded.connect(function(_aerials) {
+qgisplugin.aerialsLoaded.connect(handleErrors(function(_aerials) {
     console.log(JSON.stringify(_aerials, null, 4));
     aerials = _aerials.sort( (a,b) => a.meta.Datum > b.meta.Datum).filter( a => a.footprint);
     aerialDates = aerials.map( a => a.meta.Datum).filter(onlyUnique);
     currentTimebin = '';
-});
+}));
   
-qgisplugin.attackDataLoaded.connect(function(_attackData){
+qgisplugin.attackDataLoaded.connect(handleErrors(function(_attackData){
     console.log("Attack data: " + JSON.stringify(_attackData, null, 4));
     // only for non st. Poelten attack records (DATUM vs. Datum)
     // attackDates = attacks.filter(a => a.obj.Datum).map( a => a.obj.Datum).slice(0,attacks.length-1).map( a => {let d = a.split('/'); return d[2]+(d[1].length==1?'-0':'-')+d[1]+(d[0].length==1?'-0':'-')+d[0]});
-});
+}));
     
-qgisplugin.areaOfInterestLoaded.connect(function(_aoi){
+qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
     const toPolygon = function (footprint) {
         let convertedCoorArr = [footprint.map( a => turf.toWgs84([a.x,a.y]))];
         convertedCoorArr[0].push(convertedCoorArr[0][0]);
@@ -159,27 +171,27 @@ qgisplugin.areaOfInterestLoaded.connect(function(_aoi){
     // })
     // console.log(JSON.stringify(attacks.map( a => a.date)));
     // console.log(JSON.stringify(attackDates));
-});
+}));
   
-qgisplugin.aerialFootPrintChanged.connect(function(imgId, _footprint) {
+qgisplugin.aerialFootPrintChanged.connect(handleErrors(function(imgId, _footprint) {
     console.log("Footprint of " + imgId + " has changed to " + JSON.stringify(_footprint, null, 4));
     footprints[imgId] = _footprint;
     // aerials = aerials.map( a => a.id === imgId? {...a, footprint: _footprint}: a); 
-});
+}));
   
-qgisplugin.aerialAvailabilityChanged.connect(function(imgId, _availability, path){
+qgisplugin.aerialAvailabilityChanged.connect(handleErrors(function(imgId, _availability, path){
     console.log("Availability of " + imgId + " has changed to: " + _availability + " with file path: " + path);
     // availability[imgId] = _availability;
-});
-  
-qgisplugin.aerialUsageChanged.connect(function(imgId, usage){
+}));
+
+qgisplugin.aerialUsageChanged.connect(handleErrors(function(imgId, usage){
     console.log("Usage of " + imgId + " has changed to " + usage);
     let aerial = aerials.filter( a => a.id === imgId)[0];
     aerial.usage = usage;
     aerial.meta.selected = (usage == 2? true: false);
     log.write((usage == 2?'select':'discard'),aerial.id,aerial.interest.post);
     calculateAttackCvg();
-});
+}));
   
 // OUTBOUND
 

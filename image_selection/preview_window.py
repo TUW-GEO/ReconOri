@@ -7,9 +7,22 @@
 #  *                                                                         *
 #  ***************************************************************************
 
-from qgis.PyQt.QtCore import QModelIndex, QRect, QRectF, Qt
-from qgis.PyQt.QtGui import QImage, QPen, QPixmap
-from qgis.PyQt.QtWidgets import QButtonGroup, QDialogButtonBox, QFileSystemModel, QGraphicsPixmapItem, QGraphicsRectItem, QGraphicsScene, QGraphicsView
+"""
+/***************************************************************************
+ ImageSelection
+                                 A QGIS plugin
+ Guided selection of images with implicit coarse geo-referencing.
+                              -------------------
+        begin                : 2021-11-12
+        copyright            : (C) 2021 by Photogrammetry @ GEO, TU Wien, Austria
+        email                : wilfried.karel@geo.tuwien.ac.at
+        git sha              : $Format:%H$
+ ***************************************************************************/
+"""
+
+from qgis.PyQt.QtCore import pyqtSlot, QModelIndex, QRect, QRectF, Qt
+from qgis.PyQt.QtGui import QIcon, QImage, QPen, QPixmap
+from qgis.PyQt.QtWidgets import QActionGroup, QDialogButtonBox, QFileSystemModel, QGraphicsPixmapItem, QGraphicsRectItem, QGraphicsScene, QGraphicsView, QMenu
 from qgis.PyQt.uic import loadUiType
 
 import numpy as np
@@ -68,18 +81,25 @@ class PreviewWindow(FormBase):
 
     def __init__(self, filmDir: Path, imageName: str, parent=None) -> None:
         self.__rect: Optional[QGraphicsRectItem] = None
+        # Preview images (typically containing low-resolution scans of multiple aerials) seem to be arbitrarly rotated.
+        # Full-resolution scans, however, seem to always be delivered upright i.e. the image number is shown upright.
+        # Hence, support rotating the QGraphicsView, so the image numbers can easily be recognized.
+        # Also, store the rotation of the view at the time a preview rectangle is returned:
+        # - for display in the map window, consider the rotation:
+        #   the map window will show the preview with the same rotation as here, until the user further rotates it.
+        # - in fine-georeferencing, when the rull-res image has been delivered,
+        #   ignore the stored rotation of the QGraphicsView here, and only consider the user-supplied
+        #   rotation/scaling/shifting done in the map window.
+        #   If users ensure that the image number is shown upright when selecting a preview,
+        #   and if the full-res image is indeed delivered with the image number shown upright as well,
+        #   then fine-georeferencing does not need to guess the coarse in-plane rotation of the full-res image.
+        self.__viewRotationCcw: int = 0
         self.__contrastEnhancement = ContrastEnhancement.none
         super().__init__(parent)
         ui = self.ui = Form()
         ui.setupUi(self)
         self.setWindowFlags(Qt.CustomizeWindowHint | Qt.WindowMinMaxButtonsHint | Qt.WindowCloseButtonHint)
         self.setWindowTitle(f'Locate preview of {filmDir.name}/{imageName}')
-        contrastGroup = QButtonGroup()
-        contrastGroup.addButton(ui.off, ContrastEnhancement.none)
-        contrastGroup.addButton(ui.minMax, ContrastEnhancement.minMax)
-        contrastGroup.addButton(ui.histogram, ContrastEnhancement.histogram)
-        contrastGroup.idClicked.connect(lambda enhancement: self.__setContrastEnhancement(enhancement))
-        self.__keepMeAlive = contrastGroup
         ui.splitter.setSizes([100, 500])
         ui.buttonBox.button(QDialogButtonBox.Ok).setEnabled(False)
         assert filmDir.exists()  # otherwise, the dialog will never be shown?
@@ -94,15 +114,46 @@ class PreviewWindow(FormBase):
         ui.graphicsView.setScene(scene)
         ui.graphicsView.rubberBandChanged.connect(lambda _, fromPt, toPt: self.__selectionChanged(QRectF(fromPt, toPt)))
 
-    def selection(self) -> tuple[Path, QRect]:
+        ui.rotateLeft.clicked.connect(lambda checked: self.__rotate(True))
+        ui.rotateRight.clicked.connect(lambda checked: self.__rotate(False))
+
+        menu = QMenu(self)
+        group = QActionGroup(menu)
+        arrowResize090 = QIcon(':/plugins/image_selection/arrow-resize-090')
+        minMax = group.addAction(menu.addAction(arrowResize090, 'MinMax',
+                                 lambda: self.__setContrastEnhancement(ContrastEnhancement.minMax)))
+        minMax.setCheckable(True)
+        chart = QIcon(':/plugins/image_selection/chart')
+        histogram = group.addAction(menu.addAction(chart, 'Histogram',
+                                    lambda: self.__setContrastEnhancement(ContrastEnhancement.histogram)))
+        histogram.setCheckable(True)
+        histogram.setChecked(True)
+        ui.contrastEnhancement.setMenu(menu)
+        ui.contrastEnhancement.toggled.connect(self.__onContrastEnhancementToggled)
+
+    def selection(self) -> tuple[Path, QRect, int]:
         if self.__rect is None:
-            return Path(), QRect()
+            return Path(), QRect(), 0
         view = self.ui.treeView
-        return Path(view.model().filePath(view.selectionModel().currentIndex())), self.__rect.rect().toRect()
+        return Path(view.model().filePath(view.selectionModel().currentIndex())), self.__rect.rect().toRect(), self.__viewRotationCcw
+
+    @pyqtSlot(bool)
+    def __onContrastEnhancementToggled(self, checked) -> None:
+        if not checked:
+            self.__setContrastEnhancement(ContrastEnhancement.none)
+        else:
+            self.ui.contrastEnhancement.menu().actions()[0].actionGroup().checkedAction().trigger()
 
     def __setContrastEnhancement(self, enhancement: int) -> None:
         self.__contrastEnhancement = ContrastEnhancement(enhancement)
         self.__showFile(self.ui.treeView.selectionModel().currentIndex(), False)
+
+    @pyqtSlot(bool)
+    def __rotate(self, ccw: bool) -> None:
+        factor = +1 if ccw else -1
+        self.ui.graphicsView.rotate(-90 * factor)
+        self.__viewRotationCcw += factor
+
 
     def __showFile(self, idx: QModelIndex, resetTransform=True) -> None:
         model = self.ui.treeView.model()

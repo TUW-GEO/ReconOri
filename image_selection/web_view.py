@@ -7,6 +7,19 @@
 #  *                                                                         *
 #  ***************************************************************************
 
+"""
+/***************************************************************************
+ ImageSelection
+                                 A QGIS plugin
+ Guided selection of images with implicit coarse geo-referencing.
+                              -------------------
+        begin                : 2021-11-12
+        copyright            : (C) 2021 by Photogrammetry @ GEO, TU Wien, Austria
+        email                : wilfried.karel@geo.tuwien.ac.at
+        git sha              : $Format:%H$
+ ***************************************************************************/
+"""
+
 from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QObject, Qt, QUrl, QVariant
 from qgis.PyQt.QtGui import QKeyEvent
 from qgis.PyQt.QtWidgets import QDialog, QGridLayout
@@ -33,19 +46,26 @@ httpdLogger = logging.getLogger(__name__ + '.httpd')
 
 class WebView(QWebView):
 
+    # inbound
+    aerialsLoaded = pyqtSignal(list)
+    attackDataLoaded = pyqtSignal(list)
+    areaOfInterestLoaded = pyqtSignal(list)
+    aerialFootPrintChanged = pyqtSignal(str, list)
     aerialAvailabilityChanged = pyqtSignal(str, int, str)
-
     aerialUsageChanged = pyqtSignal(str, int)
 
-    aerialFilterChanged = pyqtSignal(set)
-
-    highlightAerial = pyqtSignal(set)
+    # outbound
+    filterAerials = pyqtSignal(set)
+    highlightAerials = pyqtSignal(set)
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.setWhatsThis('Hit F5 to re-load.' + (' Hit F4 to open Web Inspector.' if webInspectorSupport else ''))
         self.__httpd: Optional[http.server.HTTPServer] = None
         self.__webInspectorDialog = None
+
+        # Expose a QObject to JavaScript, to receive signals from there (Qt WebKit Bridge).
+        self.__exposedToWebJavaScript = ExposedToWebJavaScript()
 
         if not showWeb:
             return
@@ -67,14 +87,17 @@ class WebView(QWebView):
         for ori in Qt.Orientation.Horizontal, Qt.Orientation.Vertical:
             frame.setScrollBarPolicy(ori, Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
-        # Expose a QObject to JavaScript, to receive signals from there (Qt WebKit Bridge).
-        self.__exposedToWebJavaScript = ExposedToWebJavaScript()
         frame.javaScriptWindowObjectCleared.connect(self.__onWebJavaScriptWindowObjectCleared)
 
+        self.aerialsLoaded.connect(self.__exposedToWebJavaScript.aerialsLoaded)
+        self.attackDataLoaded.connect(self.__exposedToWebJavaScript.attackDataLoaded)
+        self.areaOfInterestLoaded.connect(self.__exposedToWebJavaScript.areaOfInterestLoaded)
+        self.aerialFootPrintChanged.connect(self.__exposedToWebJavaScript.aerialFootPrintChanged)
         self.aerialAvailabilityChanged.connect(self.__exposedToWebJavaScript.aerialAvailabilityChanged)
         self.aerialUsageChanged.connect(self.__exposedToWebJavaScript.aerialUsageChanged)
-        self.__exposedToWebJavaScript.filterAerials.connect(self.__onFilterAerials)
-        self.__exposedToWebJavaScript.highlightAerials.connect(self.__onHighlightAerials)
+
+        self.__exposedToWebJavaScript.filterAerials.connect(self.__filterAerials)
+        self.__exposedToWebJavaScript.highlightAerials.connect(self.__highlightAerials)
 
         assert self.__httpd is not None
         #self.setUrl(QUrl.fromLocalFile(str(Path(__file__).parent / 'VisAnPrototype/index.html')))
@@ -167,31 +190,14 @@ class WebView(QWebView):
         self.page().mainFrame().addToJavaScriptWindowObject('qgisplugin', self.__exposedToWebJavaScript)
 
     @pyqtSlot(list)
-    def onAerialsLoaded(self, aerials) -> None:
-        self.__exposedToWebJavaScript.aerialsLoaded.emit(QVariant(aerials))
+    def __filterAerials(self, imgIds) -> None:
+        logger.debug(f'filterAerials({imgIds})')
+        self.filterAerials.emit(set(imgIds))
 
     @pyqtSlot(list)
-    def onAttackDataLoaded(self, attackData) -> None:
-        self.__exposedToWebJavaScript.attackDataLoaded.emit(QVariant(attackData))
-
-    @pyqtSlot(list)
-    def onAreaOfInterestLoaded(self, aoi) -> None:
-        self.__exposedToWebJavaScript.areaOfInterestLoaded.emit(QVariant(aoi))
-
-    @pyqtSlot(str, list)
-    def onAerialFootPrintChanged(self, imgId, footPrint) -> None:
-        self.__exposedToWebJavaScript.aerialFootPrintChanged.emit(imgId, QVariant(footPrint))
-
-
-    @pyqtSlot(list)
-    def __onFilterAerials(self, imgIds) -> None:
-        logger.info(f'onFilterAerials: {imgIds}')
-        self.aerialFilterChanged.emit(set(imgIds))
-
-    @pyqtSlot(list)
-    def __onHighlightAerials(self, imgIds) -> None:
-        self.highlightAerial.emit(set(imgIds))
-
+    def __highlightAerials(self, imgIds) -> None:
+        logger.debug(f'highlightAerials({imgIds})')
+        self.highlightAerials.emit(set(imgIds))
 
 
 class RequestHandler(http.server.SimpleHTTPRequestHandler):
@@ -214,18 +220,14 @@ class WebPage(QWebPage):
 
 class ExposedToWebJavaScript(QObject):
 
-    aerialsLoaded = pyqtSignal(QVariant)
-
-    attackDataLoaded = pyqtSignal(QVariant)
-
-    areaOfInterestLoaded = pyqtSignal(QVariant)
-
-    aerialFootPrintChanged = pyqtSignal(str, QVariant)
-
+    # inbound
+    aerialsLoaded = pyqtSignal(list)
+    attackDataLoaded = pyqtSignal(list)
+    areaOfInterestLoaded = pyqtSignal(list)
+    aerialFootPrintChanged = pyqtSignal(str, list)
     aerialAvailabilityChanged = pyqtSignal(str, int, str)
-
     aerialUsageChanged = pyqtSignal(str, int)
 
+    # outbound
     filterAerials = pyqtSignal(list)
-
     highlightAerials = pyqtSignal(list)

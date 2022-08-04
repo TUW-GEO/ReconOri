@@ -7,6 +7,19 @@
 #  *                                                                         *
 #  ***************************************************************************
 
+"""
+/***************************************************************************
+ ImageSelection
+                                 A QGIS plugin
+ Guided selection of images with implicit coarse geo-referencing.
+                              -------------------
+        begin                : 2021-11-12
+        copyright            : (C) 2021 by Photogrammetry @ GEO, TU Wien, Austria
+        email                : wilfried.karel@geo.tuwien.ac.at
+        git sha              : $Format:%H$
+ ***************************************************************************/
+"""
+
 from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, Qt, QPointF, QSettings
 from qgis.PyQt.QtGui import QPen, QPolygonF
 from qgis.PyQt.QtWidgets import QFileDialog, QGraphicsPolygonItem, QGraphicsScene, QInputDialog, QMessageBox
@@ -17,6 +30,7 @@ import sqlite3
 
 import collections
 import configparser
+import gc
 import json
 import logging
 from pathlib import Path
@@ -51,6 +65,8 @@ class MapScene(QGraphicsScene):
 
     visualizationChanged = pyqtSignal(dict, dict, set)
 
+    highlightAerials = pyqtSignal(set)
+
     def __init__(self, *args, epsg: int, config: configparser.ConfigParser, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.__wcs = osr.SpatialReference()
@@ -83,17 +99,6 @@ class MapScene(QGraphicsScene):
         if fileName:
             self.__lastDir = str(Path(fileName).parent)
             self.loadAoiFile(Path(fileName))
-
-    @pyqtSlot(set)
-    def highlightAerial(self, imageIds):
-        logger.info(f'highlight {imageIds}')
-        for item in self.items():
-            if isinstance(item, AerialImage):
-                if imageIds:
-                    if item.id() in imageIds:
-                        item.object.animate()
-                else:
-                    item.object.stopAnimation()
 
     def unload(self):
         AerialImage.unload()
@@ -179,6 +184,11 @@ class MapScene(QGraphicsScene):
         if self.__aoi is not None:
             self.removeItem(self.__aoi)
         self.clear()
+        # Beyond this line, old graphics items must not receive signals any longer, as their DB gets closed.
+        # Since AerialPoint, AerialImage, and AerialObject do not create reference cycles,
+        # they should be destroyed immediately by QGraphicsScene.clear.
+        # But let's be sure:
+        gc.collect()
         if self.__aoi is not None:
             self.addItem(self.__aoi)
         if self.__db is not None:

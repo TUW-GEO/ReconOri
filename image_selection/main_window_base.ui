@@ -100,9 +100,6 @@
             <property name="title">
              <string/>
             </property>
-            <property name="flat">
-             <bool>false</bool>
-            </property>
             <layout class="QHBoxLayout" name="horizontalLayout_4">
              <property name="topMargin">
               <number>0</number>
@@ -185,9 +182,6 @@
             <property name="title">
              <string/>
             </property>
-            <property name="flat">
-             <bool>false</bool>
-            </property>
             <layout class="QHBoxLayout" name="horizontalLayout_3">
              <property name="topMargin">
               <number>0</number>
@@ -222,7 +216,7 @@
                 <string>Load attack data.</string>
                </property>
                <property name="text">
-                <string />
+                <string/>
                </property>
                <property name="icon">
                 <iconset resource="resources.qrc">
@@ -507,6 +501,38 @@
            </widget>
           </item>
           <item>
+           <widget class="QGroupBox" name="groupBox">
+            <property name="title">
+             <string/>
+            </property>
+            <layout class="QHBoxLayout" name="horizontalLayout_5">
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+             <item>
+              <widget class="QToolButton" name="GEO">
+               <property name="text">
+                <string>...</string>
+               </property>
+               <property name="icon">
+                <iconset resource="resources.qrc">
+                 <normaloff>:/plugins/image_selection/GEO</normaloff>:/plugins/image_selection/GEO</iconset>
+               </property>
+               <property name="iconSize">
+                <size>
+                 <width>34</width>
+                 <height>16</height>
+                </size>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
            <spacer name="horizontalSpacer">
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
@@ -528,12 +554,6 @@
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>0</height>
-           </size>
           </property>
           <property name="focusPolicy">
            <enum>Qt::WheelFocus</enum>
@@ -668,10 +688,7 @@
          <enum>Qt::Horizontal</enum>
         </property>
         <property name="standardButtons">
-         <set>QDialogButtonBox::Cancel|QDialogButtonBox::Help|QDialogButtonBox::Ok</set>
-        </property>
-        <property name="centerButtons">
-         <bool>false</bool>
+         <set>QDialogButtonBox::Help|QDialogButtonBox::Ok</set>
         </property>
        </widget>
       </item>
@@ -696,5 +713,22 @@
  <resources>
   <include location="resources.qrc"/>
  </resources>
- <connections/>
+ <connections>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>accepted()</signal>
+   <receiver>ImageSelectionDialogBase</receiver>
+   <slot>close()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>866</x>
+     <y>990</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>535</x>
+     <y>515</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>

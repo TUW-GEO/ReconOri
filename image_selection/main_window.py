@@ -20,8 +20,8 @@
  ***************************************************************************/
 
 """
-from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QElapsedTimer, QMargins, QRectF, Qt
-from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QElapsedTimer, QMargins, QRectF, Qt, QUrl
+from qgis.PyQt.QtGui import QDesktopServices, QIcon
 from qgis.PyQt.QtWidgets import QActionGroup, QDialogButtonBox, QMenu, QMessageBox, QToolButton, QWhatsThis
 from qgis.PyQt.uic import loadUiType
 
@@ -61,6 +61,7 @@ class MainWindow(FormBase):
 
         self.__initMap()
         self.__initAerials()
+        self.ui.GEO.clicked.connect(lambda: QDesktopServices.openUrl(QUrl('https://photo.geo.tuwien.ac.at/')))
         self.__statusBarLogHandler = StatusBarLogHandler(logging.INFO, self.showLogMessage)
         packageLogger, _ = getLoggerAndFileHandler()
         packageLogger.addHandler(self.__statusBarLogHandler)
@@ -68,15 +69,15 @@ class MainWindow(FormBase):
 
         scene = self.ui.mapView.scene()
         webView = self.ui.webView
-        scene.aerialsLoaded.connect(webView.onAerialsLoaded)
-        scene.attackDataLoaded.connect(webView.onAttackDataLoaded)
-        scene.areaOfInterestLoaded.connect(webView.onAreaOfInterestLoaded)
-        scene.aerialFootPrintChanged.connect(webView.onAerialFootPrintChanged)
+        scene.aerialsLoaded.connect(webView.aerialsLoaded)
+        scene.attackDataLoaded.connect(webView.attackDataLoaded)
+        scene.areaOfInterestLoaded.connect(webView.areaOfInterestLoaded)
+        scene.aerialFootPrintChanged.connect(webView.aerialFootPrintChanged)
         scene.aerialAvailabilityChanged.connect(webView.aerialAvailabilityChanged)
         scene.aerialUsageChanged.connect(webView.aerialUsageChanged)
         self.__filteredImageIds: set[str] = set()
-        webView.aerialFilterChanged.connect(self.__onAerialFilterChanged)
-        webView.highlightAerial.connect(scene.highlightAerial)
+        webView.filterAerials.connect(self.__filterAerials)
+        webView.highlightAerials.connect(scene.highlightAerials)
         # Having re-loaded the web page (with possibly changed JavaScript), re-transmit to the page the data we have.
         # Otherwise, the whole PlugIn would need to be re-loaded, meaning a shut-down and re-start of the HTTP-server, which takes time.
         webView.loadFinished.connect(lambda ok: scene.emitAerialsLoaded() if ok else None)
@@ -226,7 +227,7 @@ class MainWindow(FormBase):
 
         scene.aerialsLoaded.connect(
             lambda *_: self.__onContrastEnhancementToggled(ui.aerialsContrastEnhancement.isChecked()))
-        scene.aerialsLoaded.connect(lambda *_: self.__onAerialFilterChanged(set()))
+        scene.aerialsLoaded.connect(lambda *_: self.__filterAerials(set()))
 
     def unload(self) -> None:
         try:
@@ -260,7 +261,7 @@ class MainWindow(FormBase):
         self.__onVisualizationChanged(visualizations={availability: visualization})
 
     @pyqtSlot(set)
-    def __onAerialFilterChanged(self, imageIds: set[str]):
+    def __filterAerials(self, imageIds: set[str]):
         self.__filteredImageIds = imageIds
         self.__onVisualizationChanged()
 

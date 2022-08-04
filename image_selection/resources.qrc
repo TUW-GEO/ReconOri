@@ -21,7 +21,6 @@
         <file alias="arrow-resize-090">resources/arrow-resize-090.png</file>
         <file alias="chart">resources/chart.png</file>
         <file alias="layer-shape-polygon">resources/layer-shape-polygon.png</file>
-        <file alias="light-bulb-off">resources/light-bulb-off.png</file>
         <file alias="selection">resources/selection.png</file>
         <file alias="tick">resources/tick-red.png</file>
         <file alias="cross">resources/cross.png</file>
@@ -30,5 +29,8 @@
         <file alias="globe-green">resources/globe-green.png</file>
         <file alias="vienna">resources/Wien_Wappen.png</file>
         <file alias="austria">resources/Flag_of_Austria.svg</file>
+        <file alias="rotateLeft">resources/arrow-circle-225-left.png</file>
+        <file alias="rotateRight">resources/arrow-circle-315.png</file>
+        <file alias="GEO">resources/GEO.png</file>
     </qresource>
 </RCC>

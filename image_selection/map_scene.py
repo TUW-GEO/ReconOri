@@ -82,7 +82,7 @@ class MapScene(QGraphicsScene):
                                                self.__lastDir, "Excel sheets (*.xls;*.xlsx);;Any type (*.*)")[0]
         if fileName:
             self.__lastDir = str(Path(fileName).parent)
-            self.loadAerialsFile(Path(fileName))
+            self.__loadAerialsFile(Path(fileName))
 
     @pyqtSlot()
     def selectAttackDataFile(self):
@@ -90,7 +90,7 @@ class MapScene(QGraphicsScene):
                                                self.__lastDir, "Excel sheets (*.xls;*.xlsx);;Any type (*.*)")[0]
         if fileName:
             self.__lastDir = str(Path(fileName).parent)
-            self.loadAttackDataFile(Path(fileName))
+            self.__loadAttackDataFile(Path(fileName))
 
     @pyqtSlot()
     def selectAoiFile(self):
@@ -98,14 +98,22 @@ class MapScene(QGraphicsScene):
                                                self.__lastDir, "Geometry formats (*.kml;*.shp);;Any type (*.*)")[0]
         if fileName:
             self.__lastDir = str(Path(fileName).parent)
-            self.loadAoiFile(Path(fileName))
+            self.__loadAoiFile(Path(fileName))
+
+    @pyqtSlot()
+    def exportSelectedImages(self):
+        fileName = QFileDialog.getSaveFileName(None, "Export the meta data of selected aerials",
+                                               self.__lastDir, "Excel sheets (*.xls;*.xlsx)")[0]
+        if fileName:
+            self.__lastDir = str(Path(fileName).parent)
+            self.__exportSelectedImages(Path(fileName))
 
     def unload(self):
         AerialImage.unload()
         if self.__db is not None:
             self.__db.close()
 
-    def loadAoiFile(self, fileName: Path) -> None:
+    def __loadAoiFile(self, fileName: Path) -> None:
         def error(msg):
             __class__.__error("Erroneous Area of Interest", msg)
 
@@ -156,7 +164,7 @@ class MapScene(QGraphicsScene):
             view.fitInView(self.itemsBoundingRect(), Qt.KeepAspectRatio)
         self.emitAreaOfInterestLoaded()
 
-    def loadAerialsFile(self, fileName: Path) -> None:
+    def __loadAerialsFile(self, fileName: Path) -> None:
         logger.info(f'Spreadsheet with image meta data to load: {fileName}')
         dbPath = fileName.with_suffix('.sqlite')
         rmDb = False
@@ -252,7 +260,7 @@ class MapScene(QGraphicsScene):
 
         self.emitAerialsLoaded(images)
 
-    def loadAttackDataFile(self, fileName: Path) -> None:
+    def __loadAttackDataFile(self, fileName: Path) -> None:
         def date2str(arg):
             if isinstance(arg, str):
                 return arg
@@ -292,6 +300,14 @@ class MapScene(QGraphicsScene):
         df.fillna(method='ffill', inplace=True)
         self.__attackData = df.to_dict('records')
         self.emitAttackDataLoaded()
+
+    def __exportSelectedImages(self, fileName: Path) -> None:
+        assert self.__db is not None
+        namedTuples = []
+        for meta, in self.__db.execute('SELECT meta FROM aerials WHERE usage = ?', [Usage.selected]):
+            namedTuples.append(json.loads(meta))
+        df = pd.DataFrame(namedTuples)
+        df.to_excel(fileName, sheet_name='Selected aerials', index=False)
 
     def emitAerialsLoaded(self, images: Optional[list[AerialImage]] = None) -> None:
         if self.__db is None:

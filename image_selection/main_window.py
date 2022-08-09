@@ -225,6 +225,9 @@ class MainWindow(FormBase):
 
         ui.aerialsFreeze.toggled.connect(lambda checked: ui.mapView.setInteractive(not checked))
 
+        ui.exportSelectedImages.clicked.connect(scene.exportSelectedImages)
+        scene.aerialsLoaded.connect(lambda *_: ui.exportSelectedImages.setEnabled(True))
+
         scene.aerialsLoaded.connect(
             lambda *_: self.__onContrastEnhancementToggled(ui.aerialsContrastEnhancement.isChecked()))
         scene.aerialsLoaded.connect(lambda *_: self.__filterAerials(set()))

@@ -10,6 +10,7 @@
   IMPORTANT DEV NOTICE
   + using certain p5 functions (e.g., abs, map, probably ones that overload js) at certain points makes plugin crash on reload
   + only 3 AOIs working: st. polten, 04 & 10 (since interest function implemented): 'Franz_Barwig_Weg12', 'Breitenleer_Str' not working
+  + hovering does not switch highlighting item if untinterrupted
 */
 
 let aoiPoly, aoiArea;
@@ -30,7 +31,7 @@ let data;
 let visible = [];
 let isSmall = true; // for small AOIs such as St.Poelten and Vienna
 let isWien = true;
-let topDiv = 12;
+let h = [20,35,70];
 let projects = ['Seybelgasse', 'Postgasse', 'Franz_Barwig_Weg12', 'Central_Cemetery', 'Breitenleer_Str'];
 let orientingOn = true;
 let timeMode = 'chronological';
@@ -39,12 +40,14 @@ let hoverables = [];
 let aniSpeed = .5;
 let timeline = {};
 let log = { log: []};
+let groundColor = 236;
 
 //// SKETCH
 
 function preload() {
   attackData =  loadTable(isWien?'data/AttackList_Vienna.xlsx - Tabelle1.csv':'data/Attack_List_St_Poelten.xlsx - Tabelle1.csv', 'header').rows;
-  preselected = loadTable('data/Selected_Images_'+projects[1]+'.csv', 'header').rows;
+  preselected = loadTable('data/Selected_Images_'+projects[0]+'.csv', 'header').rows;
+  font1 = loadFont('assets/Akkurat-Mono.OTF');
 }
 
 
@@ -78,12 +81,10 @@ function setup() {
     return map(x, 20, width-20, this.range[0], this.range[1]);
   }
   timeline.filter = function (x1,x2) {
-    if (!this.filterOn) {
       this.range = [this.inversemap(x1), this.inversemap(x2)];
       this.filterOn = true;
       sendObject(aerials.filter( a => a.time >= this.range[0] && a.time <= this.range[1]).map(a => a.id), 'filter');
       log.write('timeFilter',this.range,'')
-    } else this.reset();
   }
   
   // PRESELECTED IMAGES FILE PROCESSING
@@ -123,7 +124,7 @@ function setup() {
       timeMode = (timeMode === 'chronological'? 'flights':'chronological');
     }
   }
-  // clickables.push(timeModeButton);
+  clickables.push(timeModeButton);
   // FINISH BUTTON
   const finishButton = {
     id: 'finishButton',
@@ -143,15 +144,15 @@ function setup() {
 
 
 function draw() {
-  background(255);//236
-  
+  background(groundColor);
+  h[3] = height-30;
   textSize(8), fill(0), noStroke();
   // translate (0, 12);
   drawTimeline();
   // drawCvgMatrix(); 
   if (currentTimebin === '') drawTimemap();
   else drawTimebin(currentTimebin);
-  if (aoi) attackDates.forEach( (a,i) => drawAttack(attacks[i], 4))
+  if (aoi) attackDates.forEach( (a,i) => drawAttack(attacks[i], 8))
   clickables.forEach( a => a.draw()); // timemodebutton
 
   hoveredAerial = resolveMouseAerial();
@@ -159,9 +160,10 @@ function draw() {
     if (!hoveredFlag) sendObject(hoveredAerial.id, 'highlight');
     hoveredFlag = true
     push(), translate(hoveredAerial.vis.pos[0],hoveredAerial.vis.pos[1]);
-    fill(255,80), stroke(255);
+    fill(255,90), noStroke();
     rect(0,0,120,-100);
     fill('black'), textSize(11), textAlign(LEFT);
+    text(hoveredAerial.meta.Sortie+'/'+hoveredAerial.meta.Bildnr, 10,-2)
     Object.keys(hoveredAerial.interest).forEach( (k,i) => {
       text(k+': '+(typeof(hoveredAerial.interest[k])==='number'?round(hoveredAerial.interest[k],2):hoveredAerial.interest[k]),10,-78+12*i);
     }) 
@@ -177,7 +179,7 @@ function draw() {
 const orColor = function (a) {
   // if (a > .95) return color(0,180,255);
   // else return color(255)
-  return lerpColor(color(255),color(0,180,255),a);
+  return lerpColor(color(220),color(0,180,255),a);
 }
 
 const prColor = function (a) {
@@ -185,7 +187,7 @@ const prColor = function (a) {
 }
 
 const urColor = function (a) {
-  return color(40,255,50);
+  return lerpColor(color(groundColor),color(70,225,70),a);
 }
 
 const drawCvgMatrix = function() {
@@ -205,13 +207,12 @@ const drawCvgMatrix = function() {
 
 const drawAttack = function (attack, r) {
   let c = hovered === attack.date? color(255,130,20):56;
-  push(), translate(timeline.map(attack.date),0);
+  push(), translate(timeline.map(attack.date),h[1]);
   // push(), drawingContext.setLineDash([2, 2]), strokeWeight(1), stroke(c);
-  // line(0,0,0,topDiv), pop()
-  fill(c), noStroke();
-  stroke(0), strokeWeight(.5);
-  fill(orientingOn?orColor(1-attack.coverage):255);
-  ellipse(0,topDiv/2,topDiv-2);
+  // line(0,0,0,h[0]), pop()
+  stroke(50), strokeWeight(.4);
+  fill(urColor(attack.coverage));
+  rect(0,0,5,-10);
   // beginShape();
   // vertex(0,-r/2), vertex(r/2,-r), vertex(r/2,0), vertex(0,r/2);
   // vertex(-r/2,0),  vertex(-r/2,-r), vertex(0,-r/2);
@@ -252,49 +253,48 @@ const drawViewfinder = function (aggCvg, r) {
 
 const drawTimeline = function () {
   let years = aerialDates.map( a => a.slice(0,4)).filter(onlyUnique);
-  textAlign(CENTER), textStyle(NORMAL), textFont('Helvetica'), textSize(15), fill(186);
-  years.forEach( a => text(a,timeline.map(a.concat('-01-01')),topDiv));
-  aerialDates.forEach( a => {
-    let x = timeline.map(a);
-    strokeWeight(a===hovered || a===currentTimebin? 1:.2), noFill(), stroke(126);
-    line(x,0,x,topDiv)
-  });
-  // draw days as points
-  // let oneDay = 60 * 60 * 24 * 1000;
-  // let startDate = Date.parse(aerialDates[0]);
-  // let lastDate = Date.parse(aerialDates[aerialDates.length-1]);
-  // let totalDays =  Math.round(Math.abs((startDate - lastDate) / oneDay));
-  // let aDay = startDate;
-  // for (let i=0; i<=totalDays; i++) {
-  //   stroke(0), strokeWeight(1.5);
-  //   point(timeline.map(aDay),10);
-  //   aDay = new Date(new Date(aDay).getTime() + oneDay);
-  // }
+  let monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let months = years.reduce( (months, year) => {
+    let a = [];
+    for ( let i=1; i<=12; i++) a.push(year+'-'+(i<10?'0'+i:i)+'-01');
+    return months.concat(a);
+  }, []) 
+  textAlign(LEFT), textStyle(NORMAL), textFont(font1), textSize(10), fill(80);
+  years.forEach( a => text(a,timeline.map(a.concat('-01-01')),h[0]-10));
+  textAlign(LEFT), textStyle(NORMAL), textFont(font1), textSize(10), fill(150);
+  months.forEach( (a,i) => text(monthNames[i%12],timeline.map(a),h[0]));
+  // aerialDates.forEach( a => {
+  //   let x = timeline.map(a);
+  //   strokeWeight(a===hovered || a===currentTimebin? 1:.2), noFill(), stroke(126);
+  //   line(x,0,x,h[0])
+  // });
 }
 
 const drawFlights = function ( aerials, params ) {
 
   const drawFlightCurve = function(timebin, params) {
-    noFill(), stroke(100), strokeWeight(1);
+    noFill();
     [1,-1].forEach ( m => {
       beginShape();
-      vertex(params.anchor[0],min(80-20,map(-1,-1,timebin.length+1,80-20,height))); //y position wron
+      curveVertex(params.anchor[0],min(80-20,map(-1,-1,timebin.length+1,80-20,height))); 
+      curveVertex(params.anchor[0],min(80-20,map(-1,-1,timebin.length+1,80-20,height))); //y position wron
       timebin.forEach( (b, i, arr) => {
         let x = b.vis.pos[0] + (b.meta.p==m?0:-params.mod*2*b.meta.p);// + (b.meta.Bildnr>=3000&&b.meta.Bildnr<5000?m:0);
         let y = b.vis.pos[1];
-        vertex( x, y );
+        curveVertex( x, y );
         //draw special line between pairs
         [1,2].forEach( v => {
           if (i+v < arr.length && parseInt(arr[i+v].meta.Bildnr) == parseInt(b.meta.Bildnr+1) && arr[i+v].meta.p==m) {
             // console.log(parseInt(arr[i+2].meta.Bildnr)+' '+parseInt(b.meta.Bildnr+1));
             let c = arr[i+v];
-            push(), strokeWeight(b.meta.selected&&c.meta.selected?2:1), stroke(b.meta.selected&&c.meta.selected?urColor(1):0);
+            push(), strokeWeight(b.meta.selected&&c.meta.selected?4:2), stroke(b.meta.selected&&c.meta.selected?urColor(1):50);
             line(x,y,c.vis.pos[0]+(c.meta.p==m?0:-params.mod*2*c.meta.p),c.vis.pos[1]), pop();
           }
         })
       })
-      vertex(params.anchor[0]+(timebin.length+1)*params.slope,min(80+timebin.length*20,map(timebin.length,0,timebin.length,80,height-20)))
-      strokeWeight(.5);
+      curveVertex(params.anchor[0]+(timebin.length+1)*params.slope,min(80+timebin.length*20,map(timebin.length,0,timebin.length,80,height-20)))
+      curveVertex(params.anchor[0]+(timebin.length+1)*params.slope,min(80+timebin.length*20,map(timebin.length,0,timebin.length,80,height-20)))
+      strokeWeight(1);
       endShape();
     });
   }
@@ -328,14 +328,14 @@ const drawTimemap = function () {
     let c = a === currentTimebin? color(255,30,30):color(126);
     // Draw attack lines
     if (i != 0) attackDates.forEach( b => {
-      push(), stroke(0), strokeWeight(a===hovered? 1:.5), drawingContext.setLineDash([1,1]);
+      push(), stroke(200), strokeWeight(1), drawingContext.setLineDash([1,2]);
       if (Date.parse(b) > Date.parse(arr[i-1]) && Date.parse(b) <= Date.parse(a)) {
         let x3 = map( i-.5, 0, arr.length-1, 20, width-20 );
         if (timeMode === 'chronological') {
-          line( timeline.map(b), topDiv, timeline.map(b), height );
+          line( timeline.map(b), h[1], timeline.map(b), h[3] );
         } else {
-          line( timeline.map(b), topDiv, x3, min(55,height-35) );
-          line( x3, min(55,height-35), x3, height );
+          line( timeline.map(b), h[1], x3, min(55, h[3]));
+          line( x3, min(55,height-35), x3, h[3] );
         }
       }
       pop();
@@ -345,9 +345,9 @@ const drawTimemap = function () {
     if (height >= 150) drawFlights( timebin, { anchor:[x2,66], mod:5, slope:0 } );
 
     strokeWeight(a===hovered? 1:.2), noFill(), stroke(c);
-    // line(x,topDiv,x2,min(55,height-35))
+    // line(x,h[0],x2,min(55,height-35))
     push(), noStroke(), fill(100), textStyle(NORMAL), textSize(8);
-    if (timeMode !== 'chronological') text(a.slice(5).slice(a.slice(5,6)==='0'?1:0).replace('-','.'),x2,height);
+    // if (timeMode !== 'chronological') text(a.slice(5).slice(a.slice(5,6)==='0'?1:0).replace('-','.'),x2,height);
     pop();
 
     push(), translate(x2,min(55,height-35));
@@ -410,17 +410,18 @@ const drawAerial = function (aerial) {
   aerial.vis.r = r;
   let interest = orColor(aerial.meta.interest)//color( 125-aerial.meta.interest*100, 125+aerial.meta.interest*50, 125+aerial.meta.interest*175 );
   let isSelected = aerial.meta.selected;
-  push(), stroke(isSelected?urColor(1):100), strokeWeight(isSelected?2:1);
+  push(), stroke(groundColor)//stroke(isSelected?urColor(1):50), strokeWeight(isSelected?2:.2);
   // aerial.meta.MASSTAB > 20000? drawingContext.setLineDash([2, 2]):null;
   // fill( r>0? 155+aerial.meta.interest*50*sin(frameCount/(3/aerial.meta.interest)): 236 );
-  if (orientingOn) fill(aerial.interest.Cvg>0? interest: 255 );
-  else fill(200);
+  if (orientingOn) fill( aerial.interest.Cvg>0? interest: 255 );
+  else fill( 200);
+  if (isSelected) fill(urColor(1));
   if (!onArea) noFill();
   ellipse( 0, 0, r*2);
-  fill(isSelected?urColor(1):100), noStroke();
-  if (!onArea) noFill();
-  if (aerial.meta.LBDB) ellipse ( 0, -r/3*2, r/3*2)
-  noStroke(), fill(100), textSize(7), textAlign(aerial.meta.p==1?LEFT:RIGHT);
+  fill(groundColor), noStroke();
+  if (!onArea) fill(200);
+  if (aerial.meta.LBDB) ellipse ( 0, -r/3*2, r/3*2);
+  noStroke(), fill(0), textSize(7), textAlign(aerial.meta.p==1?LEFT:RIGHT);
   if (currentTimebin) text(aerial.meta.Bildnr, 15*(aerial.meta.p==1?1:-1), 3);
   // noFill(), stroke(0), strokeWeight(1);
   // ellipse(-mod,0,aerial.meta.Abd/5);
@@ -448,7 +449,10 @@ function mousePressed() {
 }
 
 function mouseReleased() {
-  if (mouseY < 20) timeline.filter(dragStart,mouseX);
+  if (mouseY < 20) {
+    if (Math.abs(dragStart-mouseX) > 1) timeline.filter(dragStart,mouseX);
+    else timeline.reset();
+  }
 }
 
 function mouseClicked() {

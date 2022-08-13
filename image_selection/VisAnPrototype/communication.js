@@ -80,7 +80,9 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
         a.interest.Cvg = a.meta.Cvg;
         a.interest.owned = a.meta.LBDB?1:0;
         a.meta.information = info;
+        a.meta.detail = (a.meta.MASSTAB <= 20000);
         a.meta.interest = 0;
+        a.meta.prescribed = false;
         let nr = new String(a.meta.Bildnr);
         a.meta.p = nr.slice(0,1) === '3'? -1:nr.slice(0,1) === '4'? 1:0; // polarity: -1, 0, 1 (left, center, right)
     });
@@ -139,14 +141,13 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
         //     a.meta.interest = a.interest.post;
         // });
     })
-    // normalize interest within a 31-day period before and after 
+    // normalize interest within a dayRange period before and after 
     aerials.forEach( a => {
-        let aerialSet = aerials.filter( b => Math.abs(a.time.getTime()- b.time.getTime()) < 1000 * 3600 * 24 * 31 );
+        let aerialSet = aerials.filter( b => Math.abs(a.time.getTime()- b.time.getTime()) < 1000 * 3600 * 24 * dayRange );
         let ranges = aerialSet.map( a => a.interest.pre).reduce ( (agg, a) => {
             if (a) return [Math.min(agg[0],a),Math.max(agg[1],a)];
             else return agg;
         }, [0,0]);
-        console.log(JSON.stringify(ranges));
         a.interest.post = a.interest.pre/ranges[1];
         a.meta.interest = a.interest.post;
     })
@@ -157,20 +158,40 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
         return {
           date: attackDates[i],
           flights: aerialDates.filter( d => d >= a && ((i+1)<attackDates.length? d < attackDates[i+1]: true) ),
-          extFlights: aerialDates.filter( d => d >= a && (new Date(d).getTime())-atTime < 1000 * 3600 * 24 * 31),
+          extFlights: aerialDates.filter( d => d >= a && (new Date(d).getTime())-atTime < 1000 * 3600 * 24 * dayRange),
           coverage: 0 // calculated in setup because of preselected images
         }
-      });
-      console.log(JSON.stringify(attacks.map( a => a.date)));
-      console.log(JSON.stringify(attacks.map( a => a.extFlights)));
-    // attacks.forEach( (a, i, arr) => {
-    //     a.date = attackDates[i];
-    //     a.flights = aerialDates.filter( d => d >= a.date )//&& ((i+1)<arr.length? d < arr[i+1].date: true));
-    //     a.posflights = [];
-    //     a.coverage = 0;
-    // })
-    // console.log(JSON.stringify(attacks.map( a => a.date)));
-    // console.log(JSON.stringify(attackDates));
+    });
+    
+    // EQUIVALENCE CLASS CREATION
+    timebins.forEach( (t,i) => {
+        t.attacks = attackDates.filter( a => t.date >= a && ((new Date(t.date).getTime())-(new Date(a).getTime())) < 1000 * 3600 * 24 * dayRange);
+    })
+    function arraysEqual(a, b) {
+        if (a === b) return true;
+        if (a == null || b == null) return false;
+        if (a.length !== b.length) return false;
+        for (var i = 0; i < a.length; ++i) {
+          if (a[i] !== b[i]) return false;
+        }
+        return true;
+    }
+    console.log(JSON.stringify(timebins.map( a => a.attacks)));
+    let classes = timebins.reduce( (groups, t) => {
+            if (groups.length == 0 || !arraysEqual(groups[groups.length-1][0].attacks, t.attacks)) groups.push([t]);
+            else groups[groups.length-1].push(t);
+            return groups;
+        }, []);
+    console.log(JSON.stringify(classes.map( a => a.length)));
+    
+    // PRESCRIBING GUIDANCE
+    // First, pick the best image from each equivalence class
+    classes.forEach( c => {
+        let allAerials = timebins.filter( t => c.map( a => a.date).includes(t.date)).map (t => t.aerials).reduce( (agg, a) => [...agg, ...a],[]);
+        let bestPick = allAerials.sort( (a,b) => a.meta.interest < b.meta.interest? 1:-1)[0];
+        if (bestPick.meta.detail) bestPick.meta.prescribed = true;
+    })
+    
 }));
   
 qgisplugin.aerialFootPrintChanged.connect(handleErrors(function(imgId, _footprint) {

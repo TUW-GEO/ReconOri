@@ -2,10 +2,7 @@
   DoRIAH Image Selection - Visualization
   ip: Ignacio Perez-Messina
   TODO
-  + add log
-  + normalize orienting guidance within interattack periods
-  + add hovering interaction
-  + add prescribing guidance
+  + fix bugs
 
   IMPORTANT DEV NOTICE
   + using certain p5 functions (e.g., abs, map, probably ones that overload js) at certain points makes plugin crash on reload
@@ -16,7 +13,6 @@
 let aoiPoly, aoiArea;
 let aerials = [];
 let attackDates = ["1944-03-17","1944-05-24","1944-05-29","1944-06-16","1944-06-26","1944-07-08","1944-07-16","1944-08-22","1944-08-23","1944-09-10","1944-10-07","1944-10-11","1944-10-13","1944-10-17","1944-11-01","1944-11-03","1944-11-05","1944-11-06","1944-11-07","1944-11-17","1944-11-18","1944-11-19","1944-12-02","1944-12-03","1944-12-11","1944-12-18","1944-12-27","1945-01-15","1945-01-21","1945-02-07","1945-02-08","1945-02-13","1945-02-14","1945-02-15","1945-02-19","1945-02-20","1945-02-21","1945-03-04","1945-03-12","1945-03-15","1945-03-16","1945-03-20","1945-03-21","1945-03-22","1945-03-23","1945-03-30"];
-let preselected;
 let attacks = [];
 let aoi = [];
 let footprints = {};
@@ -29,24 +25,27 @@ let hoveredFlag, hoveredAerial = '';
 let hovered = '';
 let data;
 let visible = [];
-let isSmall = true; // for small AOIs such as St.Poelten and Vienna
-let isWien = true;
-let h = [20,35,70];
-let projects = ['Seybelgasse', 'Postgasse', 'Franz_Barwig_Weg12', 'Central_Cemetery', 'Breitenleer_Str'];
-let orientingOn = true;
 let timeMode = 'chronological';
 let clickables = [];
 let hoverables = [];
 let aniSpeed = .5;
 let timeline = {};
-let log = { log: []};
-let groundColor = 236;
+let log = { log: [] };
+let orientingOn = true;
+let prescribingOn = true;
+const groundColor = 236;
+const dayRange = 25;
+const isSmall = true; // for small AOIs such as St.Poelten and Vienna
+const isWien = true;
+const h = [20,35,70];
+const projects = ['Seybelgasse', 'Postgasse', 'Franz_Barwig_Weg', 'Central_Cemetery', 'BreitenleerStr'];
+const project = false;
 
 //// SKETCH
 
 function preload() {
   attackData =  loadTable(isWien?'data/AttackList_Vienna.xlsx - Tabelle1.csv':'data/Attack_List_St_Poelten.xlsx - Tabelle1.csv', 'header').rows;
-  preselected = loadTable('data/Selected_Images_'+projects[0]+'.csv', 'header').rows;
+  if (project) preselected = loadTable('data/Selected_Images_'+projects[project]+'.csv', 'header').rows;
   font1 = loadFont('assets/Akkurat-Mono.OTF');
 }
 
@@ -88,26 +87,28 @@ function setup() {
   }
   
   // PRESELECTED IMAGES FILE PROCESSING
-  preselected = preselected.filter( a => a.obj['Image']).map( (a, i, arr) => {
-    return {
-      Sortie: (a.obj['Sortie-Nr.']? a.obj['Sortie-Nr.']: arr[i-1].obj['Sortie-Nr.']),
-      Bildnr: a.obj['Image']}
-  }); // Process selected images file --there are cases with no flight number
-  preselected.forEach( a => {
-    if (a.Bildnr.indexOf('-') >= 0) {
-      let nrs = a.Bildnr.split('-');
-      let nrs2 = ''
-      for ( let x = parseInt(nrs[0]); x <= parseInt(nrs[1]); x++) nrs2 += x + (x!=parseInt(nrs[1])?'-':'');
-      a.Bildnr = nrs2;
-    } else if (a.Bildnr.indexOf(',') >= 0) {
-      let nrs = a.Bildnr.split(',');
-      a.Bildnr = nrs.reduce( (agg,nr) => agg.concat(nr+'-') , '');
-    } // Two cases to account for: separated by - (range) or , (singles)
-  });
-  aerials.forEach( a => {
-    let isSelected = preselected.filter( b => a.meta.Sortie === b.Sortie && b.Bildnr.indexOf( a.meta.Bildnr ) >= 0 ).length==1;
-    a.meta.selected = (isSelected? true:false);
-  }); // Add status to aerial object
+  if (project) {
+    preselected = preselected.filter( a => a.obj['Image']).map( (a, i, arr) => {
+      return {
+        Sortie: (a.obj['Sortie-Nr.']? a.obj['Sortie-Nr.']: arr[i-1].obj['Sortie-Nr.']),
+        Bildnr: a.obj['Image']}
+    }); // Process selected images file --there are cases with no flight number
+    preselected.forEach( a => {
+      if (a.Bildnr.indexOf('-') >= 0) {
+        let nrs = a.Bildnr.split('-');
+        let nrs2 = ''
+        for ( let x = parseInt(nrs[0]); x <= parseInt(nrs[1]); x++) nrs2 += x + (x!=parseInt(nrs[1])?'-':'');
+        a.Bildnr = nrs2;
+      } else if (a.Bildnr.indexOf(',') >= 0) {
+        let nrs = a.Bildnr.split(',');
+        a.Bildnr = nrs.reduce( (agg,nr) => agg.concat(nr+'-') , '');
+      } // Two cases to account for: separated by - (range) or , (singles)
+    });
+    aerials.forEach( a => {
+      let isSelected = preselected.filter( b => a.meta.Sortie === b.Sortie && b.Bildnr.indexOf( a.meta.Bildnr ) >= 0 ).length==1;
+      a.meta.selected = (isSelected? true:false);
+    }); // Add status to aerial object
+  }
 
   calculateAttackCvg();
 
@@ -140,18 +141,58 @@ function setup() {
     }
   }
   clickables.push(finishButton);
+  // ORIETING BUTTON
+  const orButton = {
+    id: 'orButton',
+    pos: [width-5,5],
+    r: 3,
+    draw: function () {
+      push(), noStroke(), fill(orColor(1));
+      ellipse(this.pos[0], this.pos[1], this.r*2), pop();
+    },
+    click: function () {
+      orientingOn = !orientingOn;
+      log.write('orienting'+(orientingOn?'On':'Off'),'','');
+    }
+  }
+  clickables.push(orButton);
+  // PRESCRIBING BUTTON
+  const prButton = {
+    id: 'prButton',
+    pos: [width-5,15],
+    r: 3,
+    draw: function () {
+      push(), noStroke(), fill(prColor(1));
+      ellipse(this.pos[0], this.pos[1], this.r*2), pop();
+    },
+    click: function () {
+      prescribingOn = !prescribingOn;
+      log.write('prescribing'+(prescribingOn?'On':'Off'),'','');
+    }
+  }
+  clickables.push(prButton);
+
+  let attackVector = [];
+  timebins.forEach( t => {
+    attackVector.push([]);
+    // let containsSelected = t.aerials.map( a => a.meta.selected).reduce((acc, a) => acc||a, false);
+    attackDates.forEach( a => attackVector[attackVector.length-1].push( t.attacks.includes(a)?1:0));
+  })
+  console.log(JSON.stringify(attackVector));
+
+  //  noLoop();
 }
 
 
 function draw() {
+  console.log(frameCount);
   background(groundColor);
   h[3] = height-30;
   textSize(8), fill(0), noStroke();
   // translate (0, 12);
   drawTimeline();
   // drawCvgMatrix(); 
-  if (currentTimebin === '') drawTimemap();
-  else drawTimebin(currentTimebin);
+  drawTimemap();
   if (aoi) attackDates.forEach( (a,i) => drawAttack(attacks[i], 8))
   clickables.forEach( a => a.draw()); // timemodebutton
 
@@ -193,7 +234,7 @@ const urColor = function (a) {
 const drawCvgMatrix = function() {
   timebins.forEach( (t, i, arr) => {
     stroke(220), strokeWeight(2);
-    if (t.aerials.filter( a => a.meta.selected).length > 0) stroke(urColor());
+    if (t.aerials.filter( a => a.meta.selected).length > 0) stroke(urColor(1));
     let x = attacks.filter( a => a.extFlights.includes(t.date)).map( a => a.date).map( a => timeline.map(a));
     let y = map(i,0,arr.length,50,height);
     line(x[0], y, timeline.map(t.date), y);
@@ -325,7 +366,7 @@ const drawTimemap = function () {
     let x2 = timeMode === 'chronological'? x:map( i, 0, arr.length-1, 20, width-20 );
     // fill(230,140,20,60), noStroke();
     // if (a===hovered) rect(x2-10,80,20,height-24-80);
-    let c = a === currentTimebin? color(255,30,30):color(126);
+    let c = color(126);
     // Draw attack lines
     if (i != 0) attackDates.forEach( b => {
       push(), stroke(200), strokeWeight(1), drawingContext.setLineDash([1,2]);
@@ -410,12 +451,11 @@ const drawAerial = function (aerial) {
   aerial.vis.r = r;
   let interest = orColor(aerial.meta.interest)//color( 125-aerial.meta.interest*100, 125+aerial.meta.interest*50, 125+aerial.meta.interest*175 );
   let isSelected = aerial.meta.selected;
-  push(), stroke(groundColor)//stroke(isSelected?urColor(1):50), strokeWeight(isSelected?2:.2);
-  // aerial.meta.MASSTAB > 20000? drawingContext.setLineDash([2, 2]):null;
-  // fill( r>0? 155+aerial.meta.interest*50*sin(frameCount/(3/aerial.meta.interest)): 236 );
+  push(), stroke(groundColor), strokeWeight(1);//stroke(isSelected?urColor(1):50), strokeWeight(isSelected?2:.2);
   if (orientingOn) fill( aerial.interest.Cvg>0? interest: 255 );
   else fill( 200);
   if (isSelected) fill(urColor(1));
+  if (prescribingOn && aerial.meta.prescribed) fill( isSelected? 'yellow':'red'); 
   if (!onArea) noFill();
   ellipse( 0, 0, r*2);
   fill(groundColor), noStroke();

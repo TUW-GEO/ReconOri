@@ -63,14 +63,14 @@ import logging
 from pathlib import Path
 import sqlite3
 import threading
-from typing import cast, Any, Optional, Union
+from typing import cast, Final, Optional, Union
 import weakref
 
 from . import GdalPushLogHandler
 from .preview_window import ContrastEnhancement, enhanceContrast, PreviewWindow
 from . import map_scene
 
-logger = logging.getLogger(__name__)
+logger: Final = logging.getLogger(__name__)
 
 
 class Availability(enum.IntEnum):
@@ -126,15 +126,16 @@ class InversionEffect(QGraphicsEffect):
 
 class AerialObject(QObject):
 
+    __timerId: Optional[int] = None
+
     def __init__(self, scene: 'map_scene.MapScene', posScene: QPointF, imgId: str, meta, db: sqlite3.Connection):
         super().__init__()
         point = AerialPoint()
-        image = AerialImage(imgId, posScene, meta, point, db)
-        self.__point = weakref.ref(point)
-        self.image = weakref.ref(image)
+        image = AerialImage(imgId, posScene, meta, point, db, self)
+        self.__point: Final = weakref.ref(point)
+        self.image: Final = weakref.ref(image)
         point.setImage(image)
         image.setVisible(False)
-        self.__timerId = None
         scene.contrastEnhancementChanged.connect(image.setContrastEnhancement)
         scene.visualizationChanged.connect(self.__setVisualization)
         scene.highlightAerials.connect(self.__highlight)
@@ -147,7 +148,6 @@ class AerialObject(QObject):
             el.setGraphicsEffect(effect)
             # Add the items to the scene only now, such that they have not emitted scene signals during their setup.
             scene.addItem(el)
-        image.object = self
 
     def timerEvent(self, event) -> None:
         for item in (self.image(), self.__point()):
@@ -208,8 +208,8 @@ class AerialPoint(QGraphicsEllipseItem):
         self.setCursor(Qt.PointingHandCursor)
         self.setCacheMode(QGraphicsItem.DeviceCoordinateCache)
         self.__transformState = TransformState.original
-        self.__cross = _makeOverlay('cross', self)
-        self.__tick = _makeOverlay('tick', self)
+        self.__cross: Final = _makeOverlay('cross', self)
+        self.__tick: Final = _makeOverlay('tick', self)
         self.__image: Optional[weakref.ref] = None
 
     def mouseDoubleClickEvent(self, event: QGraphicsSceneMouseEvent) -> None:
@@ -270,15 +270,13 @@ class AerialPoint(QGraphicsEllipseItem):
 
 class AerialImage(QGraphicsPixmapItem):
 
-    __pixMapWidth = 1000
+    __pixMapWidth: Final = 1000
 
-    __rotateCursor = QCursor(QPixmap(':/plugins/image_selection/rotate'))
+    __rotateCursor: Final = QCursor(QPixmap(':/plugins/image_selection/rotate'))
 
-    __transparencyCursor = QCursor(QPixmap(':/plugins/image_selection/eye'))
+    __transparencyCursor: Final = QCursor(QPixmap(':/plugins/image_selection/eye'))
 
     __threadPool: Optional[concurrent.futures.ThreadPoolExecutor] = None
-
-    object: Optional[AerialObject] = None
 
     # To be set beforehand by the scene:
 
@@ -314,26 +312,27 @@ class AerialImage(QGraphicsPixmapItem):
         if __class__.__threadPool is not None:
             __class__.__threadPool.shutdown(wait=False, cancel_futures=True)
 
-    def __init__(self, imgId: str, pos: QPointF, meta, point: AerialPoint, db: sqlite3.Connection):
+    def __init__(self, imgId: str, pos: QPointF, meta, point: AerialPoint, db: sqlite3.Connection, obj: AerialObject):
         super().__init__()
         self.setFlag(QGraphicsItem.ItemIsMovable)
         self.setFlag(QGraphicsItem.ItemIsFocusable)
         self.setFlag(QGraphicsItem.ItemSendsGeometryChanges)
         self.setShapeMode(QGraphicsPixmapItem.BoundingRectShape)
         self.setTransformationMode(Qt.SmoothTransformation)
-        self.__origPos = pos
-        self.__radiusBild = meta.Radius_Bild
-        self.__point = point
-        self.__opacity = 1.
-        self.__loadedPixMapParams = None
-        self.__currentContrast = ContrastEnhancement.histogram
+        self.__origPos: Final = pos
+        self.__radiusBild: Final[float] = meta.Radius_Bild
+        self.__point: Final = point
+        self.__opacity: float = 1.
+        self.__loadedPixMapParams: Optional[tuple[ContrastEnhancement, str, QRect]]  = None
+        self.__currentContrast: ContrastEnhancement = ContrastEnhancement.histogram
         self.__futurePixmap: Optional[concurrent.futures.Future] = None
-        self.__futurePixmapLock = threading.Lock()
-        self.__db = db
-        self.__id = imgId
+        self.__futurePixmapLock: Final = threading.Lock()
+        self.__db: Final = db
+        self.object: Final = obj
+        self.__id: Final = imgId
         self.__availability: Optional[Availability] = None
-        self.__cross = _makeOverlay('cross', self, QGraphicsItem.ItemIgnoresTransformations)
-        self.__tick = _makeOverlay('tick', self, QGraphicsItem.ItemIgnoresTransformations)
+        self.__cross: Final = _makeOverlay('cross', self, QGraphicsItem.ItemIgnoresTransformations)
+        self.__tick: Final = _makeOverlay('tick', self, QGraphicsItem.ItemIgnoresTransformations)
 
         if row := db.execute('SELECT usage, scenePos, trafo FROM aerials WHERE id == ?', [imgId]).fetchone():
             usage = Usage(row[0])
@@ -367,7 +366,7 @@ class AerialImage(QGraphicsPixmapItem):
         self.__setUsage(usage)
         self.__setPixMap()
 
-    def itemChange(self, change: QGraphicsItem.GraphicsItemChange, v: Any) -> Any:
+    def itemChange(self, change: QGraphicsItem.GraphicsItemChange, v):
         if change == QGraphicsItem.ItemVisibleHasChanged:
             if v:
                 self.__requestPixMap()
@@ -588,18 +587,20 @@ Double-click to close.<br/>
     def __requestPixMap(self):
         path, previewRect = self.__db.execute('SELECT path, previewRect FROM aerials WHERE id == ?',
                                               [self.__id]).fetchone()
+        if previewRect is None:
+            rotationCcw = 0
+            previewRect = QRect()
+        else:
+            *rect, rotationCcw = json.loads(previewRect)
+            previewRect = QRect(*rect)
 
         if self.__availability in (Availability.preview, Availability.image):
             if not self.__loadedPixMapParams or self.__loadedPixMapParams != (self.__currentContrast, path, previewRect):
                 if __class__.__threadPool is None:
                     __class__.__threadPool = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='ImageReader')
 
-                rotationCcw = 0
-                if previewRect is not None:
-                    *rect, rotationCcw = json.loads(previewRect)
-                    previewRect = QRect(*rect)
                 future = __class__.__threadPool.submit(_getPixMap, Path(path), self.__pixMapWidth,
-                                                       self.__currentContrast, previewRect or QRect(), rotationCcw)
+                                                       self.__currentContrast, previewRect, rotationCcw)
                 future.add_done_callback(self.__pixMapReady)
 
         self.__loadedPixMapParams = self.__currentContrast, path, previewRect
@@ -698,7 +699,7 @@ def _pixMapHeightFor(width: int, size: QSize) -> int:
     return round(size.height() / size.width() * width)
 
 
-def _getPixMap(path: Path, width: int, contrast: ContrastEnhancement, rect, rotationCcw: int):
+def _getPixMap(path: Path, width: int, contrast: ContrastEnhancement, rect: QRect, rotationCcw: int):
     with GdalPushLogHandler():
         ds = gdal.Open(str(path))
         if rect.isNull():

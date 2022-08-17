@@ -34,7 +34,7 @@ from typing import cast, Final, Optional
 import xml.etree.ElementTree
 
 import numpy as np
-import numpy.linalg
+from numpy.linalg import det
 from osgeo import gdal, osr
 
 from . import HttpTimeout, GdalPushLogHandler
@@ -234,7 +234,7 @@ class MapView(QGraphicsView):
         if self.__readThread is not None:
             self.__readThread.stop()
 
-    def receiveImage(self, img: QImage, wcsRect: QRect) -> None:
+    def receiveImage(self, img: QImage, wcsRect: QRectF) -> None:
         self.newImage.emit()
         sceneRectF = QRectF(wcsRect.x(), -wcsRect.y(), wcsRect.width(), -wcsRect.height())
         with self.__mapLock:
@@ -273,7 +273,7 @@ class MapView(QGraphicsView):
 class MapReadThread(threading.Thread):
 
     def __init__(self, datasetPath: str,
-                 cbImageRead: Callable[[QImage, QRect], None],
+                 cbImageRead: Callable[[QImage, QRectF], None],
                  cbResponseTime: Callable[[float], None],
                  cbIsReading: Callable[[bool], None]) -> None:
         super().__init__(daemon=True, name='MapRead')
@@ -296,7 +296,7 @@ class MapReadThread(threading.Thread):
                     self.dataset = gdal.Open(xml.etree.ElementTree.tostring(root, encoding='unicode'))
 
         geoTrafo = np.array(self.dataset.GetGeoTransform()).reshape((2, 3))
-        self.mapResolution: Final = np.abs(np.linalg.det(geoTrafo[:, 1:])) ** .5
+        self.mapResolution: Final = np.abs(det(geoTrafo[:, 1:])) ** .5
         self.__stop: Final = threading.Event()
         self.__cbImageRead: Final = cbImageRead
         self.__cbResponseTime: Final = cbResponseTime
@@ -495,6 +495,8 @@ class MapReadThread(threading.Thread):
                 finally:
                     self.__cbResponseTime(time.monotonic() - start)
                 break
+            else:
+                raise Exception('Failed to read image at all overview levels')
 
             self.__cbImageRead(img, __class__.__wcsRectFromPxRect(wcsFromPx, pxRectOvr, scale))
 

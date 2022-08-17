@@ -20,7 +20,7 @@
  ***************************************************************************/
 """
 
-from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QObject, Qt, QUrl, QVariant
+from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QObject, Qt, QUrl
 from qgis.PyQt.QtGui import QKeyEvent
 from qgis.PyQt.QtWidgets import QDialog, QGridLayout
 from qgis.PyQt.QtWebKit import QWebSettings

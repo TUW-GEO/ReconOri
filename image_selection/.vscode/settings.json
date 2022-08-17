@@ -11,9 +11,11 @@
     // - store in ../.env see https://code.visualstudio.com/docs/python/environments#_environment-variables
     //     PYTHONPATH=C:\Program Files\QGIS 3.22.8\apps\qgis-ltr\python
     // https://code.visualstudio.com/docs/python/settings-reference#_code-analysis-settings
+    // Variable substitution is unsupported here: https://code.visualstudio.com/docs/editor/variables-reference
     "python.analysis.extraPaths": [
         "C:/Program Files/QGIS 3.22.8/apps/qgis-ltr/python",
-        "C:/Users/wk/AppData/Roaming/Python/Python39/site-packages"
+        "C:/Users/wk/AppData/Roaming/Python/Python39/site-packages",
+        "C:/Program Files/QGIS 3.22.8/apps/Python39/Lib/site-packages"
     ],
     // Test with: editor-context-menu -> format-selection
     // Look into the "OUTPUT" window -> "Python"

@@ -30,11 +30,12 @@ import sqlite3
 
 import collections
 import configparser
+import datetime
 import gc
 import json
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional, Union
 
 from .aerial_item import ContrastEnhancement, AerialObject, AerialImage, Availability, Usage, Visualization
 
@@ -178,7 +179,7 @@ class MapScene(QGraphicsScene):
                 rmDb = True
 
         sheet_name = 'Geo_Abfrage_SQL'
-        df = pd.read_excel(fileName, sheet_name=sheet_name, true_values=['Ja', 'ja'], false_values=['Nein', 'nein'])
+        df = pd.read_excel(str(fileName), sheet_name=sheet_name, true_values=['Ja', 'ja'], false_values=['Nein', 'nein'])
         if not self.__cleanAerialData(df, sheet_name):
             return
 
@@ -261,10 +262,10 @@ class MapScene(QGraphicsScene):
         self.emitAerialsLoaded(images)
 
     def __loadAttackDataFile(self, fileName: Path) -> None:
-        def date2str(arg):
+        def date2str(arg: Union[str, datetime.datetime]) -> str:
             if isinstance(arg, str):
                 return arg
-            return f'{arg.day:02}.{arg.month:02}.{arg.year}'  # a datetime.datetime
+            return f'{arg.day:02}.{arg.month:02}.{arg.year}'
 
         logger.info(f'Spreadsheet with attack data to load: {fileName}')
         # Excel stores dates as numeric values (type=1; displayed according to the cell format),
@@ -278,8 +279,9 @@ class MapScene(QGraphicsScene):
         # Need to treat column names case insensitively:
         # - Attack_List_St_Poelten.xlsx stores them in all upper case,
         # - Projekte LBDB\Image_Selection_Projektbeispiel\Image_Selection_Sample_Vienna\AttackList_Vienna.xlsx in mixed case.
-        df = pd.read_excel(fileName, sheet_name='Tabelle1',
-                           converters=dict.fromkeys(['DATUM', 'Datum', 'datum'], date2str))
+        converters: dict[Union[int, str], Callable] = dict.fromkeys(['DATUM', 'Datum', 'datum'], date2str)
+        df = pd.read_excel(str(fileName), sheet_name='Tabelle1',
+                           converters=converters)
         # Homogenize the column names.
         df.rename(mapper=str.capitalize, axis='columns', inplace=True)
         # If we only read the column of attack dates, the rest could be skipped.

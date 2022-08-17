@@ -30,7 +30,7 @@ from osgeo import gdal
 
 import enum
 from pathlib import Path
-from typing import Optional
+from typing import cast, Optional
 
 from . import GdalPushLogHandler
 
@@ -64,7 +64,7 @@ def enhanceContrast(img: QImage, contrastEnhancement: ContrastEnhancement) -> No
     if contrastEnhancement != ContrastEnhancement.none:
         ptr = img.bits()
         ptr.setsize(img.sizeInBytes())
-        arr = np.ndarray(shape=(img.height(), img.width(), 4), dtype=np.uint8, buffer=ptr)
+        arr = np.ndarray(shape=(img.height(), img.width(), 4), dtype=np.uint8, buffer=cast(memoryview, ptr))
         red = arr[:, :, 0]
         if contrastEnhancement == ContrastEnhancement.minMax:
             lo, hi = np.percentile(red, [3, 97])

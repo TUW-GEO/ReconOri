@@ -152,7 +152,7 @@ class MapScene(QGraphicsScene):
             qPts.append(QPointF(pt[0], -pt[1]) - scenePos)
         polyg = QGraphicsPolygonItem(QPolygonF(qPts))
         polyg.setPos(scenePos)
-        polyg.setZValue(100)
+        polyg.setZValue((max(Usage) + 1) * (max(Availability) + 1) * 3)
         pen = QPen(Qt.magenta, 3)
         pen.setCosmetic(True)
         polyg.setPen(pen)

@@ -79,6 +79,8 @@ class WebView(QWebView):
         # But with a sub-classed web page, the web inspector no longer works.
         if webInspectorSupport:
             page = self.page()
+            # This seems to create the action and make it available in the context menu.
+            _ = page.action(QWebPage.InspectElement).isEnabled()
         else:
             page = WebPage(self)
             self.setPage(page)

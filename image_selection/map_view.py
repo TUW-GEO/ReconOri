@@ -30,7 +30,7 @@ import logging
 import math
 import threading
 import time
-from typing import cast, Optional
+from typing import cast, Final, Optional
 import xml.etree.ElementTree
 
 import numpy as np
@@ -296,12 +296,12 @@ class MapReadThread(threading.Thread):
                     self.dataset = gdal.Open(xml.etree.ElementTree.tostring(root, encoding='unicode'))
 
         geoTrafo = np.array(self.dataset.GetGeoTransform()).reshape((2, 3))
-        self.mapResolution: float = np.abs(np.linalg.det(geoTrafo[:, 1:])) ** .5
-        self.__stop = threading.Event()
-        self.__cbImageRead = cbImageRead
-        self.__cbResponseTime = cbResponseTime
-        self.__cbIsReading = cbIsReading
-        self.__jobCondition = threading.Condition(threading.Lock())
+        self.mapResolution: Final = np.abs(np.linalg.det(geoTrafo[:, 1:])) ** .5
+        self.__stop: Final = threading.Event()
+        self.__cbImageRead: Final = cbImageRead
+        self.__cbResponseTime: Final = cbResponseTime
+        self.__cbIsReading: Final = cbIsReading
+        self.__jobCondition: Final = threading.Condition(threading.Lock())
         self.__job = QRectF(), -1.
         self.__exc = None
         assert self.dataset.RasterCount in (3, 4)

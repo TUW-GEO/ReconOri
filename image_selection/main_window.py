@@ -140,7 +140,7 @@ class MainWindow(FormBase):
         mapView.fitInView(scene.sceneRect(), Qt.KeepAspectRatio)
 
         mapView.isReading.connect(lambda b: ui.progressBar.setMaximum(0 if b else 1))
-        mapView.datasetResolution.connect(lambda f: ui.mapResolution.setText(f'Map resolution: {f:.2f}m'))
+        mapView.datasetResolution.connect(lambda f: ui.mapResolution.setText(f'Map resolution: {f:.3f}m'))
         mapView.reportResponseTime.connect(lambda x: ui.responseTime.setText(
             f'Response time: {x // 60:02.0f}:{x % 60:05.2f}'))
 
@@ -149,6 +149,7 @@ class MainWindow(FormBase):
         self.startTimer(250)
         mapView.newImage.connect(lambda: self.__responseElapsedTimer.restart())
 
+        ui.mapSelect.setCurrentIndex(-1)
         ui.mapSelect.currentIndexChanged.connect(lambda idx: ui.mapView.load(ui.mapSelect.itemData(idx)))
         ui.mapSelect.setCurrentIndex(defIdx)
 

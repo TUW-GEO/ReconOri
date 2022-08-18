@@ -185,7 +185,6 @@ function setup() {
 
 
 function draw() {
-  console.log(frameCount);
   background(groundColor);
   h[3] = height-30;
   textSize(8), fill(0), noStroke();
@@ -194,7 +193,7 @@ function draw() {
   // drawCvgMatrix(); 
   drawTimemap();
   if (aoi) attackDates.forEach( (a,i) => drawAttack(attacks[i], 8))
-  clickables.forEach( a => a.draw()); // timemodebutton
+  clickables.forEach( a => a.draw());
 
   hoveredAerial = resolveMouseAerial();
   if (hoveredAerial) {
@@ -317,12 +316,12 @@ const drawFlights = function ( aerials, params ) {
     noFill();
     [1,-1].forEach ( m => {
       beginShape();
-      curveVertex(params.anchor[0],min(80-20,map(-1,-1,timebin.length+1,80-20,height))); 
-      curveVertex(params.anchor[0],min(80-20,map(-1,-1,timebin.length+1,80-20,height))); //y position wron
+      // curveVertex(params.anchor[0],min(80-20,map(-1,-1,timebin.length+1,80-20,height))); 
+      vertex(params.anchor[0],min(80-20,map(-1,-1,timebin.length+1,80-20,height))); //y position wron
       timebin.forEach( (b, i, arr) => {
         let x = b.vis.pos[0] + (b.meta.p==m?0:-params.mod*2*b.meta.p);// + (b.meta.Bildnr>=3000&&b.meta.Bildnr<5000?m:0);
         let y = b.vis.pos[1];
-        curveVertex( x, y );
+        vertex( x, y );
         //draw special line between pairs
         [1,2].forEach( v => {
           if (i+v < arr.length && parseInt(arr[i+v].meta.Bildnr) == parseInt(b.meta.Bildnr+1) && arr[i+v].meta.p==m) {
@@ -333,9 +332,9 @@ const drawFlights = function ( aerials, params ) {
           }
         })
       })
-      curveVertex(params.anchor[0]+(timebin.length+1)*params.slope,min(80+timebin.length*20,map(timebin.length,0,timebin.length,80,height-20)))
-      curveVertex(params.anchor[0]+(timebin.length+1)*params.slope,min(80+timebin.length*20,map(timebin.length,0,timebin.length,80,height-20)))
-      strokeWeight(1);
+      vertex(params.anchor[0]+(timebin.length+1)*params.slope,min(80+timebin.length*20,map(timebin.length,0,timebin.length,80,height-20)))
+      // curveVertex(params.anchor[0]+(timebin.length+1)*params.slope,min(80+timebin.length*20,map(timebin.length,0,timebin.length,80,height-20)))
+      strokeWeight(1), stroke(100);
       endShape();
     });
   }
@@ -367,6 +366,7 @@ const drawTimemap = function () {
     // fill(230,140,20,60), noStroke();
     // if (a===hovered) rect(x2-10,80,20,height-24-80);
     let c = color(126);
+
     // Draw attack lines
     if (i != 0) attackDates.forEach( b => {
       push(), stroke(200), strokeWeight(1), drawingContext.setLineDash([1,2]);
@@ -385,64 +385,64 @@ const drawTimemap = function () {
     let timebin = aerials.filter( b => b.meta.Datum === a);
     if (height >= 150) drawFlights( timebin, { anchor:[x2,66], mod:5, slope:0 } );
 
-    strokeWeight(a===hovered? 1:.2), noFill(), stroke(c);
+    // strokeWeight(a===hovered? 1:.2), noFill(), stroke(c);
     // line(x,h[0],x2,min(55,height-35))
-    push(), noStroke(), fill(100), textStyle(NORMAL), textSize(8);
+    // push(), noStroke(), fill(100), textStyle(NORMAL), textSize(8);
     // if (timeMode !== 'chronological') text(a.slice(5).slice(a.slice(5,6)==='0'?1:0).replace('-','.'),x2,height);
-    pop();
+    // pop();
 
-    push(), translate(x2,min(55,height-35));
-    pop();
+    // push(), translate(x2,min(55,height-35));
+    // pop();
   });
 
 }
 
-const drawTimebin = function (aerialDate) {
-  visible = [];
-  noStroke(), fill(126), textSize(9);
-  text(currentTimebin,timeline.map(currentTimebin),20);
+// const drawTimebin = function (aerialDate) {
+//   visible = [];
+//   noStroke(), fill(126), textSize(9);
+//   text(currentTimebin,timeline.map(currentTimebin),20);
 
-  let timebin = aerials.filter( a => a.meta.Datum === aerialDate);
-  // let flights = timebin.map( a => a.meta.Sortie ).filter(onlyUnique);
-  let details = timebin.filter(a => a.meta.MASSTAB <= 20000);
-  // let detailsR = timebin.filter( a => a.meta.Bildnr >=3000  && a.meta.Bildnr < 4000 && a.meta.MASSTAB <= 20000);
-  // let detailsL = timebin.filter( a => a.meta.Bildnr >= 4000 && a.meta.Bildnr < 5000 && a.meta.MASSTAB <= 20000);
-  let overviews = timebin.filter ( a => a.meta.MASSTAB > 20000);
+//   let timebin = aerials.filter( a => a.meta.Datum === aerialDate);
+//   // let flights = timebin.map( a => a.meta.Sortie ).filter(onlyUnique);
+//   let details = timebin.filter(a => a.meta.MASSTAB <= 20000);
+//   // let detailsR = timebin.filter( a => a.meta.Bildnr >=3000  && a.meta.Bildnr < 4000 && a.meta.MASSTAB <= 20000);
+//   // let detailsL = timebin.filter( a => a.meta.Bildnr >= 4000 && a.meta.Bildnr < 5000 && a.meta.MASSTAB <= 20000);
+//   let overviews = timebin.filter ( a => a.meta.MASSTAB > 20000);
 
-  const drawTimebinRow = function(aerialRow, r) {
-    aerialRow.sort( (a,b) => new String(a.meta.Bildnr).slice(1) < new String(b.meta.Bildnr).slice(1) ? 1:-1 ).sort( (a,b) => a.meta.Sortie > b.meta.Sortie?1:-1);
-    // draw flight arcs
-    aerialRow.forEach( (a,i,arr) => { 
-      let p = i/(arr.length-1)*PI-PI/2;
-      push(), translate(width/2,55), rotate(-i/(arr.length-1)*PI+PI/2);
-      stroke(220), noFill(), strokeWeight(5);
-      if (i > 0 && a.meta.Sortie == arr[i-1].meta.Sortie) arc(0,0,r*2,r*2,PI/2,PI/2+PI/(arr.length-1));
-      pop();
-    });
-    // draw aerials
-    aerialRow.forEach( (a,i,arr) => { 
-      let p = -i/(arr.length-1)*PI+PI/2;
-      let x = width/2+sin(p)*r;
-      let y = 55+cos(p)*r;
-      a.vis.pos = [x,y];
-      // visible.push(a);
-      push(), translate(width/2,55), rotate(p);
-      translate(0,r);
-      drawAerial(a);
-      noStroke(), fill(0), textStyle(NORMAL), textSize(6), textAlign(CENTER);
-      if (PI*(r+20)/arr.length > 22) text(a.meta.Bildnr,0,20);
-      textAlign(CENTER), textStyle(BOLD), rotate(-PI/2);
-      if (i == 0 || arr[i-1].meta.Sortie!==a.meta.Sortie) text(a.meta.Sortie,0,i==0?-20:-PI*r/arr.length/4);
-      pop();
-    });
-  }
+//   const drawTimebinRow = function(aerialRow, r) {
+//     aerialRow.sort( (a,b) => new String(a.meta.Bildnr).slice(1) < new String(b.meta.Bildnr).slice(1) ? 1:-1 ).sort( (a,b) => a.meta.Sortie > b.meta.Sortie?1:-1);
+//     // draw flight arcs
+//     aerialRow.forEach( (a,i,arr) => { 
+//       let p = i/(arr.length-1)*PI-PI/2;
+//       push(), translate(width/2,55), rotate(-i/(arr.length-1)*PI+PI/2);
+//       stroke(220), noFill(), strokeWeight(5);
+//       if (i > 0 && a.meta.Sortie == arr[i-1].meta.Sortie) arc(0,0,r*2,r*2,PI/2,PI/2+PI/(arr.length-1));
+//       pop();
+//     });
+//     // draw aerials
+//     aerialRow.forEach( (a,i,arr) => { 
+//       let p = -i/(arr.length-1)*PI+PI/2;
+//       let x = width/2+sin(p)*r;
+//       let y = 55+cos(p)*r;
+//       a.vis.pos = [x,y];
+//       // visible.push(a);
+//       push(), translate(width/2,55), rotate(p);
+//       translate(0,r);
+//       drawAerial(a);
+//       noStroke(), fill(0), textStyle(NORMAL), textSize(6), textAlign(CENTER);
+//       if (PI*(r+20)/arr.length > 22) text(a.meta.Bildnr,0,20);
+//       textAlign(CENTER), textStyle(BOLD), rotate(-PI/2);
+//       if (i == 0 || arr[i-1].meta.Sortie!==a.meta.Sortie) text(a.meta.Sortie,0,i==0?-20:-PI*r/arr.length/4);
+//       pop();
+//     });
+//   }
   
-  push(), translate(66-15,66-15);
-  drawViewfinder(timebins[aerialDates.indexOf(aerialDate)].aggCvg, 30), pop();
-  drawFlights( timebin, { anchor: [66,66], mod:15, slope:30 } )
-  // drawTimebinRow(details, height-130);
-  // drawTimebinRow(overviews, height-90);
-}
+//   push(), translate(66-15,66-15);
+//   drawViewfinder(timebins[aerialDates.indexOf(aerialDate)].aggCvg, 30), pop();
+//   drawFlights( timebin, { anchor: [66,66], mod:15, slope:30 } )
+//   // drawTimebinRow(details, height-130);
+//   // drawTimebinRow(overviews, height-90);
+// }
 
 const drawAerial = function (aerial) {
   let r = sqrt(aerial.meta.Cvg/aerial.meta.MASSTAB)*1000*(isSmall?1.5:4)/2;
@@ -451,16 +451,16 @@ const drawAerial = function (aerial) {
   aerial.vis.r = r;
   let interest = orColor(aerial.meta.interest)//color( 125-aerial.meta.interest*100, 125+aerial.meta.interest*50, 125+aerial.meta.interest*175 );
   let isSelected = aerial.meta.selected;
-  push(), stroke(groundColor), strokeWeight(1);//stroke(isSelected?urColor(1):50), strokeWeight(isSelected?2:.2);
+  push(), stroke(aerial.meta.LBDB? 100: groundColor), strokeWeight(1);//stroke(isSelected?urColor(1):50), strokeWeight(isSelected?2:.2);
   if (orientingOn) fill( aerial.interest.Cvg>0? interest: 255 );
   else fill( 200);
   if (isSelected) fill(urColor(1));
   if (prescribingOn && aerial.meta.prescribed) fill( isSelected? 'yellow':'red'); 
-  if (!onArea) noFill();
+  if (!onArea) fill(100,50);
   ellipse( 0, 0, r*2);
   fill(groundColor), noStroke();
-  if (!onArea) fill(200);
-  if (aerial.meta.LBDB) ellipse ( 0, -r/3*2, r/3*2);
+  // if (!onArea) fill(100), stroke(100);
+  // if (aerial.meta.LBDB) ellipse ( 0, -r/3*2, r/3*2);
   noStroke(), fill(0), textSize(7), textAlign(aerial.meta.p==1?LEFT:RIGHT);
   if (currentTimebin) text(aerial.meta.Bildnr, 15*(aerial.meta.p==1?1:-1), 3);
   // noFill(), stroke(0), strokeWeight(1);

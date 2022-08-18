@@ -37,7 +37,7 @@ import logging
 from pathlib import Path
 from typing import Callable, Optional, Union
 
-from .aerial_item import ContrastEnhancement, AerialObject, AerialImage, Availability, Usage, Visualization
+from .aerial_item import ContrastEnhancement, AerialObject, AerialImage, Availability, Usage
 
 logger = logging.getLogger(__name__)
 

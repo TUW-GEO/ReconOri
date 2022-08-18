@@ -32,6 +32,13 @@ import enum
 from pathlib import Path
 from typing import cast, Optional
 
+try:
+    import skimage.exposure
+except ImportError:
+    claheAvailable = False
+else:
+    claheAvailable = True
+
 from . import GdalPushLogHandler
 
 
@@ -58,6 +65,7 @@ class ContrastEnhancement(enum.IntEnum):
     none = enum.auto()
     minMax = enum.auto()
     histogram = enum.auto()
+    clahe = enum.auto()  # contrast limited adaptive histogram equalization.
 
 
 def enhanceContrast(img: QImage, contrastEnhancement: ContrastEnhancement) -> None:
@@ -69,11 +77,22 @@ def enhanceContrast(img: QImage, contrastEnhancement: ContrastEnhancement) -> No
         if contrastEnhancement == ContrastEnhancement.minMax:
             lo, hi = np.percentile(red, [3, 97])
             transformed = np.rint(np.clip((red.astype(float) - lo) / (hi - lo) * 255, 0, 255)).astype(np.uint8)
-        else:
+        elif contrastEnhancement == ContrastEnhancement.histogram:
             count = np.bincount(red.flat, minlength=256)
             cumsum = np.cumsum(count)
             transfer = np.rint(cumsum * 255 / cumsum[-1]).astype(np.uint8)
             transformed = transfer[red.flat].reshape(red.shape)
+        else:
+            assert contrastEnhancement == ContrastEnhancement.clahe
+            # Especially for large microfilm scans, this is quite slow (~10s).
+            # Even more, while QGIS 3.22 on Windows comes with NumPy with SIMD optimizations:
+            #    for item in np.core._multiarray_umath.__cpu_features__.items():  print(item)
+            # , it lacks BLAS and LAPACK:
+            #    np.show_config()
+            # , which further slows down this image enhancement. Hence, let's not make it the default.
+            transformed = skimage.exposure.equalize_adapthist(red, clip_limit=0.03)
+            transformed = np.round(transformed * 255).astype(np.uint8)
+
         arr[:, :, :3] = transformed[:, :, None]
 
 
@@ -104,32 +123,42 @@ class PreviewWindow(FormBase):
         ui.buttonBox.button(QDialogButtonBox.Ok).setEnabled(False)
         assert filmDir.exists()  # otherwise, the dialog will never be shown?
         model = QFileSystemModel(self)
-        model.directoryLoaded.connect(lambda _: self.__hideColumns(model.columnCount()))
+        model.directoryLoaded.connect(lambda: self.__hideColumns(model.columnCount()))
         idx = model.setRootPath(str(filmDir))
         ui.treeView.setModel(model)
         ui.treeView.setRootIndex(idx)
-        ui.treeView.selectionModel().currentChanged.connect(lambda current, _: self.__showFile(current))
+        ui.treeView.selectionModel().currentChanged.connect(lambda current: self.__showFile(current))
 
         scene = QGraphicsScene()
         ui.graphicsView.setScene(scene)
         ui.graphicsView.rubberBandChanged.connect(lambda _, fromPt, toPt: self.__selectionChanged(QRectF(fromPt, toPt)))
 
-        ui.rotateLeft.clicked.connect(lambda checked: self.__rotate(True))
-        ui.rotateRight.clicked.connect(lambda checked: self.__rotate(False))
+        ui.rotateLeft.clicked.connect(lambda: self.__rotate(True))
+        ui.rotateRight.clicked.connect(lambda: self.__rotate(False))
 
         menu = QMenu(self)
         group = QActionGroup(menu)
         arrowResize090 = QIcon(':/plugins/image_selection/arrow-resize-090')
-        minMax = group.addAction(menu.addAction(arrowResize090, 'MinMax',
-                                 lambda: self.__setContrastEnhancement(ContrastEnhancement.minMax)))
+        minMax = group.addAction(menu.addAction(arrowResize090, 'Stretch to minimum / maximum',
+                                 self.__onContrastEnhancement))
+        minMax.setData(ContrastEnhancement.minMax)
         minMax.setCheckable(True)
         chart = QIcon(':/plugins/image_selection/chart')
-        histogram = group.addAction(menu.addAction(chart, 'Histogram',
-                                    lambda: self.__setContrastEnhancement(ContrastEnhancement.histogram)))
+        histogram = group.addAction(menu.addAction(chart, 'Histogram equalization',
+                                    self.__onContrastEnhancement))
+        histogram.setData(ContrastEnhancement.histogram)
         histogram.setCheckable(True)
+        chartPlus = QIcon(':/plugins/image_selection/chart--plus')
+        if claheAvailable:
+            clahe = group.addAction(menu.addAction(chartPlus, 'Contrast limited, adaptive histogram equalization',
+                                    self.__onContrastEnhancement))
+            clahe.setData(ContrastEnhancement.clahe)
+            clahe.setCheckable(True)
+
         histogram.setChecked(True)
+
         ui.contrastEnhancement.setMenu(menu)
-        ui.contrastEnhancement.toggled.connect(self.__onContrastEnhancementToggled)
+        ui.contrastEnhancement.toggled.connect(self.__onContrastEnhancement)
 
     def selection(self) -> tuple[Path, QRect, int]:
         if self.__rect is None:
@@ -137,16 +166,14 @@ class PreviewWindow(FormBase):
         view = self.ui.treeView
         return Path(view.model().filePath(view.selectionModel().currentIndex())), self.__rect.rect().toRect(), self.__viewRotationCcw
 
-    @pyqtSlot(bool)
-    def __onContrastEnhancementToggled(self, checked) -> None:
-        if not checked:
-            self.__setContrastEnhancement(ContrastEnhancement.none)
+    @pyqtSlot()
+    def __onContrastEnhancement(self) -> None:
+        ui = self.ui
+        if ui.contrastEnhancement.isChecked():
+            self.__contrastEnhancement = ui.contrastEnhancement.menu().actions()[0].actionGroup().checkedAction().data()
         else:
-            self.ui.contrastEnhancement.menu().actions()[0].actionGroup().checkedAction().trigger()
-
-    def __setContrastEnhancement(self, enhancement: int) -> None:
-        self.__contrastEnhancement = ContrastEnhancement(enhancement)
-        self.__showFile(self.ui.treeView.selectionModel().currentIndex(), False)
+            self.__contrastEnhancement = ContrastEnhancement.none
+        self.__showFile(ui.treeView.selectionModel().currentIndex(), False)
 
     @pyqtSlot(bool)
     def __rotate(self, ccw: bool) -> None:

@@ -55,7 +55,7 @@ from qgis.PyQt.QtWidgets import (QDialog, QGraphicsEffect, QGraphicsEllipseItem,
 import numpy as np
 from osgeo import gdal
 
-import concurrent.futures
+from concurrent import futures
 import datetime
 import enum
 import json
@@ -67,7 +67,7 @@ from typing import cast, Final, Optional, Union
 import weakref
 
 from . import GdalPushLogHandler
-from .preview_window import ContrastEnhancement, enhanceContrast, PreviewWindow
+from .preview_window import claheAvailable, ContrastEnhancement, enhanceContrast, PreviewWindow
 from . import map_scene
 
 logger: Final = logging.getLogger(__name__)
@@ -276,7 +276,7 @@ class AerialImage(QGraphicsPixmapItem):
 
     __transparencyCursor: Final = QCursor(QPixmap(':/plugins/image_selection/eye'))
 
-    __threadPool: Optional[concurrent.futures.ThreadPoolExecutor] = None
+    __threadPool: Optional[futures.ThreadPoolExecutor] = None
 
     # To be set beforehand by the scene:
 
@@ -323,10 +323,12 @@ class AerialImage(QGraphicsPixmapItem):
         self.__radiusBild: Final[float] = meta.Radius_Bild
         self.__point: Final = point
         self.__opacity: float = 1.
-        self.__loadedPixMapParams: Optional[tuple[ContrastEnhancement, str, QRect]]  = None
-        self.__currentContrast: ContrastEnhancement = ContrastEnhancement.histogram
-        self.__futurePixmap: Optional[concurrent.futures.Future] = None
+        self.__requestedPixMapParams: Optional[tuple[str, QRect, int, ContrastEnhancement]]  = None
+        self.__currentContrast: ContrastEnhancement = ContrastEnhancement.clahe if claheAvailable else ContrastEnhancement.histogram
+        self.__futurePixmap: Optional[futures.Future] = None
         self.__futurePixmapLock: Final = threading.Lock()
+        self.__lastRequestedFuture: Optional[futures.Future] = None
+        self.__lastRequestedFutureLock: Final = threading.Lock()
         self.__db: Final = db
         self.object: Final = obj
         self.__id: Final = imgId
@@ -361,7 +363,6 @@ class AerialImage(QGraphicsPixmapItem):
             usage = Usage.unset
             self.__resetTransform()
             self.__setTransformState(TransformState.original)
-
         self.__deriveAvailability()
         self.__setUsage(usage)
         self.__setPixMap()
@@ -430,12 +431,10 @@ class AerialImage(QGraphicsPixmapItem):
         numSteps = event.delta() / 8 / 15
         if event.modifiers() & Qt.ShiftModifier:
             numSteps /= 10
-
         if event.modifiers() & Qt.AltModifier:
             self.__opacity = min(max(self.opacity() - numSteps * .1, .3), 1.)
             self.setOpacity(self.__opacity)
             return
-
         pos = event.pos()  # in units of image pixels; ignores self.offset() i.e. (0, 0) is the image center.
         x, y = pos.x(), pos.y()
         if not event.modifiers() & Qt.ControlModifier:
@@ -450,7 +449,6 @@ class AerialImage(QGraphicsPixmapItem):
         else:
             angle = numSteps * 10
             trafo = QTransform.fromTranslate(x, y).rotate(angle).translate(-x, -y)
-
         # Note: since Qt multiplies points on their right, self.transform() gets applied last.
         combined = trafo * self.transform()
         # self.pos() is my position in parent's (scene) coordinates, which is added to the result of self.transform().map
@@ -537,10 +535,8 @@ Double-click to close.<br/>
             if self.__futurePixmap is not None:
                 pm = self.__futurePixmap.result()  # result() might raise here, in the wanted thread.
                 self.__futurePixmap = None
-
         if pm is not None:
             self.__setPixMap(pm)
-
         super().paint(painter, option, widget)
         painter.save()
         # Qt 5.15 docs for QGraphicsItem::paint say:
@@ -576,7 +572,6 @@ Double-click to close.<br/>
                 width, height = [pixMapWidth] * 2
             pm = QBitmap(pixMapWidth, _pixMapHeightFor(pixMapWidth, QSize(width, height)))
             pm.fill(Qt.color1)
-
         origPm = self.pixmap()
         self.setPixmap(pm)
         self.setOffset(-pm.width() / 2, -pm.height() / 2)
@@ -593,19 +588,27 @@ Double-click to close.<br/>
         else:
             *rect, rotationCcw = json.loads(previewRect)
             previewRect = QRect(*rect)
-
         if self.__availability in (Availability.preview, Availability.image):
-            if not self.__loadedPixMapParams or self.__loadedPixMapParams != (self.__currentContrast, path, previewRect):
+            if not self.__requestedPixMapParams or self.__requestedPixMapParams != (path, previewRect, rotationCcw, self.__currentContrast):
                 if __class__.__threadPool is None:
-                    __class__.__threadPool = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='ImageReader')
-
-                future = __class__.__threadPool.submit(_getPixMap, Path(path), self.__pixMapWidth,
-                                                       self.__currentContrast, previewRect, rotationCcw)
+                    __class__.__threadPool = futures.ThreadPoolExecutor(thread_name_prefix='AerialReader')
+                future = __class__.__threadPool.submit(_getPixMap, Path(path), __class__.__pixMapWidth,
+                                                       previewRect, rotationCcw, self.__currentContrast)
                 future.add_done_callback(self.__pixMapReady)
+                with self.__lastRequestedFutureLock:
+                    if self.__lastRequestedFuture:
+                        self.__lastRequestedFuture.cancel()
+                    self.__lastRequestedFuture = future
+        self.__requestedPixMapParams = path, previewRect, rotationCcw, self.__currentContrast
 
-        self.__loadedPixMapParams = self.__currentContrast, path, previewRect
-
-    def __pixMapReady(self, future) -> None:
+    def __pixMapReady(self, future: futures.Future) -> None:
+        with self.__lastRequestedFutureLock:
+            if self.__lastRequestedFuture is not future:
+                # Another pixmap has been requested after this one.
+                # Still, this one has been received after the other one.
+                # This is possible only if they were computed in different worker threads of the pool,
+                # and it is more probable if the computation of this pixmap has been more elaborate.
+                return
         with self.__futurePixmapLock:
             self.__futurePixmap = future
         self.update()
@@ -698,8 +701,7 @@ Double-click to close.<br/>
 def _pixMapHeightFor(width: int, size: QSize) -> int:
     return round(size.height() / size.width() * width)
 
-
-def _getPixMap(path: Path, width: int, contrast: ContrastEnhancement, rect: QRect, rotationCcw: int):
+def _getPixMap(path: Path, width: int, rect: QRect, rotationCcw: int, contrast: ContrastEnhancement):
     with GdalPushLogHandler():
         ds = gdal.Open(str(path))
         if rect.isNull():
@@ -716,7 +718,6 @@ def _getPixMap(path: Path, width: int, contrast: ContrastEnhancement, rect: QRec
                        buf_pixel_space=4, buf_line_space=width * 4, buf_band_space=1,
                        resample_alg=gdal.GRIORA_Gauss,
                        inputOutputBuf=ptr)
-
     if rotationCcw != 0:
         #arr = np.ndarray(shape=(img.height(), img.width(), 4), dtype=np.uint8, buffer=ptr)
         #rotated = np.rot90(arr, k=rotationCcw)
@@ -726,11 +727,8 @@ def _getPixMap(path: Path, width: int, contrast: ContrastEnhancement, rect: QRec
         # So use QImage directly:
         # "Rotates the coordinate system counterclockwise by the given angle. The angle is specified in degrees."
         img = img.transformed(QTransform().rotate(-90 * rotationCcw))
-
-
     enhanceContrast(img, contrast)
     return QPixmap.fromImage(img)
-
 
 def _makeOverlay(name: str, parent: QGraphicsItem, flag: Optional[QGraphicsItem.GraphicsItemFlag] = None):
     pm = QPixmap(':/plugins/image_selection/' + name)

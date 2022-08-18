@@ -33,7 +33,9 @@ import traceback
 from osgeo import gdal
 
 from . import HttpTimeout, getLoggerAndFileHandler, GdalPushLogHandler
-from .map_scene import ContrastEnhancement, MapScene, Availability, Usage, Visualization
+from .map_scene import MapScene, Availability, Usage
+from .aerial_item import Visualization
+from .preview_window import claheAvailable, ContrastEnhancement
 
 gdal.UseExceptions()
 
@@ -147,7 +149,7 @@ class MainWindow(FormBase):
         self.__responseElapsedTimer = QElapsedTimer()
         self.__responseElapsedTimer.start()
         self.startTimer(250)
-        mapView.newImage.connect(lambda: self.__responseElapsedTimer.restart())
+        mapView.newImage.connect(self.__responseElapsedTimer.restart)
 
         ui.mapSelect.setCurrentIndex(-1)
         ui.mapSelect.currentIndexChanged.connect(lambda idx: ui.mapView.load(ui.mapSelect.itemData(idx)))
@@ -181,17 +183,28 @@ class MainWindow(FormBase):
         menu = QMenu(self)
         group = QActionGroup(menu)
         arrowResize090 = QIcon(':/plugins/image_selection/arrow-resize-090')
-        minMax = group.addAction(menu.addAction(arrowResize090, 'MinMax',
-                                 lambda: scene.contrastEnhancementChanged.emit(ContrastEnhancement.minMax)))
+        minMax = group.addAction(menu.addAction(arrowResize090, 'Stretch to minimum / maximum',
+                                 self.__onContrastEnhancement))
+        minMax.setData(ContrastEnhancement.minMax)
         minMax.setCheckable(True)
         chart = QIcon(':/plugins/image_selection/chart')
-        histogram = group.addAction(menu.addAction(chart, 'Histogram',
-                                    lambda: scene.contrastEnhancementChanged.emit(ContrastEnhancement.histogram)))
+        histogram = group.addAction(menu.addAction(chart, 'Histogram equalization',
+                                    self.__onContrastEnhancement))
+        histogram.setData(ContrastEnhancement.histogram)
         histogram.setCheckable(True)
-        histogram.setChecked(True)
+        if claheAvailable:
+            chartPlus = QIcon(':/plugins/image_selection/chart--plus')
+            clahe = group.addAction(menu.addAction(chartPlus, 'Contrast limited, adaptive histogram equalization',
+                                    self.__onContrastEnhancement))
+            clahe.setData(ContrastEnhancement.clahe)
+            clahe.setCheckable(True)
+            clahe.setChecked(True)
+        else:
+            histogram.setChecked(True)
         ui.aerialsContrastEnhancement.setMenu(menu)
-        ui.aerialsContrastEnhancement.toggled.connect(self.__onContrastEnhancementToggled)
-        scene.aerialsLoaded.connect(lambda *_: ui.aerialsContrastEnhancement.setEnabled(True))
+        ui.aerialsContrastEnhancement.toggled.connect(self.__onContrastEnhancement)
+        scene.aerialsLoaded.connect(lambda: ui.aerialsContrastEnhancement.setEnabled(True))
+        scene.aerialsLoaded.connect(self.__onContrastEnhancement)
 
         self.__availabilities = ((ui.aerialsGray, Availability.missing),
                                  (ui.aerialsBlue, Availability.findPreview),
@@ -203,7 +216,7 @@ class MainWindow(FormBase):
             def func(button=button, avail=avail):
                 return self.__onAvailabilityChanged(button, avail)
 
-            button.toggled.connect(lambda checked, func=func: func())
+            button.toggled.connect(lambda *_, func=func: func())
             menu = QMenu(self)
             group = QActionGroup(menu)
             asPoints = group.addAction(menu.addAction(target, 'as points', func))
@@ -213,7 +226,7 @@ class MainWindow(FormBase):
             asImage = group.addAction(menu.addAction(picture, 'as images', func))
             asImage.setData(Visualization.asImage)
             asImage.setCheckable(True)
-            group.triggered.connect(lambda _, button=button: button.setChecked(True))
+            group.triggered.connect(lambda *_, button=button: button.setChecked(True))
             button.setMenu(menu)
             scene.aerialsLoaded.connect(lambda *_, button=button: button.setEnabled(True))
 
@@ -229,8 +242,6 @@ class MainWindow(FormBase):
         ui.exportSelectedImages.clicked.connect(scene.exportSelectedImages)
         scene.aerialsLoaded.connect(lambda *_: ui.exportSelectedImages.setEnabled(True))
 
-        scene.aerialsLoaded.connect(
-            lambda *_: self.__onContrastEnhancementToggled(ui.aerialsContrastEnhancement.isChecked()))
         scene.aerialsLoaded.connect(lambda *_: self.__filterAerials(set()))
 
     def unload(self) -> None:
@@ -250,12 +261,14 @@ class MainWindow(FormBase):
         secs = self.__responseElapsedTimer.elapsed() / 1000
         self.ui.responseElapsed.setText(f'{secs // 60:02.0f}:{secs % 60:02.0f} ago')
 
-    @pyqtSlot(bool)
-    def __onContrastEnhancementToggled(self, checked) -> None:
-        if not checked:
-            self.ui.mapView.scene().contrastEnhancementChanged.emit(ContrastEnhancement.none)
+    @pyqtSlot()
+    def __onContrastEnhancement(self) -> None:
+        ui = self.ui
+        if ui.aerialsContrastEnhancement.isChecked():
+            enhancement = ui.aerialsContrastEnhancement.menu().actions()[0].actionGroup().checkedAction().data()
         else:
-            self.ui.aerialsContrastEnhancement.menu().actions()[0].actionGroup().checkedAction().trigger()
+            enhancement = ContrastEnhancement.none
+        ui.mapView.scene().contrastEnhancementChanged.emit(enhancement)
 
     @pyqtSlot(QToolButton, Availability)
     def __onAvailabilityChanged(self, button, availability) -> None:

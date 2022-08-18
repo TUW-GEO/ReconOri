@@ -73,6 +73,11 @@ For reading / writing Excel 2010 xlsx/xlsm/xltx/xltm files, install openpyxl. To
 python -m pip install openpyxl
 ```
 
+To make Contrast Limited, Adaptive Histogram Equalization available as image enhancement, enter in the OSGeo4W Shell:
+```
+python -m pip install scikit-image
+```
+
 ## Configuration
 
 Edit `image_selection/image_selection.cfg`, such that images and previews are found.

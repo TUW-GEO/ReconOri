@@ -216,7 +216,7 @@ class MainWindow(FormBase):
             def func(button=button, avail=avail):
                 return self.__onAvailabilityChanged(button, avail)
 
-            button.toggled.connect(lambda *_, func=func: func())
+            button.toggled.connect(lambda *_, _func=func: _func())
             menu = QMenu(self)
             group = QActionGroup(menu)
             asPoints = group.addAction(menu.addAction(target, 'as points', func))
@@ -226,23 +226,23 @@ class MainWindow(FormBase):
             asImage = group.addAction(menu.addAction(picture, 'as images', func))
             asImage.setData(Visualization.asImage)
             asImage.setCheckable(True)
-            group.triggered.connect(lambda *_, button=button: button.setChecked(True))
+            group.triggered.connect(lambda *_, _button=button: _button.setChecked(True))
             button.setMenu(menu)
-            scene.aerialsLoaded.connect(lambda *_, button=button: button.setEnabled(True))
+            scene.aerialsLoaded.connect(lambda *_, _button=button: _button.setEnabled(True))
 
         self.__usages = ((ui.usageUnset, Usage.unset),
                          (ui.usageSelected, Usage.selected),
                          (ui.usageDiscarded, Usage.discarded))
         for button, usage in self.__usages:
-            button.toggled.connect(lambda checked, usage=usage: self.__onVisualizationChanged(usages={usage: checked}))
-            scene.aerialsLoaded.connect(lambda *_, button=button: button.setEnabled(True))
+            button.toggled.connect(lambda checked, _usage=usage: self.__onVisualizationChanged(usages={_usage: checked}))
+            scene.aerialsLoaded.connect(lambda *_, _button=button: _button.setEnabled(True))
 
         ui.aerialsFreeze.toggled.connect(lambda checked: ui.mapView.setInteractive(not checked))
 
         ui.exportSelectedImages.clicked.connect(scene.exportSelectedImages)
-        scene.aerialsLoaded.connect(lambda *_: ui.exportSelectedImages.setEnabled(True))
+        scene.aerialsLoaded.connect(lambda: ui.exportSelectedImages.setEnabled(True))
 
-        scene.aerialsLoaded.connect(lambda *_: self.__filterAerials(set()))
+        scene.aerialsLoaded.connect(lambda: self.__filterAerials(set()))
 
     def unload(self) -> None:
         try:

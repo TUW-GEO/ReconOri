@@ -602,6 +602,7 @@ Double-click to close.<br/>
         self.__requestedPixMapParams = path, previewRect, rotationCcw, self.__currentContrast
 
     def __pixMapReady(self, future: futures.Future) -> None:
+         # This is called from a worker thread.
         with self.__lastRequestedFutureLock:
             if self.__lastRequestedFuture is not future:
                 # Another pixmap has been requested after this one.

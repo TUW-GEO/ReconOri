@@ -50,6 +50,8 @@ def _truncateMsg(msg: str, maxLen=500):
 
 class MapScene(QGraphicsScene):
 
+    projectChanged = pyqtSignal(str)
+    
     aerialsLoaded = pyqtSignal(list)
 
     attackDataLoaded = pyqtSignal(list)
@@ -67,6 +69,10 @@ class MapScene(QGraphicsScene):
     visualizationChanged = pyqtSignal(dict, dict, set)
 
     highlightAerials = pyqtSignal(set)
+
+    addAerialsVisible = pyqtSignal(int)
+
+    noAerialsVisible = pyqtSignal()
 
     def __init__(self, *args, epsg: int, config: configparser.ConfigParser, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -192,7 +198,10 @@ class MapScene(QGraphicsScene):
 
         if self.__aoi is not None:
             self.removeItem(self.__aoi)
+        # clear() removes all items and deletes them, but does not call their itemChange before...
         self.clear()
+        # ... so we need to explicitly reset MainWindow.__nVisibleAerials
+        self.noAerialsVisible.emit()
         # Beyond this line, old graphics items must not receive signals any longer, as their DB gets closed.
         # Since AerialPoint, AerialImage, and AerialObject do not create reference cycles,
         # they should be destroyed immediately by QGraphicsScene.clear.
@@ -258,6 +267,13 @@ class MapScene(QGraphicsScene):
         msgs = [f'{el.name}:\t{availabilityCounts[el]}' for el in reversed(Availability)]
         logger.info(title + ': ' + ','.join(msgs))
         QMessageBox.information(None, title, title + '\n' + '\n'.join(msgs))
+
+        try:
+            zusammenfassung = pd.read_excel(str(fileName), sheet_name='Zusammenfassung', nrows=2)
+            projectName = str(zusammenfassung.columns[0])
+        except:
+            projectName = fileName.stem
+        self.projectChanged.emit(projectName)
 
         self.emitAerialsLoaded(images)
 

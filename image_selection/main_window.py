@@ -49,6 +49,9 @@ class MainWindow(FormBase):
 
     showLogMessage = pyqtSignal(str)
 
+    __nVisibleAerials: int = 0
+    __nTotalAerials: int = 0
+
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         ui = self.ui = Form()
@@ -244,6 +247,11 @@ class MainWindow(FormBase):
 
         scene.aerialsLoaded.connect(lambda: self.__filterAerials(set()))
 
+        scene.addAerialsVisible.connect(self.__addAerialsVisible)
+        scene.noAerialsVisible.connect(self.__noAerialsVisible)
+        scene.aerialsLoaded.connect(self.__onAerialsLoaded)
+        scene.projectChanged.connect(lambda projectName: self.setWindowTitle(f'DoRIAH Image Selection: {projectName}'))
+
     def unload(self) -> None:
         try:
             self.ui.webView.unload()
@@ -292,6 +300,24 @@ class MainWindow(FormBase):
                 ).data() if button.isChecked() else Visualization.none
                 for button, avail in self.__availabilities}
         self.ui.mapView.scene().visualizationChanged.emit(usages, visualizations, self.__filteredImageIds)
+
+    @pyqtSlot()
+    def __noAerialsVisible(self):
+        self.__nVisibleAerials = 0
+        self.__updateNAerialsShown()
+
+    @pyqtSlot(int)
+    def __addAerialsVisible(self, v):
+        self.__nVisibleAerials += v
+        self.__updateNAerialsShown()
+        
+    @pyqtSlot(list)
+    def __onAerialsLoaded(self, aerials):
+        self.__nTotalAerials = len(aerials)
+        self.__updateNAerialsShown()
+
+    def __updateNAerialsShown(self):
+        self.ui.nAerialsShown.setText(f'Showing {self.__nVisibleAerials:3} of {self.__nTotalAerials:3} aerials')
 
 
 class StatusBarLogHandler(logging.Handler):

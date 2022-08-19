@@ -212,6 +212,12 @@ class AerialPoint(QGraphicsEllipseItem):
         self.__tick: Final = _makeOverlay('tick', self)
         self.__image: Optional[weakref.ref] = None
 
+    def itemChange(self, change: QGraphicsItem.GraphicsItemChange, v):
+        if change == QGraphicsItem.ItemVisibleHasChanged:
+            if scene := cast(map_scene.MapScene, self.scene()):
+                scene.addAerialsVisible.emit(1 if v else -1)
+        return super().itemChange(change, v)
+
     def mouseDoubleClickEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         if event.button() == Qt.LeftButton:
             self.setVisible(False)
@@ -371,7 +377,8 @@ class AerialImage(QGraphicsPixmapItem):
         if change == QGraphicsItem.ItemVisibleHasChanged:
             if v:
                 self.__requestPixMap()
-
+            if scene := self.scene():
+                scene.addAerialsVisible.emit(1 if v else -1)
         elif change == QGraphicsItem.ItemPositionHasChanged:
             self.__point.setPos(v)
             self.__db.execute(
@@ -380,7 +387,6 @@ class AerialImage(QGraphicsPixmapItem):
             if scene := self.scene():
                 scene.aerialFootPrintChanged.emit(self.__id, self.footprint())
             self.__setTransformState(TransformState.changed)
-
         elif change == QGraphicsItem.ItemTransformHasChanged:
             self.__db.execute(
                 'UPDATE aerials SET trafo = ? WHERE id == ?',
@@ -391,7 +397,6 @@ class AerialImage(QGraphicsPixmapItem):
             if scene := self.scene():
                 scene.aerialFootPrintChanged.emit(self.__id, self.footprint())
             self.__setTransformState(TransformState.changed)
-
         return super().itemChange(change, v)
 
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:

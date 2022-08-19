@@ -68,6 +68,8 @@ Afterwards, activate the PlugIn in the QGIS PlugIn manager: menu `PlugIns` → e
 
 You should now see the PlugIn icon in the QGIS main window. If not: menu `View` → entry `Tool boxes` → check `PlugIn tool box`.
 
+### Optional Dependencies
+
 For reading / writing Excel 2010 xlsx/xlsm/xltx/xltm files, install openpyxl. To do so, open the OSGeo4W Shell from your start menu and enter:
 ```
 python -m pip install openpyxl

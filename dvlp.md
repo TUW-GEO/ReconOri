@@ -287,3 +287,6 @@ The DB table `aerials` has 6 entries that are important for the image selection 
 - `imgPath`: the actual relative path to the image or preview file. Must exist unless NULL. If the image file according to `imgId` exists, then this is set immediately. Otherwise, this is set once the preview file and rectangle have been determined.
 - `previewRect`: if not NULL: the rectangle within `imgPath` that covers the image content of this preview. Set when the preview file and rectangle have been determined. If not NULL, then imgPath must not be NULL, either.
 
+## TODO
+
+- The PlugIn crashes if a DB is re-opened and a stored image file path does not exist any more (because of opening the DB on a different PC or a network outage).

@@ -96,7 +96,14 @@ def classFactory(iface: QgisInterface):
 
     _logger = logging.getLogger(__name__)
     # Please note that without logging to a file by setting a filename the logging may be multithreaded which heavily slows down the output.
-    _logFileHandler = logging.FileHandler(filename=Path(__file__).parent / 'log.txt', mode='w')
+
+    logFilePathName = 'image_selection.log'
+    try:
+        _logFileHandler = logging.FileHandler(Path(__file__).parent / logFilePathName, 'w')
+    except OSError:
+        _logFileHandler = logging.FileHandler(Path.home() / logFilePathName, 'w')
+
+    
     logFormatter = logging.Formatter('{asctime}.{msecs:03.0f} {levelname}: {name} - {message}',
                                      style='{', datefmt='%H:%M:%S')
     logFormatter.default_time_format = '%H:%M:%S'

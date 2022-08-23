@@ -23,11 +23,14 @@
      <widget class="QSplitter" name="splitter">
       <property name="styleSheet">
        <string notr="true">QSplitter::handle {
-    background-color: lightGray;
+    background-color: darkGray;
 }</string>
       </property>
       <property name="orientation">
        <enum>Qt::Vertical</enum>
+      </property>
+      <property name="handleWidth">
+       <number>2</number>
       </property>
       <property name="childrenCollapsible">
        <bool>true</bool>
@@ -39,20 +42,17 @@
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
-       <property name="frameShape">
-        <enum>QFrame::NoFrame</enum>
-       </property>
-       <property name="frameShadow">
-        <enum>QFrame::Plain</enum>
-       </property>
-       <layout class="QGridLayout" name="gridLayout">
+       <layout class="QVBoxLayout" name="verticalLayout_3">
         <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
          <number>0</number>
         </property>
         <property name="rightMargin">
          <number>0</number>
         </property>
-        <item row="0" column="0">
+        <item>
          <widget class="WebView" name="webView" native="true">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
@@ -73,15 +73,6 @@
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
-       </property>
-       <property name="frameShape">
-        <enum>QFrame::NoFrame</enum>
-       </property>
-       <property name="frameShadow">
-        <enum>QFrame::Plain</enum>
-       </property>
-       <property name="lineWidth">
-        <number>0</number>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout">
         <property name="leftMargin">

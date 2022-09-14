@@ -19,9 +19,13 @@ At any point, an aerial belongs to each of these categories:
   - `discarded`: the aerial has been discarded from consideration.
   - `unset`: no explicit usage has been set.
   - `selected`: the aerial shall be used in geo-referencing and image analysis. If only a preview is available, the image hence needs to be ordered.
-- `Transformation state`:
+- `Transformation modification`:
   - `original`: the aerial's transformation is the one derived from the spread sheet.
   - `changed`: the aerial's transformation has been adapted manually.
+- `Transformation interaction`:
+  - `Unlocked`: change the image orientation to your liking. Image is shown above locked ones.
+  - `Locked`: the image transformation is fixed. Image is displayed below unlocked ones.
+
 
 All states are indicated graphically. Use the buttons above the map view to control if aerials with the respective state shall be shown or not.
 

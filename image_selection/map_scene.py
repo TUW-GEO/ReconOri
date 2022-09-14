@@ -325,7 +325,7 @@ class MapScene(QGraphicsScene):
         for meta, in self.__db.execute('SELECT meta FROM aerials WHERE usage = ?', [Usage.selected]):
             namedTuples.append(json.loads(meta))
         df = pd.DataFrame(namedTuples)
-        df.to_excel(fileName, sheet_name='Selected aerials', index=False)
+        df.to_excel(fileName, sheet_name='Selected aerials', index=False, freeze_panes=(1, 0))
 
     def emitAerialsLoaded(self, images: Optional[list[AerialImage]] = None) -> None:
         if self.__db is None:
@@ -399,7 +399,6 @@ class MapScene(QGraphicsScene):
         elif iXWgs84s or iYWgs84s:
             if not (iXWgs84s and iYWgs84s):
                 return error(f'{sheet_name} defines only one WGS84 coordinate.')
-            #series = pd.Series([4326] * len(df))
             df['EPSG_Code'] = [4326] * len(df)
             df.rename(columns={df.columns[iXWgs84s[0]]: "x", df.columns[iYWgs84s[0]]: "y"}, inplace=True)
         else:

@@ -21,13 +21,14 @@
 
 """
 from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QElapsedTimer, QMargins, QRectF, Qt, QUrl
-from qgis.PyQt.QtGui import QDesktopServices, QIcon
-from qgis.PyQt.QtWidgets import QActionGroup, QDialogButtonBox, QMenu, QMessageBox, QToolButton, QWhatsThis
+from qgis.PyQt.QtGui import QDesktopServices, QIcon, QStandardItem
+from qgis.PyQt.QtWidgets import QActionGroup, QDialog, QDialogButtonBox, QComboBox, QMenu, QMessageBox, QTableView, QTextEdit, QToolButton, QVBoxLayout, QWhatsThis
 from qgis.PyQt.uic import loadUiType
 
 import configparser
 import logging
 from pathlib import Path
+import tempfile
 import traceback
 
 from osgeo import gdal
@@ -38,6 +39,19 @@ from .aerial_item import Visualization
 from .preview_window import claheAvailable, ContrastEnhancement
 
 gdal.UseExceptions()
+
+class AerialCombo(QComboBox):
+    __scene = None
+
+    def setScene(self, scene):
+        self.__scene = scene
+
+    def hidePopup(self):
+        if self.__scene:
+            self.__scene.highlightAerials.emit(set())
+        super().hidePopup()
+        self.setCurrentIndex(-1)
+
 
 Form, FormBase = loadUiType(Path(__file__).parent / 'main_window_base.ui',
                             from_imports=True, import_from=__name__.rpartition('.')[0])
@@ -61,8 +75,9 @@ class MainWindow(FormBase):
             self.__config.read_file(fin)
 
         ui.splitter.setSizes([100, 500])
-        ui.buttonBox.button(QDialogButtonBox.Help).setToolTip('Click here and then somewhere else to get help.')
-        ui.buttonBox.helpRequested.connect(QWhatsThis.enterWhatsThisMode)
+        ui.buttonBox.button(QDialogButtonBox.Help).setToolTip('View the documentation.')
+        ui.buttonBox.helpRequested.connect(self.__readme)
+        ui.whatsThis.clicked.connect(QWhatsThis.enterWhatsThisMode)
 
         self.__initMap()
         self.__initAerials()
@@ -128,7 +143,9 @@ class MainWindow(FormBase):
                             f'<GetCapabilitiesUrl>{url}</GetCapabilitiesUrl>'
                             f'<Layer>{layers[0]}</Layer>'
                             # '<OfflineMode>true</OfflineMode>'
-                            '<Cache />'
+                            # Cache/Path defaults to ./gdalwmscache, but the CWD may not be writable, e.g. for user1@doriah1: C:\Users\Public\Desktop\QGIS 3.22.10\
+                            # tempfile.gettempdir() yields C:\Users\<user>\AppData\Local\Temp\gdalwmscache\ on Windows 10.
+                            f'<Cache><Path>{tempfile.gettempdir()}/gdalwmscache</Path></Cache>'
                             f'<Timeout>{HttpTimeout.seconds}</Timeout>'
                             '</GDAL_WMTS>')
                     ui.mapSelect.addItem(icon, prefix + desc, path)
@@ -242,6 +259,19 @@ class MainWindow(FormBase):
 
         ui.aerialsFreeze.toggled.connect(lambda checked: ui.mapView.setInteractive(not checked))
 
+        class TableView(QTableView):
+            def currentChanged(self, current, previous):
+                if current.isValid():
+                    scene.highlightAerials.emit({current.data()})
+
+        view = TableView()
+        view.setSelectionBehavior(QTableView.SelectRows)
+        view.verticalHeader().hide()
+        view.setSortingEnabled(True)
+        ui.highlight.setScene(scene)
+        ui.highlight.setView(view)
+        scene.aerialsLoaded.connect(lambda: ui.highlight.setEnabled(True))
+
         ui.exportSelectedImages.clicked.connect(scene.exportSelectedImages)
         scene.aerialsLoaded.connect(lambda: ui.exportSelectedImages.setEnabled(True))
 
@@ -315,9 +345,43 @@ class MainWindow(FormBase):
     def __onAerialsLoaded(self, aerials):
         self.__nTotalAerials = len(aerials)
         self.__updateNAerialsShown()
+        highlight = self.ui.highlight
+        view = highlight.view()
+        model = view.model()
+        model.clear()
+        interesting = 'Datum MASSTAB'.split()
+        model.setHorizontalHeaderLabels(['id'] + interesting)
+        for aerial in aerials:
+            metaLo = {key.lower(): val for key, val in aerial['meta'].items()}
+            items = [QStandardItem(aerial['id'])]
+            for col in interesting:
+                # Insert numbers as such and not as text, or sorting by MASSTAB fails.
+                items.append(QStandardItem(1))
+                items[-1].setData(metaLo.get(col.lower(), ''), Qt.DisplayRole)
+            model.appendRow(items)
+        view.resizeColumnsToContents()
+        view.resizeRowsToContents()
+        view.setMinimumWidth(view.horizontalHeader().length())
+        highlight.setCurrentIndex(-1)
 
     def __updateNAerialsShown(self):
         self.ui.nAerialsShown.setText(f'Showing {self.__nVisibleAerials:3} of {self.__nTotalAerials:3} aerials')
+
+
+    @pyqtSlot()
+    def __readme(self):
+        path = Path(__file__).parent.parent / 'README.md'
+        with path.open() as fin:
+            contents = fin.read()
+        txtEdt = QTextEdit(self)
+        txtEdt.setMarkdown(contents)
+        txtEdt.setReadOnly(True)
+        dialog = QDialog(self)
+        dialog.setWindowTitle('ReadMe')
+        dialog.resize(500, 500)
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(txtEdt)
+        dialog.show()
 
 
 class StatusBarLogHandler(logging.Handler):

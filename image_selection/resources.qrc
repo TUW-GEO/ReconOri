@@ -3,6 +3,9 @@
         <file alias="bomb">resources/bomb.png</file>
         <file alias="rotate">resources/rotate.png</file>
         <file alias="eye">resources/eye.png</file>
+        <file alias="vienna">resources/Wien_Wappen.png</file>
+        <file alias="austria">resources/Flag_of_Austria.svg</file>
+        <file alias="GEO">resources/GEO.png</file>
         <!-- https://p.yusukekamiyamane.com/ -->
         <file alias="zoom-in">resources/magnifier-zoom-in.png</file>
         <file alias="zoom-out">resources/magnifier-zoom-out.png</file>
@@ -29,10 +32,9 @@
         <file alias="image-crop">resources/image-crop.png</file>
         <file alias="image-export">resources/image-export.png</file>
         <file alias="globe-green">resources/globe-green.png</file>
-        <file alias="vienna">resources/Wien_Wappen.png</file>
-        <file alias="austria">resources/Flag_of_Austria.svg</file>
         <file alias="rotateLeft">resources/arrow-circle-225-left.png</file>
         <file alias="rotateRight">resources/arrow-circle-315.png</file>
-        <file alias="GEO">resources/GEO.png</file>
+        <file alias="lock">resources/lock.png</file>
+        <file alias="unlock">resources/lock-unlock.png</file>
     </qresource>
 </RCC>

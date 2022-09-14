@@ -96,7 +96,7 @@ class Usage(enum.IntEnum):
 
 
 class TransformState(enum.IntEnum):
-    def __new__(cls, penStyle):
+    def __new__(cls, penStyle: Qt.PenStyle):
         value = len(cls.__members__)
         obj = int.__new__(cls, value)
         obj._value_ = value
@@ -107,6 +107,7 @@ class TransformState(enum.IntEnum):
 
     original = Qt.DotLine
     changed = Qt.SolidLine
+    locked = Qt.SolidLine
 
 
 class Visualization(enum.Enum):
@@ -193,10 +194,9 @@ class AerialObject(QObject):
 
     def __updateZValues(self) -> None:
         if image := self.image():
-            usage = image.usage()
-            updateZValue(image, usage)
-            if point := self.__point():
-                updateZValue(point, usage)
+            updateZValue(image)
+        if point := self.__point():
+            updateZValue(point)
 
 
 class AerialPoint(QGraphicsEllipseItem):
@@ -205,6 +205,7 @@ class AerialPoint(QGraphicsEllipseItem):
         super().__init__(-radius, -radius, radius * 2, radius * 2)
         self.setFlag(QGraphicsItem.ItemIgnoresTransformations)
         self.setFlag(QGraphicsItem.ItemIsFocusable)
+        self.setFlag(QGraphicsItem.ItemClipsChildrenToShape)
         self.setCursor(Qt.PointingHandCursor)
         self.setCacheMode(QGraphicsItem.DeviceCoordinateCache)
         self.__transformState = TransformState.original
@@ -236,14 +237,12 @@ class AerialPoint(QGraphicsEllipseItem):
 
     def focusInEvent(self, event: QFocusEvent) -> None:
         self.__setPen()
-        if image := self.image():
-            updateZValue(self, image.usage())
+        updateZValue(self)
         super().focusInEvent(event)
 
     def focusOutEvent(self, event: QFocusEvent) -> None:
         self.__setPen()
-        if image := self.image():
-            updateZValue(self, image.usage())
+        updateZValue(self)
         super().focusOutEvent(event)
 
     # end of overrides
@@ -253,6 +252,7 @@ class AerialPoint(QGraphicsEllipseItem):
         self.setAvailability(image.availability())
         self.setUsage(image.usage())
         self.setTransformState(image.transformState())
+        updateZValue(self)
 
     def image(self) -> Optional['AerialImage']:
         if self.__image is not None:
@@ -262,7 +262,6 @@ class AerialPoint(QGraphicsEllipseItem):
         self.setBrush(QBrush(availability.color))
 
     def setUsage(self, usage: Usage) -> None:
-        updateZValue(self, usage)
         self.__cross.setVisible(usage == Usage.discarded)
         self.__tick.setVisible(usage == Usage.selected)
 
@@ -271,12 +270,14 @@ class AerialPoint(QGraphicsEllipseItem):
         self.__setPen()
 
     def __setPen(self) -> None:
-        self.setPen(QPen(Qt.black, 2 if self.hasFocus() else 1, self.__transformState.penStyle))
+        self.setPen(QPen(QColor(162, 17, 17) if self.__transformState == TransformState.locked else Qt.black,
+                         3 if self.hasFocus() else 2,
+                         self.__transformState.penStyle))
 
 
 class AerialImage(QGraphicsPixmapItem):
 
-    __pixMapWidth: Final = 1000
+    __pixMapWidth: Final = 3000  # Approx. width of a microfilm scan, it seems.
 
     __rotateCursor: Final = QCursor(QPixmap(':/plugins/image_selection/rotate'))
 
@@ -308,6 +309,7 @@ class AerialImage(QGraphicsPixmapItem):
                 usage INT NOT NULL REFERENCES usages(id),
                 scenePos TEXT NOT NULL,
                 trafo TEXT NOT NULL,
+                trafoLocked INT NOT NULL DEFAULT 0,
                 path TEXT,
                 previewRect TEXT,
                 meta TEXT NOT NULL
@@ -339,14 +341,18 @@ class AerialImage(QGraphicsPixmapItem):
         self.object: Final = obj
         self.__id: Final = imgId
         self.__availability: Optional[Availability] = None
+        self.__transformState: TransformState = TransformState.original
+        self.__lock: Final = _makeOverlay('lock', self, QGraphicsItem.ItemIgnoresTransformations)
         self.__cross: Final = _makeOverlay('cross', self, QGraphicsItem.ItemIgnoresTransformations)
         self.__tick: Final = _makeOverlay('tick', self, QGraphicsItem.ItemIgnoresTransformations)
 
-        if row := db.execute('SELECT usage, scenePos, trafo FROM aerials WHERE id == ?', [imgId]).fetchone():
+        if row := db.execute('SELECT usage, scenePos, trafo, trafoLocked FROM aerials WHERE id == ?', [imgId]).fetchone():
             usage = Usage(row[0])
             self.setPos(QPointF(*json.loads(row[1])))
             self.setTransform(QTransform(*json.loads(row[2])))
-            if self.transform() == self.__originalTransform() and self.pos() == self.__origPos:
+            if row[3]:
+                trafoState = TransformState.locked
+            elif self.transform() == self.__originalTransform() and self.pos() == self.__origPos:
                 trafoState = TransformState.original
             else:
                 trafoState = TransformState.changed
@@ -368,7 +374,6 @@ class AerialImage(QGraphicsPixmapItem):
                  json.dumps(meta._asdict(), default=toJson)])
             usage = Usage.unset
             self.__resetTransform()
-            self.__setTransformState(TransformState.original)
         self.__deriveAvailability()
         self.__setUsage(usage)
         self.__setPixMap()
@@ -440,6 +445,8 @@ class AerialImage(QGraphicsPixmapItem):
             self.__opacity = min(max(self.opacity() - numSteps * .1, .3), 1.)
             self.setOpacity(self.__opacity)
             return
+        if not self.flags() & QGraphicsItem.ItemIsMovable:
+            return event.ignore()
         pos = event.pos()  # in units of image pixels; ignores self.offset() i.e. (0, 0) is the image center.
         x, y = pos.x(), pos.y()
         if not event.modifiers() & Qt.ControlModifier:
@@ -506,11 +513,11 @@ Double-click to close.<br/>
         return True
 
     def focusInEvent(self, event: QFocusEvent) -> None:
-        updateZValue(self, self.usage())
+        updateZValue(self)
         super().focusInEvent(event)
 
     def focusOutEvent(self, event: QFocusEvent) -> None:
-        updateZValue(self, self.usage())
+        updateZValue(self)
         super().focusOutEvent(event)
 
     def contextMenuEvent(self, event: QGraphicsSceneContextMenuEvent) -> None:
@@ -530,6 +537,11 @@ Double-click to close.<br/>
             menu.addAction(QIcon(':/plugins/image_selection/cross'),
                            'Discard', lambda: self.__setUsage(Usage.discarded))
         menu.addSeparator()
+        if self.__transformState == TransformState.locked:
+            menu.addAction(QIcon(':/plugins/image_selection/unlock'), 'Unlock transform',
+                           lambda: self.__setTransformState(TransformState.original if (self.transform() == self.__originalTransform() and self.pos() == self.__origPos) else TransformState.changed))
+        elif self.flags() & QGraphicsItem.ItemIsMovable:
+            menu.addAction(QIcon(':/plugins/image_selection/lock'), 'Lock transform', lambda: self.__setTransformState(TransformState.locked))
         if self.__transformState == TransformState.changed:
             menu.addAction(QIcon(':/plugins/image_selection/home'), 'Reset transform', self.__resetTransform)
         menu.exec(event.screenPos())
@@ -635,12 +647,17 @@ Double-click to close.<br/>
             availability = Availability.findPreview if filmDir.exists() else Availability.missing
         else:
             availability = Availability.image if rect is None else Availability.preview
-        self.setFlag(QGraphicsItem.ItemIsMovable, availability >= Availability.preview)
         if self.__availability != availability:
             if scene := self.scene():
                 scene.aerialAvailabilityChanged.emit(self.__id, int(availability), path or '')
         self.__availability = availability
         self.__point.setAvailability(availability)
+        self.__setMovability()
+
+    def __setMovability(self) -> None:
+        # __init__: self.__availability is None; __setMovability will be called again right after, via __deriveAvailability.
+        availability = self.__availability or Availability.missing
+        self.setFlag(QGraphicsItem.ItemIsMovable, availability >= Availability.preview and self.__transformState != TransformState.locked)
 
     def usage(self) -> Usage:
         value, = self.__db.execute(
@@ -649,7 +666,6 @@ Double-click to close.<br/>
         return Usage(value)
 
     def __setUsage(self, usage: Usage) -> None:
-        updateZValue(self, usage)
         self.__cross.setVisible(usage == Usage.discarded)
         self.__tick.setVisible(usage == Usage.selected)
         self.__point.setUsage(usage)
@@ -664,10 +680,18 @@ Double-click to close.<br/>
 
     def __setTransformState(self, transformState: TransformState) -> None:
         self.__transformState = transformState
+        isLocked = transformState == TransformState.locked
+        self.__db.execute(
+            'UPDATE aerials SET trafoLocked = ? WHERE id == ?',
+            [isLocked, self.__id])
+        self.__lock.setVisible(isLocked)
+        self.__setMovability()
+        updateZValue(self)
         self.__point.setTransformState(transformState)
 
     def __originalTransform(self) -> QTransform:
         scale = self.__radiusBild / (__class__.__pixMapWidth / 2)
+        # Actually, 2 times this scale seems a bit closer to the true scale.
         return QTransform.fromScale(scale, scale)
 
     def __resetTransform(self):
@@ -678,7 +702,7 @@ Double-click to close.<br/>
     def __chooseCursor(self, event: Union[QKeyEvent, QGraphicsSceneMouseEvent]):
         if event.modifiers() & Qt.AltModifier:
             self.setCursor(self.__transparencyCursor)
-        elif event.modifiers() & Qt.ControlModifier and self.availability() >= Availability.preview:
+        elif event.modifiers() & Qt.ControlModifier and self.flags() & QGraphicsItem.ItemIsMovable:
             self.setCursor(self.__rotateCursor)
         else:
             self.unsetCursor()
@@ -702,6 +726,9 @@ Double-click to close.<br/>
     def footprint(self):
         # CS QGraphicsScene -> WCS: invert y-coordinate
         return [{'x': pt.x(), 'y': -pt.y()} for pt in self.mapToScene(self.boundingRect())[:-1]]
+
+    def radiusBild(self) -> float:
+        return self.__radiusBild
 
 
 def _pixMapHeightFor(width: int, size: QSize) -> int:
@@ -747,25 +774,29 @@ def _makeOverlay(name: str, parent: QGraphicsItem, flag: Optional[QGraphicsItem.
 
 
 """
-Rules for z-stacking, with decreasing priority:
-- display the focus item and animated items above non-animated ones (there is at most one focused item at a time).
-- display images above points.
-- selected -> unset -> discarded items.
-- available -> preview selected -> preview available -> missing
+Rules for z-stacking, from top to bottom:
+- the focus item (controlled by map view; there can be at most one focus item at a time) and animated items (controlled by web view / JavaScript);
+- images with original or changed transformation;
+- points;
+- images with locked transformation
+Display aerials with small footprints above those with large ones if they belong to the same group above.
+These rules shall make it easy to orient additional, large scale images using already oriented small scale images as background.
 """
-def updateZValue(item: Union[AerialImage, AerialPoint], usage: Usage) -> None:
+def updateZValue(item: Union[AerialImage, AerialPoint]) -> None:
     isImage = isinstance(item, AerialImage)
     image = item if isImage else item.image()
-    if image:
-        object = image.object
-        availability = image.availability()
-    else:
-        object = None
-        availability = Availability.missing
+    isLockedImage = isImage and image and image.transformState() == TransformState.locked
+    object = image.object if image else None
     if item.hasFocus() or object and object.isAnimated():
+        level = 3
+    elif isImage and not isLockedImage:
         level = 2
+    elif not isImage:
+        level = 1
     else:
-        level = int(isImage)
-    nextAvailability = max(Availability) + 1
-    nextUsage = max(Usage) + 1
-    item.setZValue(nextUsage * nextAvailability * level + nextAvailability * usage + availability)
+        level = 0
+    scale = 1.  # 0 <= scale <= 1
+    if image:
+        scale = 1 / image.radiusBild()  # do not hassle around with the adjusted scale and image resolution.
+    nextScale = 2
+    item.setZValue(nextScale * level + scale)

@@ -33,11 +33,14 @@ let timeline = {};
 let log = { log: [] };
 let orientingOn = true;
 let prescribingOn = true;
-const groundColor = 236;
+let prGuidance = {};
+let eqClasses;
+const test = true;
+const groundColor = 236; //236
 const dayRange = 25;
 const isSmall = true; // for small AOIs such as St.Poelten and Vienna
 const isWien = true;
-const h = [20,35,70];
+const h = [20,95,130];
 const projects = ['Seybelgasse', 'Postgasse', 'Franz_Barwig_Weg', 'Central_Cemetery', 'BreitenleerStr'];
 const project = false;
 
@@ -87,7 +90,7 @@ function setup() {
   }
   
   // PRESELECTED IMAGES FILE PROCESSING
-  if (project) {
+  if (project || project === 0) {
     preselected = preselected.filter( a => a.obj['Image']).map( (a, i, arr) => {
       return {
         Sortie: (a.obj['Sortie-Nr.']? a.obj['Sortie-Nr.']: arr[i-1].obj['Sortie-Nr.']),
@@ -106,33 +109,33 @@ function setup() {
     });
     aerials.forEach( a => {
       let isSelected = preselected.filter( b => a.meta.Sortie === b.Sortie && b.Bildnr.indexOf( a.meta.Bildnr ) >= 0 ).length==1;
-      a.meta.selected = (isSelected? true:false);
+      a.meta.selected = isSelected;
     }); // Add status to aerial object
   }
 
   calculateAttackCvg();
 
   // TIME MODE BUTTON
-  const timeModeButton = {
+  timeModeButton = {
     id: 'timeModeButton',
     pos: [5,5],
     r: 3,
     draw: function () {
-      push(), noStroke(), fill(10,150,150);
+      push(), noStroke(), fill(100);
       ellipse(this.pos[0], this.pos[1], this.r*2), pop();
     },
     click: function () {
-      timeMode = (timeMode === 'chronological'? 'flights':'chronological');
+      timeMode = (timeMode === 'chronological'? 'fan':'chronological');
     }
   }
   clickables.push(timeModeButton);
   // FINISH BUTTON
-  const finishButton = {
+  finishButton = {
     id: 'finishButton',
     pos: [width-5,height-5],
     r: 3,
     draw: function () {
-      push(), noStroke(), fill(200,50,50);
+      push(), noStroke(), fill(urColor(1));
       ellipse(this.pos[0], this.pos[1], this.r*2), pop();
     },
     click: function () {
@@ -142,7 +145,7 @@ function setup() {
   }
   clickables.push(finishButton);
   // ORIETING BUTTON
-  const orButton = {
+  orButton = {
     id: 'orButton',
     pos: [width-5,5],
     r: 3,
@@ -157,7 +160,7 @@ function setup() {
   }
   clickables.push(orButton);
   // PRESCRIBING BUTTON
-  const prButton = {
+  prButton = {
     id: 'prButton',
     pos: [width-5,15],
     r: 3,
@@ -172,15 +175,14 @@ function setup() {
   }
   clickables.push(prButton);
 
+  // MATRIX OF ATTACK COVERAGE
   let attackVector = [];
   timebins.forEach( t => {
     attackVector.push([]);
     // let containsSelected = t.aerials.map( a => a.meta.selected).reduce((acc, a) => acc||a, false);
     attackDates.forEach( a => attackVector[attackVector.length-1].push( t.attacks.includes(a)?1:0));
   })
-  console.log(JSON.stringify(attackVector));
-
-  //  noLoop();
+  // console.log(JSON.stringify(attackVector));
 }
 
 
@@ -191,7 +193,9 @@ function draw() {
   // translate (0, 12);
   drawTimeline();
   // drawCvgMatrix(); 
+  drawEqClasses();
   drawTimemap();
+  drawStats();
   if (aoi) attackDates.forEach( (a,i) => drawAttack(attacks[i], 8))
   clickables.forEach( a => a.draw());
 
@@ -219,15 +223,42 @@ function draw() {
 const orColor = function (a) {
   // if (a > .95) return color(0,180,255);
   // else return color(255)
-  return lerpColor(color(220),color(0,180,255),a);
+  return lerpColor(color(220),color(0,130,255),a);
 }
 
 const prColor = function (a) {
-  return color(255,50,50);
+  return color(255,100,30);
 }
 
 const urColor = function (a) {
   return lerpColor(color(groundColor),color(70,225,70),a);
+}
+
+const drawStats = function () {
+  push(), translate(0, height-2);
+  noStroke(), fill(50);
+  let x = 20;
+  timeModeButton.pos = [x, height-6]; text(aerials.length+"/"+attackDates.length,x+=10,0); 
+  
+  prButton.pos = [x+=60, height-6]; text(prescribingOn?prGuidance.prescribed.length+"/"+attacks.filter(a => a.prescribed>0).length:0,x+=10,0);
+
+  finishButton.pos = [x+=60, height-6]; text(aerials.filter( a => a.meta.selected).length+"/"+attacks.filter(a => a.coverage>0).length,x+=10,0);
+  orButton.pos = [x+=60, height-6];
+  pop();
+}
+
+const drawEqClasses = function() {
+  eqClasses.forEach( (c,i,arr) => {
+    
+    let y = h[0]+15+(i%6)*7+(i%12>5?0:3.5);
+    strokeWeight(2), stroke(200);
+    line( timeline.map(c[0].attacks[0]), y, timeline.map(c[0].date), y ) // attacks line
+    stroke(150), strokeWeight(4);
+    if (c.length > 1) line( timeline.map(c[0].date), y, timeline.map(c[c.length-1].date), y ); // flights line
+    
+    noStroke(),fill(150);
+    c.forEach( t => ellipse( timeline.map(t.date), y, 6 )); // dots for flights
+  } ) 
 }
 
 const drawCvgMatrix = function() {
@@ -251,7 +282,7 @@ const drawAttack = function (attack, r) {
   // push(), drawingContext.setLineDash([2, 2]), strokeWeight(1), stroke(c);
   // line(0,0,0,h[0]), pop()
   stroke(50), strokeWeight(.4);
-  fill(urColor(attack.coverage));
+  fill(attack.prescribed && prescribingOn && attack.coverage == 0? prColor(1): urColor(attack.coverage));
   rect(0,0,5,-10);
   // beginShape();
   // vertex(0,-r/2), vertex(r/2,-r), vertex(r/2,0), vertex(0,r/2);
@@ -317,7 +348,7 @@ const drawFlights = function ( aerials, params ) {
     [1,-1].forEach ( m => {
       beginShape();
       // curveVertex(params.anchor[0],min(80-20,map(-1,-1,timebin.length+1,80-20,height))); 
-      vertex(params.anchor[0],min(80-20,map(-1,-1,timebin.length+1,80-20,height))); //y position wron
+      vertex(params.anchor[0],min(params.anchor[1]-20,map(-1,-1,timebin.length+1,params.anchor[1]-20,height))); //y position wron
       timebin.forEach( (b, i, arr) => {
         let x = b.vis.pos[0] + (b.meta.p==m?0:-params.mod*2*b.meta.p);// + (b.meta.Bildnr>=3000&&b.meta.Bildnr<5000?m:0);
         let y = b.vis.pos[1];
@@ -327,12 +358,12 @@ const drawFlights = function ( aerials, params ) {
           if (i+v < arr.length && parseInt(arr[i+v].meta.Bildnr) == parseInt(b.meta.Bildnr+1) && arr[i+v].meta.p==m) {
             // console.log(parseInt(arr[i+2].meta.Bildnr)+' '+parseInt(b.meta.Bildnr+1));
             let c = arr[i+v];
-            push(), strokeWeight(b.meta.selected&&c.meta.selected?4:2), stroke(b.meta.selected&&c.meta.selected?urColor(1):50);
+            push(), strokeWeight(b.meta.selected&&c.meta.selected?4:12), stroke(b.meta.selected&&c.meta.selected?urColor(1):200);
             line(x,y,c.vis.pos[0]+(c.meta.p==m?0:-params.mod*2*c.meta.p),c.vis.pos[1]), pop();
           }
         })
       })
-      vertex(params.anchor[0]+(timebin.length+1)*params.slope,min(80+timebin.length*20,map(timebin.length,0,timebin.length,80,height-20)))
+      vertex(params.anchor[0]+(timebin.length+1)*params.slope,min(params.anchor[1]+timebin.length*20,map(timebin.length,0,timebin.length,params.anchor[1],height-20)))
       // curveVertex(params.anchor[0]+(timebin.length+1)*params.slope,min(80+timebin.length*20,map(timebin.length,0,timebin.length,80,height-20)))
       strokeWeight(1), stroke(100);
       endShape();
@@ -344,7 +375,7 @@ const drawFlights = function ( aerials, params ) {
   .forEach( (a, i, arr) => {
     a.vis.tpos = [
       params.anchor[0]+(i+1)*params.slope+params.mod*a.meta.p,
-      min(80+i*20,map(i,0,arr.length,80,height-20))
+      min(params.anchor[1]+i*20,map(i,0,arr.length,params.anchor[1],height-20))
     ];
   });
 
@@ -375,15 +406,15 @@ const drawTimemap = function () {
         if (timeMode === 'chronological') {
           line( timeline.map(b), h[1], timeline.map(b), h[3] );
         } else {
-          line( timeline.map(b), h[1], x3, min(55, h[3]));
-          line( x3, min(55,height-35), x3, h[3] );
+          line( timeline.map(b), h[1], x3, h[2]-20);
+          line( x3, h[2]-20, x3, h[3] );
         }
       }
       pop();
     });
 
     let timebin = aerials.filter( b => b.meta.Datum === a);
-    if (height >= 150) drawFlights( timebin, { anchor:[x2,66], mod:5, slope:0 } );
+    if (height >= 150) drawFlights( timebin, { anchor:[x2,h[2]], mod:5, slope:0 } );
 
     // strokeWeight(a===hovered? 1:.2), noFill(), stroke(c);
     // line(x,h[0],x2,min(55,height-35))
@@ -455,7 +486,7 @@ const drawAerial = function (aerial) {
   if (orientingOn) fill( aerial.interest.Cvg>0? interest: 255 );
   else fill( 200);
   if (isSelected) fill(urColor(1));
-  if (prescribingOn && aerial.meta.prescribed) fill( isSelected? 'yellow':'red'); 
+  if (prescribingOn && aerial.meta.prescribed) fill( isSelected? 'yellow':prColor(1)); 
   if (!onArea) fill(100,50);
   ellipse( 0, 0, r*2);
   fill(groundColor), noStroke();
@@ -485,12 +516,12 @@ const resolveMouseAerial = function () {
 }
 
 function mousePressed() {
-  if (mouseY < 20) dragStart = mouseX;
+  if (mouseY < h[1]) dragStart = mouseX;
 }
 
 function mouseReleased() {
-  if (mouseY < 20) {
-    if (Math.abs(dragStart-mouseX) > 1) timeline.filter(dragStart,mouseX);
+  if (mouseY < h[1]) {
+    if (Math.abs(dragStart-mouseX) > 1) timeline.filter(min(dragStart,mouseX),max(dragStart,mouseX));
     else timeline.reset();
   }
 }

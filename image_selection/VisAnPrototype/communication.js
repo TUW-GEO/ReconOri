@@ -62,7 +62,7 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
     aerials.forEach( a => {
         let aerialPoly = toPolygon(a.footprint);
         let center = turf.center(aerialPoly);
-        let radius = Math.sqrt(2)/1.75*turf.distance(aerialPoly.geometry.coordinates[0][0],aerialPoly.geometry.coordinates[0][1],{units: 'kilometers'});
+        let radius = Math.sqrt(2)/1.6*turf.distance(aerialPoly.geometry.coordinates[0][0],aerialPoly.geometry.coordinates[0][1],{units: 'kilometers'});
         let options = {steps: 10, units: 'kilometers'};
         let circle = turf.circle(center, radius, options);
         aerialPoly = circle;
@@ -81,6 +81,7 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
         a.interest.owned = a.meta.LBDB?1:0;
         a.meta.information = info;
         a.meta.detail = (a.meta.MASSTAB <= 20000);
+        a.meta.pairs = [];
         a.meta.interest = 0;
         a.meta.prescribed = false;
         let nr = new String(a.meta.Bildnr);
@@ -107,13 +108,25 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
       
         details.forEach( a => {
             let possiblePairs = details.filter( b => b.meta.Sortie === a.meta.Sortie && Math.abs(b.meta.Bildnr-a.meta.Bildnr) == 1 && b.polygon.aoi && a!=b );
-            let pairedIntersection = 0;
+            // let pairedIntersection = 0;
             a.interest.type = 'detail'
             if (possiblePairs.length > 0) {
-                let possiblePairsPoly =  possiblePairs.reduce( (poly, b) => turf.union(b.polygon.aoi,poly), possiblePairs[0].polygon.aoi);
-                pairedIntersection = turf.intersect( a.polygon.aoi, possiblePairsPoly );
-                a.interest.paired = pairedIntersection? turf.area(pairedIntersection)/turf.area(a.polygon.aoi):0;
-                a.interest.pre = (a.meta.Cvg + (pairedIntersection? turf.area(pairedIntersection)/aoiArea:0))*(a.meta.LBDB?2:1);
+                a.meta.pairs = possiblePairs;
+                let pairedValue = 0;
+                [true, false].forEach ( (v, i) => {
+                    let possiblePairsPartial = possiblePairs.filter( b => b.meta.LBDB == v );
+                    if (possiblePairsPartial.length > 0) {
+                        let possiblePairsPoly =  possiblePairs.reduce( (poly, b) => turf.union(b.polygon.aoi,poly), possiblePairs[0].polygon.aoi);
+                        let pairedIntersection = turf.intersect( a.polygon.aoi, possiblePairsPoly );
+                        pairedValue += (pairedIntersection? turf.area(pairedIntersection)/aoiArea:0)*(i==0?1:.5);
+                    }
+                })
+                // let possiblePairsOwned = possiblePairs.filter( b => b.meta.LBDB );
+                // let possiblePairsUnowned = possiblePairs.filter( b => !b.meta.LBDB );
+                // let possiblePairsPoly =  possiblePairs.reduce( (poly, b) => turf.union(b.polygon.aoi,poly), possiblePairs[0].polygon.aoi);
+                // pairedIntersection = turf.intersect( a.polygon.aoi, possiblePairsPoly );
+                a.interest.paired = pairedValue//pairedIntersection? turf.area(pairedIntersection)/turf.area(a.polygon.aoi):0;
+                a.interest.pre = (a.meta.Cvg + pairedValue)*(a.meta.LBDB?2:1);
             } else a.interest.pre = a.meta.Cvg*(a.meta.LBDB?2:1);
         })
         overviews.forEach( a => {
@@ -153,13 +166,15 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
     })
 
     attackDates.unshift(aerialDates[0]); // add a zero-attack
+    if (test) attackDates = attackDates.splice(0,attackDates.length-9);
     attacks = attackDates.map( (a, i) => {
         atTime = new Date(a).getTime();
         return {
           date: attackDates[i],
           flights: aerialDates.filter( d => d >= a && ((i+1)<attackDates.length? d < attackDates[i+1]: true) ),
           extFlights: aerialDates.filter( d => d >= a && (new Date(d).getTime())-atTime < 1000 * 3600 * 24 * dayRange),
-          coverage: 0 // calculated in setup because of preselected images
+          coverage: 0, // calculated in setup because of preselected images
+          prescribed: false
         }
     });
     
@@ -176,21 +191,49 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
         }
         return true;
     }
-    console.log(JSON.stringify(timebins.map( a => a.attacks)));
-    let classes = timebins.reduce( (groups, t) => {
+    // console.log(JSON.stringify(timebins.map( a => a.attacks)));
+    eqClasses = timebins.reduce( (groups, t) => {
             if (groups.length == 0 || !arraysEqual(groups[groups.length-1][0].attacks, t.attacks)) groups.push([t]);
             else groups[groups.length-1].push(t);
             return groups;
         }, []);
-    console.log(JSON.stringify(classes.map( a => a.length)));
+    // console.log(JSON.stringify(eqClasses.map( a => a.length)));
     
     // PRESCRIBING GUIDANCE
-    // First, pick the best image from each equivalence class
-    classes.forEach( c => {
-        let allAerials = timebins.filter( t => c.map( a => a.date).includes(t.date)).map (t => t.aerials).reduce( (agg, a) => [...agg, ...a],[]);
+    // let reverseAttacks = attacks.slice().reverse();
+    // console.log('hasasd');
+    // reverseAttacks.forEach( (a, i) => {
+    //     console.log('hasd');
+    //     if (a.coverage == 0) {
+    //         console.log('hasd');
+    //         let cvgClasses = eqClasses.filter( c => c[0].attacks.includes(a.date));
+    //         console.log(cvgClasses.length);
+    //         cvgClasses.sort( (c1,c2) => c1[0].attacks.length > c2[0].attacks.length?1:-1 );
+    //         let bestClass = cvgClasses[0];
+    //         let allAerials = timebins.filter( t => [bestClass].map( a => a.date).includes(t.date)).map(t => t.aerials).reduce( (agg, a) => [...agg, ...a],[]);
+    //         let bestPick = allAerials.sort( (a1,a2) => a1.meta.interest < a2.meta.interest? 1:-1)[0];
+    //         bestPick.meta.prescribed = true; // pick the most interesting image 
+    //         if (bestPick.meta.pairs.length > 0) bestPick.meta.pairs.sort( (a1,a2) => a1.interest > a2.interest?-1:1)[0].meta.prescribed = true; // pick the best pair if possible
+    //     }
+    // });
+    prGuidance.prescribed = [];; 
+    let reducedEqClasses = eqClasses.filter( (c, i, arr) => {
+        let isContainedByNext = i==arr.length-1? false: c[0].attacks.every( a => arr[i+1][0].attacks.indexOf(a) > -1);
+        let isContainedByPrev = i==0? false: c[0].attacks.every( a => arr[i-1][0].attacks.indexOf(a) > -1);
+        return !isContainedByNext && !isContainedByPrev;
+    });
+    reducedEqClasses.forEach( c => {
+        let allAerials = timebins.filter( t => c.map( a => a.date).includes(t.date)).map (t => t.aerials).reduce( (agg, a) => [...agg, ...a],[]).filter(a => a.meta.interest);
         let bestPick = allAerials.sort( (a,b) => a.meta.interest < b.meta.interest? 1:-1)[0];
-        if (bestPick.meta.detail) bestPick.meta.prescribed = true;
-    })
+        bestPick.meta.prescribed = true; 
+        prGuidance.prescribed.push(bestPick);
+        attacks.filter( a => c[0].attacks.indexOf(a.date) > -1).forEach( a => a.prescribed = true);
+        if (bestPick.meta.pairs.length > 0) {
+            let bestPair = bestPick.meta.pairs.sort( (a,b) => a.interest > b.interest?-1:1)[0];
+            bestPair.meta.prescribed = true;
+            prGuidance.prescribed.push(bestPair);
+         } // pick the best pair if possible
+    }) // pick the most interesting images for each eqclass
     
 }));
   

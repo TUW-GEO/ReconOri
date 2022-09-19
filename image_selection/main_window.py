@@ -41,6 +41,7 @@ from .preview_window import claheAvailable, ContrastEnhancement
 gdal.UseExceptions()
 
 class AerialCombo(QComboBox):
+    """The drop-down table of loaded aerials."""
     __scene = None
 
     def setScene(self, scene):
@@ -345,6 +346,7 @@ class MainWindow(FormBase):
     def __onAerialsLoaded(self, aerials):
         self.__nTotalAerials = len(aerials)
         self.__updateNAerialsShown()
+        # Fill the drop-down list of aerials.
         highlight = self.ui.highlight
         view = highlight.view()
         model = view.model()

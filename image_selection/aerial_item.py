@@ -177,6 +177,9 @@ class AerialObject(QObject):
     def __highlight(self, imgIds) -> None:
         image = self.image()
         if image and image.id() in imgIds:
+            for item in (image, self.__point()):
+                if item and item.isVisible():
+                    item.setFocus()
             # animate
             if self.__timerId is None:
                 self.__timerId = self.startTimer(500)
@@ -305,12 +308,12 @@ class AerialImage(QGraphicsPixmapItem):
         db.execute('''
             CREATE TABLE IF NOT EXISTS aerials
             (
-                id TEXT PRIMARY KEY NOT NULL,
+                id TEXT PRIMARY KEY NOT NULL,  -- <sortie>/<bildnr>.ecw
                 usage INT NOT NULL REFERENCES usages(id),
                 scenePos TEXT NOT NULL,
                 trafo TEXT NOT NULL,
                 trafoLocked INT NOT NULL DEFAULT 0,
-                path TEXT,
+                path TEXT,                     -- Relative to imageRootDir if previewRect is NULL else to previewRootDir.
                 previewRect TEXT,
                 meta TEXT NOT NULL
             ) ''')
@@ -363,14 +366,13 @@ class AerialImage(QGraphicsPixmapItem):
                     return str(value)
                 raise TypeError(f'Unable to encode type {value.__class__}')
 
-            path = __class__.imageRootDir / imgId
             db.execute(
                 'INSERT INTO aerials (id, usage, scenePos, trafo, path, meta) VALUES(?, ?, ?, ?, ?, ?)',
                 [imgId,
                  Usage.unset,
                  json.dumps([pos.x(), pos.y()]),
                  json.dumps(np.eye(3).ravel().tolist()),
-                 str(path) if path.exists() else None,
+                 imgId if (__class__.imageRootDir / imgId).exists() else None,
                  json.dumps(meta._asdict(), default=toJson)])
             usage = Usage.unset
             self.__resetTransform()
@@ -583,7 +585,7 @@ Double-click to close.<br/>
                     width, height = height, width
             elif path:
                 with GdalPushLogHandler():
-                    ds = gdal.Open(path)
+                    ds = gdal.Open(str(__class__.imageRootDir / path))
                     width, height = ds.RasterXSize, ds.RasterYSize
             else:
                 width, height = [pixMapWidth] * 2
@@ -609,7 +611,8 @@ Double-click to close.<br/>
             if not self.__requestedPixMapParams or self.__requestedPixMapParams != (path, previewRect, rotationCcw, self.__currentContrast):
                 if __class__.__threadPool is None:
                     __class__.__threadPool = futures.ThreadPoolExecutor(thread_name_prefix='AerialReader')
-                future = __class__.__threadPool.submit(_getPixMap, Path(path), __class__.__pixMapWidth,
+                absPath = __class__.imageRootDir / path if previewRect.isNull() else __class__.previewRootDir / path
+                future = __class__.__threadPool.submit(_getPixMap, absPath, __class__.__pixMapWidth,
                                                        previewRect, rotationCcw, self.__currentContrast)
                 future.add_done_callback(self.__pixMapReady)
                 with self.__lastRequestedFutureLock:
@@ -649,7 +652,10 @@ Double-click to close.<br/>
             availability = Availability.image if rect is None else Availability.preview
         if self.__availability != availability:
             if scene := self.scene():
-                scene.aerialAvailabilityChanged.emit(self.__id, int(availability), path or '')
+                absPath = ''
+                if path is not None:
+                    absPath = str(__class__.previewRootDir / path if rect else __class__.imageRootDir / path)
+                scene.aerialAvailabilityChanged.emit(self.__id, int(availability), absPath)
         self.__availability = availability
         self.__point.setAvailability(availability)
         self.__setMovability()
@@ -714,7 +720,7 @@ Double-click to close.<br/>
             path, rect, viewRotationCcw = dialog.selection()
             self.__db.execute(
                 'UPDATE aerials SET path = ?, previewRect = ? WHERE id == ?',
-                [str(path),
+                [str(path.relative_to(__class__.previewRootDir)),
                  json.dumps([rect.left(), rect.top(), rect.width(), rect.height(), viewRotationCcw]),
                  self.__id])
             self.__deriveAvailability()

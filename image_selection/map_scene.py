@@ -21,7 +21,7 @@
 """
 
 from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, Qt, QPointF, QSettings
-from qgis.PyQt.QtGui import QPen, QPolygonF
+from qgis.PyQt.QtGui import QKeyEvent, QPen, QPolygonF
 from qgis.PyQt.QtWidgets import QFileDialog, QGraphicsPolygonItem, QGraphicsScene, QInputDialog, QMessageBox
 
 import pandas as pd
@@ -82,6 +82,13 @@ class MapScene(QGraphicsScene):
         self.__attackData = None
         self.__aoi = None
         self.__config = config
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        super().keyPressEvent(event)
+        if event.isAccepted():
+            return
+        if event.key() == Qt.Key_Escape:
+            self.setFocusItem(None)
 
     @pyqtSlot()
     def selectAerialsFile(self):

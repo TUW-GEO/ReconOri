@@ -548,7 +548,7 @@ Double-click to close.<br/>
             menu.addAction(QIcon(':/plugins/image_selection/home'), 'Reset transform', self.__resetTransform)
         menu.exec(event.screenPos())
 
-    def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: Optional[QWidget] = None) -> None:
+    def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget) -> None:
         pm = None
         with self.__futurePixmapLock:
             if self.__futurePixmap is not None:

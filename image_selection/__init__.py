@@ -131,9 +131,12 @@ def classFactory(iface: QgisInterface):
             # otherwise, debugpy uses sys.executable, which is e.g. qgis.exe!
             debugpy.configure(python=shutil.which("python"))
             port = 5678
-            debugpy.listen(('localhost', port))
-            _logger.info(f'Debug adapter listening on port {port}.')
-
-    # debugpy.wait_for_client()  # blocks execution until client is attached
+            try:
+                debugpy.listen(('localhost', port))
+            except RuntimeError as ex:
+                _logger.warning(f'Debug adapter failed to connect. Probably because another one is already connected: {ex}.')
+            else:
+                _logger.info(f'Debug adapter listening on port {port}.')
+                # debugpy.wait_for_client()  # blocks execution until client is attached
 
     return ImageSelection(iface)

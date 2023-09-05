@@ -157,7 +157,7 @@ For debugging, do NOT install the QGIS PlugIn `debugvs`, because that uses `ptvs
 In OSGeo4W shell:
 
 ```
-pip3 install debugpy
+python -m pip install debugpy
 ```
 
 ### PyCharm
@@ -193,7 +193,7 @@ and set
 
 (both configured in `.vscode/settings.json`). Also, in OSGeo4W-shell, so Qt-types are not all flagged:
 
-`pip install PyQt5-stubs`
+`python -m pip install PyQt5-stubs`
 
 #### Reformatting
 

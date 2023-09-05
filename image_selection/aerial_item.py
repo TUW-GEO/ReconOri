@@ -45,6 +45,7 @@ Possibly, it would work to integrate both in a common QGraphicsItem
 by constantly updating AerialPoint's bounding rectangle using QGraphicsItem.deviceTransform.
 However, this sounds slow.
 """
+from __future__ import annotations
 
 from qgis.PyQt.QtCore import pyqtSlot, QEvent, QObject, QPointF, QSize, QRect, Qt
 from qgis.PyQt.QtGui import QBitmap, QBrush, QColor, QCursor, QFocusEvent, QHelpEvent, QIcon, QImage, QKeyEvent, QPen, QPainter, QPixmap, QTransform
@@ -63,7 +64,7 @@ import logging
 from pathlib import Path
 import sqlite3
 import threading
-from typing import cast, Final, Optional, Union
+from typing import cast, Final
 import weakref
 
 from . import GdalPushLogHandler
@@ -81,7 +82,7 @@ class Availability(enum.IntEnum):
         obj.color = color
         return obj
 
-    color: Union[Qt.GlobalColor, QColor]
+    color: Qt.GlobalColor | QColor
 
     missing = Qt.gray
     findPreview = QColor(126, 177, 229)  # Qt.blue
@@ -127,9 +128,9 @@ class InversionEffect(QGraphicsEffect):
 
 class AerialObject(QObject):
 
-    __timerId: Optional[int] = None
+    __timerId: int | None = None
 
-    def __init__(self, scene: 'map_scene.MapScene', posScene: QPointF, imgId: str, meta, db: sqlite3.Connection):
+    def __init__(self, scene: map_scene.MapScene, posScene: QPointF, imgId: str, meta, db: sqlite3.Connection):
         super().__init__()
         point = AerialPoint()
         image = AerialImage(imgId, posScene, meta, point, db, self)
@@ -214,7 +215,7 @@ class AerialPoint(QGraphicsEllipseItem):
         self.__transformState = TransformState.original
         self.__cross: Final = _makeOverlay('cross', self)
         self.__tick: Final = _makeOverlay('tick', self)
-        self.__image: Optional[weakref.ref] = None
+        self.__image: weakref.ref | None = None
 
     def itemChange(self, change: QGraphicsItem.GraphicsItemChange, v):
         if change == QGraphicsItem.ItemVisibleHasChanged:
@@ -250,14 +251,14 @@ class AerialPoint(QGraphicsEllipseItem):
 
     # end of overrides
 
-    def setImage(self, image: 'AerialImage') -> None:
+    def setImage(self, image: AerialImage) -> None:
         self.__image = weakref.ref(image)
         self.setAvailability(image.availability())
         self.setUsage(image.usage())
         self.setTransformState(image.transformState())
         updateZValue(self)
 
-    def image(self) -> Optional['AerialImage']:
+    def image(self) -> AerialImage | None:
         if self.__image is not None:
             return self.__image()
 
@@ -286,7 +287,7 @@ class AerialImage(QGraphicsPixmapItem):
 
     __transparencyCursor: Final = QCursor(QPixmap(':/plugins/image_selection/eye'))
 
-    __threadPool: Optional[futures.ThreadPoolExecutor] = None
+    __threadPool: futures.ThreadPoolExecutor | None = None
 
     # To be set beforehand by the scene:
 
@@ -334,16 +335,16 @@ class AerialImage(QGraphicsPixmapItem):
         self.__radiusBild: Final[float] = meta.Radius_Bild
         self.__point: Final = point
         self.__opacity: float = 1.
-        self.__requestedPixMapParams: Optional[tuple[str, QRect, int, ContrastEnhancement]]  = None
+        self.__requestedPixMapParams: tuple[str, QRect, int, ContrastEnhancement] | None  = None
         self.__currentContrast: ContrastEnhancement = ContrastEnhancement.clahe if claheAvailable else ContrastEnhancement.histogram
-        self.__futurePixmap: Optional[futures.Future] = None
+        self.__futurePixmap: futures.Future | None = None
         self.__futurePixmapLock: Final = threading.Lock()
-        self.__lastRequestedFuture: Optional[futures.Future] = None
+        self.__lastRequestedFuture: futures.Future | None = None
         self.__lastRequestedFutureLock: Final = threading.Lock()
         self.__db: Final = db
         self.object: Final = obj
         self.__id: Final = imgId
-        self.__availability: Optional[Availability] = None
+        self.__availability: Availability | None = None
         self.__transformState: TransformState = TransformState.original
         self.__lock: Final = _makeOverlay('lock', self, QGraphicsItem.ItemIgnoresTransformations)
         self.__cross: Final = _makeOverlay('cross', self, QGraphicsItem.ItemIgnoresTransformations)
@@ -569,12 +570,12 @@ Double-click to close.<br/>
         painter.drawRect(self.boundingRect())
         painter.restore()
 
-    def scene(self) -> 'map_scene.MapScene':
+    def scene(self) -> map_scene.MapScene:
         return cast(map_scene.MapScene, super().scene())
 
     # end of overrides
 
-    def __setPixMap(self, pm: Optional[QPixmap] = None):
+    def __setPixMap(self, pm: QPixmap | None = None):
         if pm is None:
             pixMapWidth = __class__.__pixMapWidth
             path, previewRect = self.__db.execute('SELECT path, previewRect FROM aerials WHERE id == ?',
@@ -705,7 +706,7 @@ Double-click to close.<br/>
         self.setPos(self.__origPos)
         self.__setTransformState(TransformState.original)
 
-    def __chooseCursor(self, event: Union[QKeyEvent, QGraphicsSceneMouseEvent]):
+    def __chooseCursor(self, event: QKeyEvent | QGraphicsSceneMouseEvent):
         if event.modifiers() & Qt.AltModifier:
             self.setCursor(self.__transparencyCursor)
         elif event.modifiers() & Qt.ControlModifier and self.flags() & QGraphicsItem.ItemIsMovable:
@@ -769,7 +770,7 @@ def _getPixMap(path: Path, width: int, rect: QRect, rotationCcw: int, contrast: 
     enhanceContrast(img, contrast)
     return QPixmap.fromImage(img)
 
-def _makeOverlay(name: str, parent: QGraphicsItem, flag: Optional[QGraphicsItem.GraphicsItemFlag] = None):
+def _makeOverlay(name: str, parent: QGraphicsItem, flag: QGraphicsItem.GraphicsItemFlag | None = None):
     pm = QPixmap(':/plugins/image_selection/' + name)
     item = QGraphicsPixmapItem(pm, parent)
     item.setOffset(-pm.width() / 2, -pm.height() / 2)
@@ -788,7 +789,7 @@ Rules for z-stacking, from top to bottom:
 Display aerials with small footprints above those with large ones if they belong to the same group above.
 These rules shall make it easy to orient additional, large scale images using already oriented small scale images as background.
 """
-def updateZValue(item: Union[AerialImage, AerialPoint]) -> None:
+def updateZValue(item: AerialImage | AerialPoint) -> None:
     isImage = isinstance(item, AerialImage)
     image = item if isImage else item.image()
     isLockedImage = isImage and image and image.transformState() == TransformState.locked

@@ -21,6 +21,7 @@
 
 This script initializes the plugin, making it known to QGIS.
 """
+from __future__ import annotations
 
 from qgis.gui import QgisInterface
 
@@ -29,8 +30,6 @@ import logging
 from pathlib import Path
 import shutil
 import sys
-from typing import Optional
-
 
 # WMTS opens a WMS dataset for each overview level, passing timeout as option.
 # But GDALWMSDataset::Initialize uses atoi, and Curl interprets 0 as 'no timeout'.
@@ -42,8 +41,8 @@ class HttpTimeout(enum.IntEnum):
     seconds = 10
 
 
-_logger: Optional[logging.Logger] = None
-_logFileHandler: Optional[logging.FileHandler] = None
+_logger: logging.Logger | None = None
+_logFileHandler: logging.FileHandler | None = None
 
 
 def getLoggerAndFileHandler():

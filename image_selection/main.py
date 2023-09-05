@@ -19,6 +19,8 @@
         email                : wilfried.karel@geo.tuwien.ac.at
  ***************************************************************************/
 """
+from __future__ import annotations
+
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QWidget, QAction
 from qgis.gui import QgisInterface
@@ -28,7 +30,6 @@ import importlib
 import logging
 from pathlib import Path
 import time
-from typing import Optional
 
 # Initialize Qt resources from file resources_rc.py at first, so the rest can use it upon its import, already.
 # This would also import resources.qCleanupResources():
@@ -53,7 +54,7 @@ class ImageSelection:
         self.menu = '&DoRIAH Image Selection'
         self.dlg = None
 
-    def add_action(self, icon_path: str, text: str, callback: Callable, parent: Optional[QWidget] = None) -> None:
+    def add_action(self, icon_path: str, text: str, callback: Callable, parent: QWidget | None = None) -> None:
         action = QAction(QIcon(icon_path), text, parent)
         action.triggered.connect(callback)
         self.iface.addToolBarIcon(action)

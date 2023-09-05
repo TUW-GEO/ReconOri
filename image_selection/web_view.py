@@ -19,6 +19,7 @@
         git sha              : $Format:%H$
  ***************************************************************************/
 """
+from __future__ import annotations
 
 from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QObject, Qt, QUrl
 from qgis.PyQt.QtGui import QKeyEvent
@@ -33,7 +34,6 @@ import http.server
 import logging
 from pathlib import Path
 import threading
-from typing import Optional
 import urllib.parse
 import urllib.request
 
@@ -61,7 +61,7 @@ class WebView(QWebView):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.setWhatsThis('Hit F5 to re-load.' + (' Hit F4 to open Web Inspector.' if webInspectorSupport else ''))
-        self.__httpd: Optional[http.server.HTTPServer] = None
+        self.__httpd: http.server.HTTPServer | None = None
         self.__webInspectorDialog = None
 
         # Expose a QObject to JavaScript, to receive signals from there (Qt WebKit Bridge).
@@ -222,7 +222,7 @@ class WebPage(QWebPage):
 
 class ExposedToWebJavaScript(QObject):
 
-    # inbound
+    # PlugIn -> Browser
     aerialsLoaded = pyqtSignal(list)
     attackDataLoaded = pyqtSignal(list)
     areaOfInterestLoaded = pyqtSignal(list)
@@ -230,6 +230,6 @@ class ExposedToWebJavaScript(QObject):
     aerialAvailabilityChanged = pyqtSignal(str, int, str)
     aerialUsageChanged = pyqtSignal(str, int)
 
-    # outbound
+    # Browser -> PlugIn
     filterAerials = pyqtSignal(list)
     highlightAerials = pyqtSignal(list)

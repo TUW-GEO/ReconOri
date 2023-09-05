@@ -19,6 +19,7 @@
         git sha              : $Format:%H$
  ***************************************************************************/
 """
+from __future__ import annotations
 
 from qgis.PyQt.QtCore import Qt, QEvent, QLineF, QPoint, QPointF, QRect, QRectF, pyqtSignal
 from qgis.PyQt.QtGui import QBrush, QHelpEvent, QImage, QKeyEvent, QPainter, QPaintEvent, QPen, QWheelEvent
@@ -30,7 +31,7 @@ import logging
 import math
 import threading
 import time
-from typing import cast, Final, Optional
+from typing import cast, Final
 import xml.etree.ElementTree
 
 import numpy as np
@@ -103,7 +104,7 @@ class MapView(QGraphicsView):
   </li>
 </ul>''')
 
-        self.epsg: Optional[int] = None  # How to set this in __init__ via ui.setupUi?
+        self.epsg: int | None = None  # How to set this in __init__ via ui.setupUi?
         self.__readThread = None
         self.__mapLock = threading.Lock()
         self.__sceneRectAndImg = None
@@ -241,7 +242,7 @@ class MapView(QGraphicsView):
             self.__sceneRectAndImg = sceneRectF, img
         self.invalidateScene(sceneRectF, QGraphicsScene.BackgroundLayer)
 
-    def zoom(self, numSteps: Optional[int], underMouse: bool = True) -> None:
+    def zoom(self, numSteps: int | None, underMouse: bool = True) -> None:
         currScale = self.viewportTransform().determinant() ** .5
         currExp = math.log2(currScale * self.__mapResolution)
         if numSteps is not None:
@@ -317,7 +318,7 @@ class MapReadThread(threading.Thread):
             self.__job = wcsRect, pxPerMeter
             self.__jobCondition.notify()
 
-    def stop(self):
+    def stop(self) -> None:
         if self.is_alive():
             logger.debug(f'Stopping thread {self.name} ...')
             self.__stop.set()

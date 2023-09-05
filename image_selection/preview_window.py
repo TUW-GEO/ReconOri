@@ -19,6 +19,7 @@
         git sha              : $Format:%H$
  ***************************************************************************/
 """
+from __future__ import annotations
 
 from qgis.PyQt.QtCore import pyqtSlot, QModelIndex, QRect, QRectF, Qt
 from qgis.PyQt.QtGui import QIcon, QImage, QPen, QPixmap
@@ -30,7 +31,7 @@ from osgeo import gdal
 
 import enum
 from pathlib import Path
-from typing import cast, Optional
+from typing import cast
 
 try:
     import skimage.exposure
@@ -99,7 +100,7 @@ def enhanceContrast(img: QImage, contrastEnhancement: ContrastEnhancement) -> No
 class PreviewWindow(FormBase):
 
     def __init__(self, filmDir: Path, imageName: str, parent=None) -> None:
-        self.__rect: Optional[QGraphicsRectItem] = None
+        self.__rect: QGraphicsRectItem | None = None
         # Preview images (typically containing low-resolution scans of multiple aerials) seem to be arbitrarly rotated.
         # Full-resolution scans, however, seem to always be delivered upright i.e. the image number is shown upright.
         # Hence, support rotating the QGraphicsView, so the image numbers can easily be recognized.

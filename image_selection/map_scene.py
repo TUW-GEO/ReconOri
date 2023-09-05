@@ -19,6 +19,7 @@
         git sha              : $Format:%H$
  ***************************************************************************/
 """
+from __future__ import annotations
 
 from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, Qt, QPointF, QSettings
 from qgis.PyQt.QtGui import QKeyEvent, QPen, QPolygonF
@@ -35,7 +36,7 @@ import gc
 import json
 import logging
 from pathlib import Path
-from typing import Callable, Optional, Union
+from typing import Callable
 
 from .aerial_item import ContrastEnhancement, AerialObject, AerialImage, Availability, Usage
 
@@ -285,7 +286,7 @@ class MapScene(QGraphicsScene):
         self.emitAerialsLoaded(images)
 
     def __loadAttackDataFile(self, fileName: Path) -> None:
-        def date2str(arg: Union[str, datetime.datetime]) -> str:
+        def date2str(arg: str | datetime.datetime) -> str:
             if isinstance(arg, str):
                 return arg
             return f'{arg.day:02}.{arg.month:02}.{arg.year}'
@@ -302,7 +303,7 @@ class MapScene(QGraphicsScene):
         # Need to treat column names case insensitively:
         # - Attack_List_St_Poelten.xlsx stores them in all upper case,
         # - Projekte LBDB\Image_Selection_Projektbeispiel\Image_Selection_Sample_Vienna\AttackList_Vienna.xlsx in mixed case.
-        converters: dict[Union[int, str], Callable] = dict.fromkeys(['DATUM', 'Datum', 'datum'], date2str)
+        converters = dict.fromkeys(['DATUM', 'Datum', 'datum'], date2str)
         df = pd.read_excel(str(fileName), sheet_name='Tabelle1',
                            converters=converters)
         # Homogenize the column names.
@@ -334,7 +335,7 @@ class MapScene(QGraphicsScene):
         df = pd.DataFrame(namedTuples)
         df.to_excel(fileName, sheet_name='Selected aerials', index=False, freeze_panes=(1, 0))
 
-    def emitAerialsLoaded(self, images: Optional[list[AerialImage]] = None) -> None:
+    def emitAerialsLoaded(self, images: list[AerialImage] | None = None) -> None:
         if self.__db is None:
             return
         if images is None:

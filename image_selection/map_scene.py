@@ -71,6 +71,8 @@ class MapScene(QGraphicsScene):
 
     highlightAerials = pyqtSignal(set)
 
+    showAsImage = pyqtSignal(str, bool)
+
     addAerialsVisible = pyqtSignal(int)
 
     noAerialsVisible = pyqtSignal()

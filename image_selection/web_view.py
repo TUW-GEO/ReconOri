@@ -57,6 +57,7 @@ class WebView(QWebView):
     # outbound
     filterAerials = pyqtSignal(set)
     highlightAerials = pyqtSignal(set)
+    showAsImage = pyqtSignal(str, bool)
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -100,6 +101,7 @@ class WebView(QWebView):
 
         self.__exposedToWebJavaScript.filterAerials.connect(self.__filterAerials)
         self.__exposedToWebJavaScript.highlightAerials.connect(self.__highlightAerials)
+        self.__exposedToWebJavaScript.showAsImage.connect(self.showAsImage)
 
         assert self.__httpd is not None
         #self.setUrl(QUrl.fromLocalFile(str(Path(__file__).parent / 'VisAnPrototype/index.html')))
@@ -233,3 +235,4 @@ class ExposedToWebJavaScript(QObject):
     # Browser -> PlugIn
     filterAerials = pyqtSignal(list)
     highlightAerials = pyqtSignal(list)
+    showAsImage = pyqtSignal(str, bool)

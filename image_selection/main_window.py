@@ -99,6 +99,7 @@ class MainWindow(FormBase):
         self.__filteredImageIds: set[str] = set()
         webView.filterAerials.connect(self.__filterAerials)
         webView.highlightAerials.connect(scene.highlightAerials)
+        webView.showAsImage.connect(scene.showAsImage)
         # Having re-loaded the web page (with possibly changed JavaScript), re-transmit to the page the data we have.
         # Otherwise, the whole PlugIn would need to be re-loaded, meaning a shut-down and re-start of the HTTP-server, which takes time.
         webView.loadFinished.connect(lambda ok: scene.emitAerialsLoaded() if ok else None)
@@ -116,7 +117,7 @@ class MainWindow(FormBase):
             defIdx = 0
             # QGIS seems to set the CWD to %USERPROFILE%/Documents, and the default WMTS cache path is ./gdalwmscache
             for isWMTS, icon, prefix, url in [
-                (True, austria, '', 'https://maps.wien.gv.at/basemap/1.0.0/WMTSCapabilities.xml'),
+                (True, austria, '', 'https://mapsneu.wien.gv.at/basemapneu/1.0.0/WMTSCapabilities.xml'),
                 (False, austria, 'BEV ', 'https://data.bev.gv.at/geoserver/BEVdataKAT/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities&CRS=EPSG:3857'),
                 (True, vienna, 'Stadt Wien ', 'https://maps.wien.gv.at/wmts/1.0.0/WMTSCapabilities.xml'),
                 (False, globe, '', 'WMS:http://ows.terrestris.de/osm/service')]:

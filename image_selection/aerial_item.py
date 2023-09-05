@@ -141,6 +141,7 @@ class AerialObject(QObject):
         scene.contrastEnhancementChanged.connect(image.setContrastEnhancement)
         scene.visualizationChanged.connect(self.__setVisualization)
         scene.highlightAerials.connect(self.__highlight)
+        scene.showAsImage.connect(self.__showAsImage)
         toolTip = [f'<tr><td>{name}</td><td>{value}</td></tr>' for name, value in meta._asdict().items()]
         toolTip = ''.join(['<table>'] + toolTip + ['</table>'])
         for el in point, image:
@@ -195,6 +196,16 @@ class AerialObject(QObject):
                         if effect := item.graphicsEffect():
                             effect.setEnabled(False)
                 self.__updateZValues()
+
+    @pyqtSlot(str, bool)
+    def __showAsImage(self, imgId, show) -> None:
+        image = self.image()
+        point = self.__point()
+        if image and image.id() == imgId and point:
+            image.setVisible(show)
+            point.setVisible(not show)
+            focusItem = image if show else point
+            focusItem.setFocus(Qt.OtherFocusReason)
 
     def __updateZValues(self) -> None:
         if image := self.image():

@@ -1,5 +1,30 @@
 //// GEOMETRIC
 
+/**
+ * Calculates the spatial coverage of a georeferenced aerial image over the area of interest (AOI).
+ * @param {Object} aoiPoly - The AOI polygon in GeoJSON format.
+ * @param {Object} aoiArea - The area of the AOI in square kilometers.
+ * @param {Array} aerialFootprint - The footprint of the aerial image as an array of coordinates.
+ * @returns {number} The spatial coverage of the aerial image over the AOI as a ratio.
+ */
+function calculateImageCoverage(aoiPoly, aoiArea, aerialPoly) {
+    // Find the intersection of the circle with the AOI
+    let intersection = turf.intersect(aerialPoly, aoiPoly);
+
+    // Calculate the coverage as the area of the intersection divided by the AOI area
+    let coverage = intersection ? turf.area(intersection) / aoiArea : 0;
+
+    return coverage;
+}
+
+// Convert a footprint to a polygon
+const toPolygon = function (footprint) {
+    let convertedCoorArr = [footprint.map(a => turf.toWgs84([a.x, a.y]))];
+    convertedCoorArr[0].push(convertedCoorArr[0][0]);
+    return turf.polygon(convertedCoorArr);
+}
+
+
 const aggregateCoverage = function( polygons ) {
     polygons = polygons.filter( a => a );
     if (polygons.length > 0) {
@@ -65,11 +90,11 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
   
     aerials.forEach( a => {
         let aerialPoly = toPolygon(a.footprint);
-        let center = turf.center(aerialPoly);
-        let radius = Math.sqrt(2)/1.6*turf.distance(aerialPoly.geometry.coordinates[0][0],aerialPoly.geometry.coordinates[0][1],{units: 'kilometers'});
-        let options = {steps: 10, units: 'kilometers'};
-        let circle = turf.circle(center, radius, options);
-        aerialPoly = circle;
+        // let center = turf.center(aerialPoly);
+        // let radius = Math.sqrt(2)/1.6*turf.distance(aerialPoly.geometry.coordinates[0][0],aerialPoly.geometry.coordinates[0][1],{units: 'kilometers'});
+        // let options = {steps: 10, units: 'kilometers'};
+        // let circle = turf.circle(center, radius, options);
+        // aerialPoly = circle;
         let intersection = turf.intersect( aerialPoly, aoiPoly);
         let cvg = intersection? turf.area(intersection): 0;
         let info = cvg/a.meta.MASSTAB;
@@ -143,14 +168,6 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
             a.interest.overlap = -(intersectionPoly? turf.area(intersectionPoly)/turf.area(a.polygon.aoi):0);
             a.interest.pre = .5*(a.meta.Cvg - (intersectionPoly? turf.area(intersectionPoly)/aoiArea:0))*(a.meta.LBDB?2:1);
             } a.interest.pre = .5*a.meta.Cvg*(a.meta.LBDB?2:1); // 30000/a.meta.MASSTAB
-        // shared information-based timebin-secluded interest measure calculation
-        // timebin.forEach( b => {
-        //   if (a.polygon.aoi && b.polygon.aoi && a != b) {
-        //     let inter = turf.intersect( a.polygon.aoi, b.polygon.aoi );
-        //     if (inter) sharedInfo += turf.area(inter)/b.meta.MASSTAB;
-        //     a.meta.interest = a.meta.Cvg - ;
-        //   } else a.meta.interest = a.meta.Cvg;
-        // })
         })
         
         // normalize interest by range within timebin
@@ -256,6 +273,9 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
 qgisplugin.aerialFootPrintChanged.connect(handleErrors(function(imgId, _footprint) {
     console.log("Footprint of " + imgId + " has changed to " + JSON.stringify(_footprint, null, 4));
     footprints[imgId] = _footprint;
+    let a = aerials.filter( a => a.id === imgId)[0];
+    a.meta.Cvg= calculateImageCoverage(aoiPoly, aoiArea, toPolygon(_footprint));
+    console.log(a.meta.Cvg); 
     // aerials = aerials.map( a => a.id === imgId? {...a, footprint: _footprint}: a); 
 }));
   
@@ -316,8 +336,6 @@ const sendObject = function (object, link) {
     else if (link === 'unhighlight') qgisplugin.highlightAerials([]);
     else if (link === 'openPreview') qgisplugin.showAsImage(object, true);
     else if (link === 'closePreview') qgisplugin.showAsImage(object, false);
-
-
     // document.getElementById(link).click();
     return 0;
 }

@@ -88,12 +88,14 @@ guidance.reconsider = function (a) {
 function guidanceSelect(a) {
     a.meta.prescribed = true;
     prGuidance.prescribed.push(a);
+    log.write('prescribe', a.id, [a.meta.value, a.meta.prescribed]);
     calculateAttackCvg();
 }
 
 function guidanceDeselect(a) {
     a.meta.prescribed = false;
     prGuidance.prescribed.splice(prGuidance.prescribed.indexOf(a),prGuidance.prescribed.indexOf(a));
+    log.write('unprescribe', a.id, [a.meta.value, a.meta.prescribed]);
     calculateAttackCvg();
 }
 

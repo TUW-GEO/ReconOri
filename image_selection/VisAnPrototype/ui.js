@@ -87,8 +87,7 @@ const drawStats = function () {
     pop();
 }
 
-// TOOLTIP
-// Called in the draw loop while an aerial a is being hovered
+// IMAGE TOOLTIP
 const drawTooltip = function (a) {
     let w = 200, h = 130;
     let x = 8, y = 16;
@@ -103,12 +102,16 @@ const drawTooltip = function (a) {
     
     fill('black'), textSize(11), textAlign(LEFT), textFont('Helvetica'), textStyle(BOLD), noStroke();
     text(a.meta.Sortie+'/'+a.meta.Bildnr, x, y)
+
+    
     
     textStyle(NORMAL);
-    text("This "+ a.interest.type +" image...", x, y += lineSpace);
-    text("is " +( a.interest.owned?"":"not ") + "owned by LBDB", x, y += lineSpace);
-    text("has a "+Math.round(a.interest.Cvg,2)*100+"% coverage over the AOI", x, y += lineSpace);
+    text("Datum: "+a.meta.Datum, x, y += lineSpace);
+    text("This "+ a.type +" image...", x, y += lineSpace);
+    text("is " +( a.owned?"":"not ") + "owned by LBDB", x, y += lineSpace);
+    text("has a "+Math.round(a.meta.Cvg,2)*100+"% coverage over the AOI", x, y += lineSpace);
     text("has a scale of "+a.meta.MASSTAB, x, y += lineSpace);
+    text("is "+(a.usage==2?"selected":(a.usage==1?"not set":"discarded")), x, y += lineSpace);
     if (a.meta.pairs.length > 0) text("can be paired", x, y += lineSpace);
     if (orientingOn) {
         fill(orColor(1));
@@ -123,3 +126,21 @@ const drawTooltip = function (a) {
     }
     pop();
 }
+
+const drawDateTooltip = function() {
+  push();
+  // Convert milliseconds to a Date object
+  let date = new Date(a.date);
+  // Format the date as "DD.MM.YYYY"
+  let formattedDateString = date.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+
+  textFont('Helvetica');
+  textAlign(LEFT);
+  noStroke(), fill(0);
+  text(0, mouseX, h[0]+14);
+  pop();
+ }

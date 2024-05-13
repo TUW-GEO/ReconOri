@@ -33,7 +33,6 @@ const aggregateCoverage = function( polygons ) {
     } else return 0;
 }
 
-// IMPORTANT: this function is passing both user- and guidance-selected images to aggCvg as if they were the same!
 const calculateAttackCvg = function () {
     attacks.forEach( (a ,i) => {
         let selectedImages = [];
@@ -44,7 +43,32 @@ const calculateAttackCvg = function () {
             aggregateCoverage(selectedImages.filter( i => i.meta.selected).map( b => b.polygon.aoi)),
             aggregateCoverage(selectedImages.filter( i => i.meta.prescribed).map( b => b.polygon.aoi))
         ]
+        console.log(a.coverage);
     })
+}
+
+// PRESELECTED IMAGES FILE PROCESSING
+const preselect = function (preselected) {
+    preselected = preselected.filter( a => a.obj['Image']).map( (a, i, arr) => {
+        return {
+          Sortie: (a.obj['Sortie-Nr.']? a.obj['Sortie-Nr.']: arr[i-1].obj['Sortie-Nr.']),
+          Bildnr: a.obj['Image']}
+      }); // Process selected images file --there are cases with no flight number
+      preselected.forEach( a => {
+        if (a.Bildnr.indexOf('-') >= 0) {
+          let nrs = a.Bildnr.split('-');
+          let nrs2 = ''
+          for ( let x = parseInt(nrs[0]); x <= parseInt(nrs[1]); x++) nrs2 += x + (x!=parseInt(nrs[1])?'-':'');
+          a.Bildnr = nrs2;
+        } else if (a.Bildnr.indexOf(',') >= 0) {
+          let nrs = a.Bildnr.split(',');
+          a.Bildnr = nrs.reduce( (agg,nr) => agg.concat(nr+'-') , '');
+        } // Two cases to account for: separated by - (range) or , (singles)
+      });
+      aerials.forEach( a => {
+        let isSelected = preselected.filter( b => a.meta.Sortie === b.Sortie && b.Bildnr.indexOf( a.meta.Bildnr ) >= 0 && (test?Date.parse("1945-01-01") < a.time:true)).length==1;
+        a.meta.selected = isSelected;
+      }); // Add status to aerial object
 }
 
 //// COMMUNICATION
@@ -74,6 +98,20 @@ qgisplugin.attackDataLoaded.connect(handleErrors(function(_attackData){
     // only for non st. Poelten attack records (DATUM vs. Datum)
     // attackDates = attacks.filter(a => a.obj.Datum).map( a => a.obj.Datum).slice(0,attacks.length-1).map( a => {let d = a.split('/'); return d[2]+(d[1].length==1?'-0':'-')+d[1]+(d[0].length==1?'-0':'-')+d[0]});
 }));
+
+const calculatePolygons = function (a) {
+    let aerialPoly = toPolygon(a.footprint);
+    // let center = turf.center(aerialPoly);
+    // let radius = Math.sqrt(2)/1.6*turf.distance(aerialPoly.geometry.coordinates[0][0],aerialPoly.geometry.coordinates[0][1],{units: 'kilometers'});
+    // let options = {steps: 10, units: 'kilometers'};
+    // let circle = turf.circle(center, radius, options);
+    // aerialPoly = circle;
+    let intersection = turf.intersect( aerialPoly, aoiPoly );
+    return {
+        full: aerialPoly,
+        aoi: intersection
+    }
+}
     
 qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
     const toPolygon = function (footprint) {
@@ -98,16 +136,13 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
         let intersection = turf.intersect( aerialPoly, aoiPoly);
         let cvg = intersection? turf.area(intersection): 0;
         let info = cvg/a.meta.MASSTAB;
-        a.polygon = {
-            full: aerialPoly,
-            aoi: intersection
-        }
+        a.polygon = calculatePolygons(a);
         a.time = new Date(a.meta.Datum);
         a.vis = { pos: [0,0] };
         a.interest = {};
+        a.type = (a.meta.MASSTAB <= 20000?"detail":"overview");
         a.meta.Cvg = cvg/aoiArea;
-        a.interest.Cvg = a.meta.Cvg;
-        a.interest.owned = a.meta.LBDB?1:0;
+        a.owned = a.meta.LBDB?1:0;
         a.meta.information = info;
         a.meta.detail = (a.meta.MASSTAB <= 20000);
         a.meta.pairs = [];
@@ -121,7 +156,7 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
     });
   
     timebins = []; // restart on reload
-    //calculate guidance (isolate)
+    
     aerialDates.forEach( d => {
         let timebin = aerials.filter( a => a.meta.Datum === d);
         let details = timebin.filter(a => a.meta.MASSTAB <= 20000 && a.polygon.aoi);
@@ -140,7 +175,6 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
         details.forEach( a => {
             let possiblePairs = details.filter( b => b.meta.Sortie === a.meta.Sortie && Math.abs(b.meta.Bildnr-a.meta.Bildnr) == 1 && b.polygon.aoi && a!=b );
             // let pairedIntersection = 0;
-            a.interest.type = 'detail'
             if (possiblePairs.length > 0) {
                 a.meta.pairs = possiblePairs;
                 let pairedValue = 0;
@@ -161,7 +195,6 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
             } else a.interest.pre = a.meta.Cvg*(a.meta.LBDB?2:1);
         })
         overviews.forEach( a => {
-            a.interest.type = 'overview'
             if (details.length > 0) {
             let detailPoly = details.reduce( (poly, b) => turf.union(b.polygon.aoi,poly), details[0].polygon.aoi);
             let intersectionPoly = turf.intersect( a.polygon.aoi, detailPoly );
@@ -186,19 +219,7 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
         }, [0,0]);
         a.interest.post = a.interest.pre/ranges[1];
         a.meta.interest = a.interest.post;
-        // SQM test
-        // a.meta.value = qualityIndex([a])
     })
-    // let orientingData = aerials.map( a => {
-    //     return {
-    //         id: a.id,
-    //         interest: a.meta.interest,
-    //         pre: a.interest.pre,
-    //         // SQM test
-    //         value: a.meta.value
-    //     }
-    // })
-    // console.log(JSON.stringify(orientingData));
 
     attackDates.unshift(aerialDates[0]); // add a zero-attack
     if (test) {
@@ -241,42 +262,21 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
             else groups[groups.length-1].push(t);
             return groups;
         }, []);
-    // console.log(JSON.stringify(eqClasses.map( a => a.length)));
-    
-    //
+
     // PRESCRIBING (AND ORIENTING) GUIDANCE
-    //
     prGuidance.prescribed = [];
-    
-    // SECOND SOLVER (SQM)
-    // generateSelection();
-    
-    // FIRST HEURISTIC SOLVER
-    // let reducedEqClasses = eqClasses.filter( (c, i, arr) => {
-    //     let isContainedByNext = i==arr.length-1? false: c[0].attacks.every( a => arr[i+1][0].attacks.indexOf(a) > -1);
-    //     let isContainedByPrev = i==0? false: c[0].attacks.every( a => arr[i-1][0].attacks.indexOf(a) > -1);
-    //     return !isContainedByNext && !isContainedByPrev;
-    // });
-    // reducedEqClasses.forEach( c => {
-    //     let allAerials = timebins.filter( t => c.map( a => a.date).includes(t.date)).map(t => t.aerials).reduce( (agg, a) => [...agg, ...a],[]).filter(a => a.meta.interest);
-    //     let bestPick = allAerials.sort( (a,b) => a.meta.interest < b.meta.interest? 1:-1)[0];
-    //     guidanceSelect(bestPick);
-    //     attacks.filter( a => c[0].attacks.indexOf(a.date) > -1).forEach( a => a.prescribed = true);
-    //     if (bestPick.meta.pairs.length > 0) {
-    //         let bestPair = bestPick.meta.pairs.sort( (a,b) => a.interest > b.interest?-1:1)[0];
-    //         guidanceSelect(bestPair);
-    //      } // pick the best pair if possible
-    // }) // pick the most interesting images for each eqclass
-    
+
+    // resetSketch();
 }));
   
 qgisplugin.aerialFootPrintChanged.connect(handleErrors(function(imgId, _footprint) {
     console.log("Footprint of " + imgId + " has changed to " + JSON.stringify(_footprint, null, 4));
     footprints[imgId] = _footprint;
     let a = aerials.filter( a => a.id === imgId)[0];
-    a.meta.Cvg= calculateImageCoverage(aoiPoly, aoiArea, toPolygon(_footprint));
-    console.log(a.meta.Cvg); 
-    // aerials = aerials.map( a => a.id === imgId? {...a, footprint: _footprint}: a); 
+    a.polygon = calculatePolygons(a);
+    a.meta.Cvg= calculateImageCoverage(aoiPoly, aoiArea, a.polygon.full);
+    calculateAttackCvg();
+    guidance.reconsider(a); 
 }));
   
 qgisplugin.aerialAvailabilityChanged.connect(handleErrors(function(imgId, _availability, path){
@@ -286,42 +286,13 @@ qgisplugin.aerialAvailabilityChanged.connect(handleErrors(function(imgId, _avail
 
 qgisplugin.aerialUsageChanged.connect(handleErrors(function(imgId, usage){
     console.log("Usage of " + imgId + " has changed to " + usage);
-    if (usage==2) selectAerial(imgId);
-    else if (usage==1) discardAerial(imgId);
-    else aerials.filter( a => a.id === imgId)[0].usage = 0;
+    let aerial = aerials.find( a => a.id === imgId);
+    if (usage==2) userSelect(aerial);
+    else if (usage==0) userDiscard(aerial);
+    else if (usage==1) userUnset(aerial);
+    // Trigger Guidance behaviour
+    guidance.reconsider(aerial);
 }));
-
-function guidanceSelect(a) {
-    a.meta.prescribed = true;
-    prGuidance.prescribed.push(a);
-    calculateAttackCvg();
-}
-
-function guidanceDeselect(a) {
-    a.meta.prescribed = false;
-    
-    prGuidance.prescribed.splice(prGuidance.prescribed.indexOf(a),prGuidance.prescribed.indexOf(a));
-    calculateAttackCvg();
-}
-
-const selectAerial = function (imgId) {
-    let aerial = aerials.filter( a => a.id === imgId)[0];
-    aerial.usage = 2;
-    aerial.meta.selected = true;
-
-    log.write('select', aerial.id, [aerial.interest.post, aerial.meta.prescribed]);
-    calculateAttackCvg();
-    orientModel();
-}
-
-const discardAerial = function (imgId) {
-    let aerial = aerials.filter( a => a.id === imgId)[0];
-    aerial.usage = 1;
-    aerial.meta.selected = false;
-    log.write('discard', aerial.id, [aerial.interest.post, aerial.meta.prescribed]);
-    calculateAttackCvg();
-    orientModel();
-}
 
 
   

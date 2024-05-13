@@ -7,9 +7,98 @@
 // is purposedly limited to the first covering image pair (in time) of an attack
 //
 // IMPORTANT NOTE: timespan of the project and threshold delay are HARDCODED
-// SQM should ignore discarded status images
+// SQM should ignore images with discarded status
 
 let prescribedSelectionValue = 0;
+
+let guidance = {
+    state: 0,
+    log: {
+        values: []
+    }
+}
+
+// Guidance loop
+guidance.loop = function () {
+    if (guidance.state == 0) {
+        return 0;
+    }
+    // Inner phase: hard constraints not yet satisfied, building a complete solution
+    else if (guidance.state == 1) {
+        let delay = 2;
+        if (frameCount%delay===0) guidance.orientModel();
+        else if (frameCount%delay===(delay-1)) guidance.generateSelection();
+    }
+    // Outer phase: exploring the solution space with simulated annealing
+    else if (guidance.state == 2) {
+        // TODO: simulated annealing
+        // guidance.shuffleWorst(5);
+        // guidance.state = 0;
+    }
+}
+
+guidance.shuffleWorst = function (n) {
+    // Order ascending
+    prGuidance.prescribed.sort( (a,b) => a.meta.value > b.meta.value? 1:-1).splice(0, n);
+}
+
+// Returns the value of an image given a selection and if the image is contained or not
+// guidance.calculateExchangeValue(aerial, selection, contained)
+
+guidance.orientModel = function() {
+    let solutionValue = qualityIndex([...prGuidance.prescribed, ...aerials.filter( b => b.meta.selected)]);
+    guidance.log.values.push(solutionValue);
+    // TODO: aerials.filter( a => a.usage != 1) does not work
+    aerials.forEach( a => {
+        if (a.usage == 0) { // User-discarded
+            a.meta.value = -99; // Exile
+        } else if (a.prescribed || a.selected) {
+            let selectionWithoutAerial = [...prGuidance.prescribed, ...aerials.filter( b => b.meta.selected && b !== a)];
+            a.meta.value = qualityIndex(selectionWithoutAerial)-solutionValue;
+        } else {
+            let selectionWithAerial = [...prGuidance.prescribed, ...aerials.filter( b => b.meta.selected), a];
+            a.meta.value = qualityIndex(selectionWithAerial)-solutionValue;
+        }
+    });
+    let valueRange = aerials.reduce( (agg, a) => [Math.min(agg[0],a.meta.value), Math.max(agg[1],a.meta.value)], [Infinity, -Infinity]);
+    aerials.forEach( a => {
+        a.meta.normalValue =  (a.meta.value - valueRange[0]) / (valueRange[1] - valueRange[0]);
+    });
+}
+
+guidance.generateSelection = function () {
+    let imageLimit = 35;
+    let sortedImages = aerials.slice().sort( (a,b) => a.meta.value < b.meta.value? 1:-1);
+     //apply constrain
+    // prGuidance.prescribed = prGuidance.prescribed.filter( a => a.usage == 0);
+    // sortedImages = sortedImages.filter( a => a.usage == 0);
+    let bestPick = sortedImages[0];
+    if (bestPick.meta.value > .001 && prGuidance.prescribed.length < imageLimit) {
+        guidanceSelect(bestPick);
+        prescribedSelectionValue += bestPick.meta.value;
+    } //else guidance.state = 1;
+}
+
+guidance.reconsider = function (a) {
+   guidanceDeselect(a);
+   guidance.state = 1;
+}
+
+
+function guidanceSelect(a) {
+    a.meta.prescribed = true;
+    prGuidance.prescribed.push(a);
+    calculateAttackCvg();
+}
+
+function guidanceDeselect(a) {
+    a.meta.prescribed = false;
+    prGuidance.prescribed.splice(prGuidance.prescribed.indexOf(a),prGuidance.prescribed.indexOf(a));
+    calculateAttackCvg();
+}
+
+
+// QUALITY AND VALUE INDEXES
 
 function infoIndex(selection) {
     return selection.reduce( (agg, i) => {
@@ -20,6 +109,12 @@ function infoIndex(selection) {
 function ownedIndex(selection) {
     return selection.reduce( (agg, i) => {
         return agg +=  (i.interest.owned?1:0)/selection.length;
+    }, 0);
+}
+
+function spatialCvgIndex(selection) {
+    return selection.reduce( (agg, i) => {
+        return agg +=  i.meta.Cvg/selection.length;
     }, 0);
 }
 
@@ -71,59 +166,10 @@ function economyIndex(selection) {
 }
 
 function qualityIndex(selection) {
-    return economyIndex(selection)*timeCvgSawIndex(selection)+ownedIndex(selection)*.05//*infoIndex(selection);
+    return economyIndex(selection)*timeCvgSawIndex(selection)+ownedIndex(selection)*.05+spatialCvgIndex(selection)//*infoIndex(selection);
 }
 
-function orientModel() {
-    let currentQualityIndex = qualityIndex([...prGuidance.prescribed, ...aerials.filter( b => b.meta.selected)])
-    aerials.forEach( a => {
-        let selectionWithAerial = [...prGuidance.prescribed, ...aerials.filter( b => b.meta.selected), a];
-        let selectionWithoutAerial = [...prGuidance.prescribed, ...aerials.filter( b => b.meta.selected && b !== a)]
-        // if the images are already select, measure their negative value of deselection
-        if (a.prescribed || a.selected) a.meta.value = qualityIndex(selectionWithoutAerial)-currentQualityIndex;
-        else a.meta.value = qualityIndex(selectionWithAerial)-currentQualityIndex;
-    });
-    console.log(currentQualityIndex);
-    // let valueRange = aerials.reduce( (agg, a) => [Math.min(agg[0],a.meta.value), Math.max(agg[1],a.meta.value)], [Infinity, -Infinity]);
-    // aerials.forEach( a => {
-    //     a.meta.valueNormalized =  (a.meta.value - valueRange[0]) / (valueRange[1] - valueRange[0]);
-    // });
-}
-
-function generateSelection() {
-    // Sort all images by SQM value
-    let imageLimit = 35;
-    let sortedImages = aerials.slice().sort( (a,b) => a.meta.value < b.meta.value? 1:-1);
-     //apply constrain
-    // prGuidance.prescribed = prGuidance.prescribed.filter( a => a.usage == 0);
-    // sortedImages = sortedImages.filter( a => a.usage == 0);
-
-    let bestPick = sortedImages[0];
-    if (bestPick.meta.value > .001 && prGuidance.prescribed.length < imageLimit) {
-        guidanceSelect(bestPick);
-        prescribedSelectionValue += bestPick.meta.value;
-        // console.log("Prescribed Selection Value  "+ prescribedSelectionValue);
-    }
-}
-
-// NOTE: this function is having no effect
-// Let's turn this into an annealing phase
-function correctModel() {
-    aerials.forEach( a => {
-        // if a prescribed image has 0 change-value, deselect
-        if (a.prescribed && a.meta.value <= 0) guidanceDeselect(a);
-    });
-}
-
-function evaluate() {
-    let modelSpeed =2; // only divisible by 2
-    if (frameCount > 15 && frameCount%(modelSpeed/2)==0) {
-        if (frameCount%modelSpeed==0) orientModel();
-        else generateSelection();
-        // correctModel();
-    }
-}
-
+// TODO: Eliminate this function as it overwrites p5
 function constrain(value, min, max) {
     return Math.min(Math.max(value, min), max);
 }

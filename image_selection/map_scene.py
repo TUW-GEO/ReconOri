@@ -184,6 +184,16 @@ class MapScene(QGraphicsScene):
     def __loadAerialsFile(self, fileName: Path) -> None:
         logger.info(f'Spreadsheet with image meta data to load: {fileName}')
         dbPath = fileName.with_suffix('.sqlite')
+        if not dbPath.exists():
+            try:
+                dbPath.touch(exist_ok=True)
+            except OSError:
+                repl = Path.home() / 'DoRIAH' / 'ImageSelection'
+                if dbPath.drive:
+                    repl = repl / dbPath.drive[:-1]
+                repl = repl.joinpath(*dbPath.parts[1:])
+                logger.info(f'Failed to create {dbPath}. Using {repl} instead.')
+                dbPath = repl
         rmDb = False
         if dbPath.exists():
             button = QMessageBox.question(
@@ -194,8 +204,15 @@ class MapScene(QGraphicsScene):
             if button == QMessageBox.Discard:
                 rmDb = True
 
-        sheet_name = 'Geo_Abfrage_SQL'
-        df = pd.read_excel(str(fileName), sheet_name=sheet_name, true_values=['Ja', 'ja'], false_values=['Nein', 'nein'])
+        dfs = pd.read_excel(str(fileName), sheet_name=None, true_values=['Ja', 'ja'], false_values=['Nein', 'nein'])
+        sheet_names = 'Geo_Abfrage_SQL', 'Geo_Abfrage'
+        for sheet_name in sheet_names:
+            df = dfs.get(sheet_name)
+            if df is not None:
+                break
+        else:
+            __class__.__error('Load aerial image meta data', f"{fileName} contains no sheet named {', '.join(sheet_names)}")
+            return
         if not self.__cleanAerialData(df, sheet_name):
             return
 
@@ -205,6 +222,9 @@ class MapScene(QGraphicsScene):
         AerialImage.imageRootDir = Path(self.__config['IMAGES']['rootDir'])
         if not AerialImage.imageRootDir.is_absolute():
             AerialImage.imageRootDir = fileName.parent / AerialImage.imageRootDir
+        # Hack
+        if not AerialImage.imageRootDir.exists() and AerialImage.imageRootDir.name.lower() == 'images' and AerialImage.imageRootDir.with_name('Bilder').exists():
+            AerialImage.imageRootDir = AerialImage.imageRootDir.with_name('Bilder')
 
         if self.__aoi is not None:
             self.removeItem(self.__aoi)
@@ -236,8 +256,9 @@ class MapScene(QGraphicsScene):
         # Also, errors during setup will leave an existing DB in its original state.
         self.__db.execute('BEGIN TRANSACTION')
         for row in df.itertuples(index=False):
-            #fn = f'{row.Datum.year}-{row.Datum.month:02}-{row.Datum.day:02}_{row.Sortie}_{row.Bildnr}.ecw'
-            imgId = (Path(row.Sortie) / f'{row.Bildnr}.ecw').as_posix()
+            imgId = f'{row.Datum.year}-{row.Datum.month:02}-{row.Datum.day:02}_{row.Sortie}_{row.Bildnr}.ecw'
+            if not (AerialImage.imageRootDir / imgId).exists():
+                imgId = (Path(row.Sortie) / f'{row.Bildnr}.ecw').as_posix()
             imgFilePath = AerialImage.imageRootDir / imgId
             if not row.LBDB and imgFilePath.exists():
                 shouldBeMissing.append(imgFilePath.name)
@@ -254,7 +275,6 @@ class MapScene(QGraphicsScene):
             wcsCtr = db2wcs.TransformPoint(x, y)
             # WCS -> CS QGraphicsScene: invert y-coordinate
             aerialObjects.append(AerialObject(self, QPointF(wcsCtr[0], -wcsCtr[1]), str(imgId), row, self.__db))
-
         self.__db.execute('COMMIT TRANSACTION')
 
         for view in self.views():
@@ -391,26 +411,34 @@ class MapScene(QGraphicsScene):
     def __cleanAerialData(df: pd.DataFrame, sheet_name: str) -> bool:
         def error(msg):
             return __class__.__error("Erroneous Coordinate Reference System", msg)
-
+        fulls = 'Sortie Spot Bildnr Datum MASSTAB QU Acc BLänder Abd LBDB Quelle x y xWGS84 yWGS84'.split()
+        fulls = {elem.lower() : elem for elem in fulls}
+        # Projekte LBDB\Meeting_2021-06-10_Testprojekte\Testprojekt1 and Testprojekt2 contain a column with EPSG-Code, either named 'EPSG-Code', or 'EPSGCode'.
+        # More fuzz: Graz contains columns RechtsGK3, HochGK3, RechtsGK4, HochGK4. Both GK4 columns are empty. GK3 columns are filled, but correspond to EPSG:31468 i.e. zone 4, not 3!
+        abbrs = ('epsg', 'EPSG_Code'), ('radius', 'Radius_Bild'), ('rechtsgk3', 'RechtsGK'), ('hochgk3', 'HochGK')
+        rename = {}
+        empty = []
+        for pres in df.columns:
+            if not df[pres].count():
+                empty.append(pres)
+            elif pres.lower() in fulls:
+                rename[pres] = fulls[pres.lower()]
+            else:
+                for abbr, full in abbrs:
+                    if pres.lower() == abbr.lower():
+                        rename[pres] = full
+                        break
+        df.drop(columns=empty, inplace=True)
+        df.rename(columns={old: new for old, new in rename.items() if old != new}, inplace=True)
         df['Datum'] = df['Datum'].dt.date  # strip time of day
-
-        # EPSG codes' column seems to be named either 'EPSG-Code', or 'EPSGCode'.
-        # Standardize the name into a Python identifier.
-        iEpsgs = [idx for idx, el in enumerate(df.columns) if 'epsg' in el.lower()]
-        iXWgs84s = [idx for idx, el in enumerate(df.columns) if 'xwgs84' in el.lower()]
-        iYWgs84s = [idx for idx, el in enumerate(df.columns) if 'ywgs84' in el.lower()]
-        for idxs, name in [(iEpsgs, 'EPSG code'), (iXWgs84s, 'WGS84 longitude'), (iYWgs84s, 'WGS84 latitude')]:
-            if len(idxs) > 1:
-                return error('Multiple columns in {} seem to provide {}: {}.'.format(sheet_name, name, ', '.join(str(df.columns[idx]) for idx in idxs)))
-        if iEpsgs and (iXWgs84s or iYWgs84s):
-            return error(f'{sheet_name} defines columns both for EPSG code and for WGS84 coordinates.')
-        if iEpsgs:
-            df.rename(columns={df.columns[iEpsgs[0]]: "EPSG_Code"}, inplace=True)
-        elif iXWgs84s or iYWgs84s:
-            if not (iXWgs84s and iYWgs84s):
-                return error(f'{sheet_name} defines only one WGS84 coordinate.')
+        if {'xWGS84', 'yWGS84'}.issubset(df.columns):
             df['EPSG_Code'] = [4326] * len(df)
-            df.rename(columns={df.columns[iXWgs84s[0]]: "x", df.columns[iYWgs84s[0]]: "y"}, inplace=True)
+            df.rename(columns={'xWGS84': 'x', 'yWGS84': 'y'}, inplace=True)
+        elif 'EPSG_Code' in df.columns:
+            assert {'x', 'y'}.issubset(df.columns)
+        elif {'RechtsGK', 'HochGK'}.issubset(df.columns):
+            df['EPSG_Code'] = [31468] * len(df)
+            df.rename(columns={'RechtsGK': 'x', 'HochGK': 'y'}, inplace=True)
         else:
             return error(f"{sheet_name} seems to provide no information on coordinate system. Columns are: {', '.join(df.columns)}")
         return True

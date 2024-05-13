@@ -26,10 +26,9 @@ At any point, an aerial belongs to each of these categories:
   - `Unlocked`: change the image orientation to your liking. Image is shown above locked ones.
   - `Locked`: the image transformation is fixed. Image is displayed below unlocked ones.
 
-
 All states are indicated graphically. Use the buttons above the map view to control if aerials with the respective state shall be shown or not.
 
-Tested with QGIS 3.22 LTR, installed with the *standalone installer (MSI)*.
+Tested with QGIS 3.22 LTR and 3.34 LTR on Windows, installed with the *standalone installer (MSI)*.
 
 May still work with QGIS 3.16.14 *standalone installer (MSI)*. Does not work with the QGIS 3.16.14 *network installer*, since that comes with Python 3.7 instead of 3.9.  Does not work with even older releases, but should work with newer ones.
 
@@ -56,17 +55,16 @@ There are different ways to make the PlugIn accessible in QGIS:
 1. if installing from a package archive (`.zip`), the easiest way is via menu `PlugIns` → entry `Manage and install plugins` → tab `Install from ZIP`: choose the path to the archive and hit `Install Plugin`.
 
 2. Or: place/extract the PlugIn-folder somewhere on your file system. 
-
+   
    1. Put/extract the PlugIn-folder into the place where the QGIS PlugIn manager expects it: make the PlugIn-folder *image_selection* a sub-directory of:
-
+      
       ```
       %USERPROFILE%\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins
       ```
-
+      
       In case you use a non-default QGIS profile, replace `default` with that profile's name. You may make the PlugIn folder a sub-directory either as a copy, or as a symbolic link.
-
+   
    2. Otherwise, you may place/extract your PlugIn-folder anywhere and tell QGIS where to find it. To do so, before starting QGIS, set the environment variable `QGIS_PLUGINPATH` to the parent directory of the PlugIn folder, wherever that is.
-
 
 Afterwards, activate the PlugIn in the QGIS PlugIn manager: menu `PlugIns` → entry `Manage and install plugins` → tab `Installed` → Check `DoRIAH Image Selection`.
 
@@ -75,11 +73,13 @@ You should now see the PlugIn icon in the QGIS main window. If not: menu `View` 
 ### Optional Dependencies
 
 For reading / writing Excel 2010 xlsx/xlsm/xltx/xltm files, install openpyxl. To do so, open the OSGeo4W Shell from your start menu and enter:
+
 ```
 python -m pip install openpyxl
 ```
 
 To make Contrast Limited, Adaptive Histogram Equalization available as image enhancement, enter in the OSGeo4W Shell:
+
 ```
 python -m pip install scikit-image
 ```

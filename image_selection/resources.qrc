@@ -34,6 +34,7 @@
         <file alias="globe-green">resources/globe-green.png</file>
         <file alias="rotateLeft">resources/arrow-circle-225-left.png</file>
         <file alias="rotateRight">resources/arrow-circle-315.png</file>
+        <file alias="magnet">resources/magnet.png</file>
         <file alias="lock">resources/lock.png</file>
         <file alias="unlock">resources/lock-unlock.png</file>
     </qresource>

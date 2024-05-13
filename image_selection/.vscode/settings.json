@@ -1,21 +1,23 @@
 {
+    // The default interpreter path is used only if no interpreter has been manually selected, and none has been found on PATH.
+    "python.defaultInterpreterPath": "C:/Program Files/QGIS 3.34.6/apps/Python312/python.exe",
     "python.languageServer": "Pylance",
     "python.analysis.typeCheckingMode": "basic",
     // Make Pylance find the "qgis" package.
     // I don't know when and where QGIS adds this directory to the Python path - probably hard-coded.
     // Alternatives:
     // - start VS Code using a batch file:
-    //     CALL "%ProgramFiles%\QGIS 3.22.8\bin\python-qgis-ltr.bat" --version
+    //     CALL "%ProgramFiles%\QGIS 3.22.13\bin\python-qgis-ltr.bat" --version
     //     start "VS Code" /B "%LOCALAPPDATA%\Programs\Microsoft VS Code\Code.exe" image_selection %*
     //   It is unclear to me why calling python-qgis-ltr.bat beforehand helps, since it changes no Python-relevant environment variables.
     // - store in ../.env see https://code.visualstudio.com/docs/python/environments#_environment-variables
-    //     PYTHONPATH=C:\Program Files\QGIS 3.22.8\apps\qgis-ltr\python
+    //     PYTHONPATH=C:\Program Files\QGIS 3.22.13\apps\qgis-ltr\python
     // https://code.visualstudio.com/docs/python/settings-reference#_code-analysis-settings
     // Variable substitution is unsupported here: https://code.visualstudio.com/docs/editor/variables-reference
     "python.analysis.extraPaths": [
-        "C:/Program Files/QGIS 3.22.8/apps/qgis-ltr/python",
-        "C:/Users/wk/AppData/Roaming/Python/Python39/site-packages",
-        "C:/Program Files/QGIS 3.22.8/apps/Python39/Lib/site-packages"
+        "C:/Program Files/QGIS 3.34.6/apps/qgis-ltr/python",
+        "C:/Users/wk/AppData/Roaming/Python/Python312/site-packages",
+        "C:/Program Files/QGIS 3.34.6/apps/Python312/Lib/site-packages"
     ],
     // Test with: editor-context-menu -> format-selection
     // Look into the "OUTPUT" window -> "Python"

@@ -70,6 +70,7 @@ import weakref
 from . import GdalPushLogHandler
 from .preview_window import claheAvailable, ContrastEnhancement, enhanceContrast, PreviewWindow
 from . import map_scene
+from .georef import georef
 
 logger: Final = logging.getLogger(__name__)
 
@@ -555,6 +556,8 @@ Double-click to close.<br/>
             menu.addAction(QIcon(':/plugins/image_selection/unlock'), 'Unlock transform',
                            lambda: self.__setTransformState(TransformState.original if (self.transform() == self.__originalTransform() and self.pos() == self.__origPos) else TransformState.changed))
         elif self.flags() & QGraphicsItem.ItemIsMovable:
+            if self.__availability in (Availability.image, ):  # TODO Availability.preview
+                menu.addAction(QIcon(':/plugins/image_selection/magnet'), 'Auto-georeference', lambda: self.__georeference())
             menu.addAction(QIcon(':/plugins/image_selection/lock'), 'Lock transform', lambda: self.__setTransformState(TransformState.locked))
         if self.__transformState == TransformState.changed:
             menu.addAction(QIcon(':/plugins/image_selection/home'), 'Reset transform', self.__resetTransform)
@@ -737,6 +740,9 @@ Double-click to close.<br/>
                  self.__id])
             self.__deriveAvailability()
             self.__requestPixMap()
+
+    def __georeference(self):
+        georef()
 
     def id(self):
         return self.__id

@@ -2,11 +2,15 @@
     "version": "0.2.0",
     "configurations": [
       {
+        // Need to install debugpy into QGIS's Python installation (in the OSGeo4W-Shell), or into the user-site-packages.
+        // PlugIn's __init__.py starts listening.
         "name": "Python QGIS PlugIn",
-        "type": "python",
+        "type": "debugpy",
         "request": "attach",
-        "port": 5678,
-        "host": "localhost",
+        "connect": {
+          "port": 5678,
+          "host": "localhost"
+        },
         "justMyCode": false
       }
     ]

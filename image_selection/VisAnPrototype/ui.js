@@ -148,3 +148,6 @@ const drawDateTooltip = function() {
   text(0, mouseX, h[0]+14);
   pop();
  }
+
+ // TODO Attack Tooltip
+ 

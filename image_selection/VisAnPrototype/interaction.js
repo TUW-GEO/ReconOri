@@ -43,7 +43,7 @@ function mouseClicked() {
   let clickedAerial = resolveMouseAerial();
   if (clickedAerial) {
     sendObject(clickedAerial.id, clickedAerial.previewOpen? 'closePreview':'openPreview');
-    log.write('preview', clickedAerial.id, [aerial.meta.value, aerial.meta.prescribed]);
+    log.write('preview', clickedAerial.id, [clickedAerial.meta.value, clickedAerial.meta.prescribed]);
     clickedAerial.previewOpen = !clickedAerial.previewOpen;
   }
 }

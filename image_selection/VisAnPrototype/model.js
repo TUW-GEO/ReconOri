@@ -1,5 +1,5 @@
 //
-// SELECTION QUALITY MODEL
+// IMAGE SELECTION GUIDANCE MODEL
 //
 // ip 2023-04-10:
 // This SQM considers type of images, pairing status, and temporal relations to attacks
@@ -13,6 +13,7 @@ let prescribedSelectionValue = 0;
 
 let guidance = {
     state: 0,
+    prescribed: [],
     log: {
         values: []
     }
@@ -37,10 +38,10 @@ guidance.loop = function () {
     }
 }
 
-guidance.shuffleWorst = function (n) {
-    // Order ascending
-    prGuidance.prescribed.sort( (a,b) => a.meta.value > b.meta.value? 1:-1).splice(0, n);
-}
+// guidance.shuffleWorst = function (n) {
+//     // Order ascending
+//     prGuidance.prescribed.sort( (a,b) => a.meta.value > b.meta.value? 1:-1).splice(0, n);
+// }
 
 // Returns the value of an image given a selection and if the image is contained or not
 // guidance.calculateExchangeValue(aerial, selection, contained)
@@ -67,16 +68,14 @@ guidance.orientModel = function() {
 }
 
 guidance.generateSelection = function () {
-    let imageLimit = 35;
-    let sortedImages = aerials.slice().sort( (a,b) => a.meta.value < b.meta.value? 1:-1);
-     //apply constrain
-    // prGuidance.prescribed = prGuidance.prescribed.filter( a => a.usage == 0);
-    // sortedImages = sortedImages.filter( a => a.usage == 0);
-    let bestPick = sortedImages[0];
-    if (bestPick.meta.value > .001 && prGuidance.prescribed.length < imageLimit) {
+    let imageLimit = 40;
+    let bestPick = aerials.reduce((highest, current) => {
+        return current.meta.value > highest.meta.value? current : highest;
+      }, aerials[0]);
+    if (bestPick.meta.value > .0001 && guidance.prescribed.length < imageLimit) {
         guidanceSelect(bestPick);
         prescribedSelectionValue += bestPick.meta.value;
-    } //else guidance.state = 1;
+    } else guidance.state = 0;
 }
 
 guidance.reconsider = function (a) {
@@ -88,6 +87,7 @@ guidance.reconsider = function (a) {
 function guidanceSelect(a) {
     a.meta.prescribed = true;
     prGuidance.prescribed.push(a);
+    guidance.prescribed.push(a)
     log.write('prescribe', a.id, [a.meta.value, a.meta.prescribed]);
     calculateAttackCvg();
 }
@@ -95,6 +95,7 @@ function guidanceSelect(a) {
 function guidanceDeselect(a) {
     a.meta.prescribed = false;
     prGuidance.prescribed.splice(prGuidance.prescribed.indexOf(a),prGuidance.prescribed.indexOf(a));
+    guidance.prescribed.splice(guidance.prescribed.indexOf(a),guidance.prescribed.indexOf(a));
     log.write('unprescribe', a.id, [a.meta.value, a.meta.prescribed]);
     calculateAttackCvg();
 }

@@ -1,76 +1,3 @@
-//// GEOMETRIC
-
-/**
- * Calculates the spatial coverage of a georeferenced aerial image over the area of interest (AOI).
- * @param {Object} aoiPoly - The AOI polygon in GeoJSON format.
- * @param {Object} aoiArea - The area of the AOI in square kilometers.
- * @param {Array} aerialFootprint - The footprint of the aerial image as an array of coordinates.
- * @returns {number} The spatial coverage of the aerial image over the AOI as a ratio.
- */
-function calculateImageCoverage(aoiPoly, aoiArea, aerialPoly) {
-    // Find the intersection of the circle with the AOI
-    let intersection = turf.intersect(aerialPoly, aoiPoly);
-
-    // Calculate the coverage as the area of the intersection divided by the AOI area
-    let coverage = intersection ? turf.area(intersection) / aoiArea : 0;
-
-    return coverage;
-}
-
-// Convert a footprint to a polygon
-const toPolygon = function (footprint) {
-    let convertedCoorArr = [footprint.map(a => turf.toWgs84([a.x, a.y]))];
-    convertedCoorArr[0].push(convertedCoorArr[0][0]);
-    return turf.polygon(convertedCoorArr);
-}
-
-
-const aggregateCoverage = function( polygons ) {
-    polygons = polygons.filter( a => a );
-    if (polygons.length > 0) {
-        polygons = polygons.reduce( (union, a) => turf.union(union,a), polygons[0]);
-        return turf.area(polygons)/aoiArea;
-    } else return 0;
-}
-
-const calculateAttackCvg = function () {
-    attacks.forEach( (a ,i) => {
-        let selectedImages = [];
-        a.extFlights.forEach( (d, j) => {
-            selectedImages = [...selectedImages, ...aerials.filter( aerial => aerial.meta.Datum === d && (aerial.meta.selected || aerial.meta.prescribed))];
-        })
-        a.coverage = [
-            aggregateCoverage(selectedImages.filter( i => i.meta.selected).map( b => b.polygon.aoi)),
-            aggregateCoverage(selectedImages.filter( i => i.meta.prescribed).map( b => b.polygon.aoi))
-        ]
-        console.log(a.coverage);
-    })
-}
-
-// PRESELECTED IMAGES FILE PROCESSING
-const preselect = function (preselected) {
-    preselected = preselected.filter( a => a.obj['Image']).map( (a, i, arr) => {
-        return {
-          Sortie: (a.obj['Sortie-Nr.']? a.obj['Sortie-Nr.']: arr[i-1].obj['Sortie-Nr.']),
-          Bildnr: a.obj['Image']}
-      }); // Process selected images file --there are cases with no flight number
-      preselected.forEach( a => {
-        if (a.Bildnr.indexOf('-') >= 0) {
-          let nrs = a.Bildnr.split('-');
-          let nrs2 = ''
-          for ( let x = parseInt(nrs[0]); x <= parseInt(nrs[1]); x++) nrs2 += x + (x!=parseInt(nrs[1])?'-':'');
-          a.Bildnr = nrs2;
-        } else if (a.Bildnr.indexOf(',') >= 0) {
-          let nrs = a.Bildnr.split(',');
-          a.Bildnr = nrs.reduce( (agg,nr) => agg.concat(nr+'-') , '');
-        } // Two cases to account for: separated by - (range) or , (singles)
-      });
-      aerials.forEach( a => {
-        let isSelected = preselected.filter( b => a.meta.Sortie === b.Sortie && b.Bildnr.indexOf( a.meta.Bildnr ) >= 0 && (test?Date.parse("1945-01-01") < a.time:true)).length==1;
-        a.meta.selected = isSelected;
-      }); // Add status to aerial object
-}
-
 //// COMMUNICATION
 
 // wk 2022-08-04: exceptions must not escape from Qt slots!
@@ -265,16 +192,17 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
 
     // PRESCRIBING (AND ORIENTING) GUIDANCE
     prGuidance.prescribed = [];
+    guidance.prescribed = [];
 
     // resetSketch();
 }));
   
 qgisplugin.aerialFootPrintChanged.connect(handleErrors(function(imgId, _footprint) {
-    console.log("Footprint of " + imgId + " has changed to " + JSON.stringify(_footprint, null, 4));
+    // console.log("Footprint of " + imgId + " has changed to " + JSON.stringify(_footprint, null, 4));
     footprints[imgId] = _footprint;
     let a = aerials.filter( a => a.id === imgId)[0];
     a.polygon = calculatePolygons(a);
-    a.meta.Cvg= calculateImageCoverage(aoiPoly, aoiArea, a.polygon.full);
+    a.meta.Cvg= a.polygon.aoi? turf.area(a.polygon.aoi)/aoiArea: 0;
     calculateAttackCvg();
     guidance.reconsider(a); 
 }));
@@ -309,4 +237,71 @@ const sendObject = function (object, link) {
     else if (link === 'closePreview') qgisplugin.showAsImage(object, false);
     // document.getElementById(link).click();
     return 0;
+}
+
+//// GEOMETRIC
+
+
+function calculateImageCoverage(aoiPoly, aoiArea, aerialPoly) {
+    // Find the intersection of the circle with the AOI
+    let intersection = turf.intersect(aerialPoly, aoiPoly);
+
+    // Calculate the coverage as the area of the intersection divided by the AOI area
+    let coverage = intersection ? turf.area(intersection) / aoiArea : 0;
+
+    return coverage;
+}
+
+// Convert a footprint to a polygon
+const toPolygon = function (footprint) {
+    let convertedCoorArr = [footprint.map(a => turf.toWgs84([a.x, a.y]))];
+    convertedCoorArr[0].push(convertedCoorArr[0][0]);
+    return turf.polygon(convertedCoorArr);
+}
+
+
+const aggregateCoverage = function( polygons ) {
+    polygons = polygons.filter( a => a );
+    if (polygons.length > 0) {
+        polygons = polygons.reduce( (union, a) => turf.union(union,a), polygons[0]);
+        return turf.area(polygons)/aoiArea;
+    } else return 0;
+}
+
+const calculateAttackCvg = function () {
+    attacks.forEach( (a ,i) => {
+        let selectedImages = [];
+        a.extFlights.forEach( (d, j) => {
+            selectedImages = [...selectedImages, ...aerials.filter( aerial => aerial.meta.Datum === d && (aerial.meta.selected || aerial.meta.prescribed))];
+        })
+        a.coverage = [
+            aggregateCoverage(selectedImages.filter( i => i.meta.selected).map( b => b.polygon.aoi)),
+            aggregateCoverage(selectedImages.filter( i => i.meta.prescribed).map( b => b.polygon.aoi))
+        ]
+        // console.log(a.coverage);
+    })
+}
+
+// PRESELECTED IMAGES FILE PROCESSING
+const preselect = function (preselected) {
+    preselected = preselected.filter( a => a.obj['Image']).map( (a, i, arr) => {
+        return {
+          Sortie: (a.obj['Sortie-Nr.']? a.obj['Sortie-Nr.']: arr[i-1].obj['Sortie-Nr.']),
+          Bildnr: a.obj['Image']}
+      }); // Process selected images file --there are cases with no flight number
+      preselected.forEach( a => {
+        if (a.Bildnr.indexOf('-') >= 0) {
+          let nrs = a.Bildnr.split('-');
+          let nrs2 = ''
+          for ( let x = parseInt(nrs[0]); x <= parseInt(nrs[1]); x++) nrs2 += x + (x!=parseInt(nrs[1])?'-':'');
+          a.Bildnr = nrs2;
+        } else if (a.Bildnr.indexOf(',') >= 0) {
+          let nrs = a.Bildnr.split(',');
+          a.Bildnr = nrs.reduce( (agg,nr) => agg.concat(nr+'-') , '');
+        } // Two cases to account for: separated by - (range) or , (singles)
+      });
+      aerials.forEach( a => {
+        let isSelected = preselected.filter( b => a.meta.Sortie === b.Sortie && b.Bildnr.indexOf( a.meta.Bildnr ) >= 0 && (test?Date.parse("1945-01-01") < a.time:true)).length==1;
+        a.meta.selected = isSelected;
+      }); // Add status to aerial object
 }

@@ -28,7 +28,7 @@ guidance.loop = function () {
     else if (guidance.state == 1) {
         let delay = 2;
         if (frameCount%delay===0) guidance.orientModel();
-        else if (frameCount%delay===(delay-1)) guidance.generateSelection();
+        else if (frameCount%delay===(delay-1)) guidance.generateSelectionFrom(aerials.filter(a => !guidance.prescribed.includes(a)));
     }
     // Outer phase: exploring the solution space with simulated annealing
     else if (guidance.state == 2) {
@@ -67,7 +67,7 @@ guidance.orientModel = function() {
     });
 }
 
-guidance.generateSelection = function () {
+guidance.generateSelectionFrom = function (aerials) {
     let imageLimit = 40;
     let bestPick = aerials.reduce((highest, current) => {
         return current.meta.value > highest.meta.value? current : highest;

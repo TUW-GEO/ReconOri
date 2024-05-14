@@ -17,19 +17,26 @@ timeModeButton = {
     }
   }
 
-// FINISH BUTTON
+// USER BUTTON
 finishButton = {
     name: "USER",
     id: 'finishButton',
     pos: [0,0],
     r: 4,
     draw: function () {
-      push(), noStroke(), fill(urColor(1));
+      push();
+      strokeWeight(1);
+      stroke(urColor(1));
+      userOn? fill(urColor(1)): noFill();
+      ellipse(this.pos[0], this.pos[1], this.r*2);
+
       textAlign(RIGHT);
+      noStroke(), fill(urColor(1));
       text(this.name, this.pos[0]- this.r*3, height-3.5);
-      ellipse(this.pos[0], this.pos[1], this.r*2), pop();
+      pop();
     },
     click: function () {
+      userOn = !userOn;
       log.write('FINISH',null,null);
       console.log("***LOG START***");
       console.log(JSON.stringify(log.log));
@@ -48,10 +55,16 @@ orButton = {
     pos: [0,0],
     r: 4,
     draw: function () {
-      push(), noStroke(), fill(orColor(1));
+      push();
+      strokeWeight(1);
+      stroke(orColor(1));
+      orientingOn? fill(orColor(1)):noFill();
+      ellipse(this.pos[0], this.pos[1], this.r*2);
+
       textAlign(RIGHT);
+      noStroke(), fill(orColor(1));
       text(this.name, this.pos[0]- this.r*3, height-3.5);
-      ellipse(this.pos[0], this.pos[1], this.r*2), pop();
+      pop();
     },
     click: function () {
       orientingOn = !orientingOn;
@@ -66,10 +79,16 @@ prButton = {
     pos: [0,0],
     r: 4,
     draw: function () {
-      push(), noStroke(), fill(prColor(1));
+      push();
+      strokeWeight(1);
+      stroke(prColor(1));
+      prescribingOn? fill(prColor(1)):noFill();
+      ellipse(this.pos[0], this.pos[1], this.r*2)
+
       textAlign(RIGHT);
+      noStroke(), fill(prColor(1));
       text(this.name, this.pos[0]- this.r*3, height-3.5);
-      ellipse(this.pos[0], this.pos[1], this.r*2), pop();
+      pop();
     },
     click: function () {
       prescribingOn = !prescribingOn;

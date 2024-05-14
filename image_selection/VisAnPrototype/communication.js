@@ -200,9 +200,12 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
 qgisplugin.aerialFootPrintChanged.connect(handleErrors(function(imgId, _footprint) {
     // console.log("Footprint of " + imgId + " has changed to " + JSON.stringify(_footprint, null, 4));
     footprints[imgId] = _footprint;
-    let a = aerials.filter( a => a.id === imgId)[0];
+    let a = aerials.find( a => a.id === imgId);
+    a.footprint = _footprint; 
     a.polygon = calculatePolygons(a);
+    console.log(turf.area(a.polygon.aoi));
     a.meta.Cvg= a.polygon.aoi? turf.area(a.polygon.aoi)/aoiArea: 0;
+    
     calculateAttackCvg();
     guidance.reconsider(a); 
 }));
@@ -280,28 +283,4 @@ const calculateAttackCvg = function () {
         ]
         // console.log(a.coverage);
     })
-}
-
-// PRESELECTED IMAGES FILE PROCESSING
-const preselect = function (preselected) {
-    preselected = preselected.filter( a => a.obj['Image']).map( (a, i, arr) => {
-        return {
-          Sortie: (a.obj['Sortie-Nr.']? a.obj['Sortie-Nr.']: arr[i-1].obj['Sortie-Nr.']),
-          Bildnr: a.obj['Image']}
-      }); // Process selected images file --there are cases with no flight number
-      preselected.forEach( a => {
-        if (a.Bildnr.indexOf('-') >= 0) {
-          let nrs = a.Bildnr.split('-');
-          let nrs2 = ''
-          for ( let x = parseInt(nrs[0]); x <= parseInt(nrs[1]); x++) nrs2 += x + (x!=parseInt(nrs[1])?'-':'');
-          a.Bildnr = nrs2;
-        } else if (a.Bildnr.indexOf(',') >= 0) {
-          let nrs = a.Bildnr.split(',');
-          a.Bildnr = nrs.reduce( (agg,nr) => agg.concat(nr+'-') , '');
-        } // Two cases to account for: separated by - (range) or , (singles)
-      });
-      aerials.forEach( a => {
-        let isSelected = preselected.filter( b => a.meta.Sortie === b.Sortie && b.Bildnr.indexOf( a.meta.Bildnr ) >= 0 && (test?Date.parse("1945-01-01") < a.time:true)).length==1;
-        a.meta.selected = isSelected;
-      }); // Add status to aerial object
 }

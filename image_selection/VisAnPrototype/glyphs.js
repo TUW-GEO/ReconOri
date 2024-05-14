@@ -1,16 +1,25 @@
 const drawAerial = function (aerial) {
+    // Define the radius of the glyph, determined by their information measure
     let r = sqrt(aerial.meta.Cvg/aerial.meta.MASSTAB)*1000*(isSmall?1.5:4)/2;
     let onArea = r==0?false:true;
-    if (!onArea) r = sqrt(1/aerial.meta.MASSTAB)*1000*(isSmall?1.5:4)/2;
+    if (!onArea || r < 3) r = 3;// sqrt(1/aerial.meta.MASSTAB)*1000*(isSmall?1.5:4)/2;
     aerial.vis.r = r;
+
     // let interest = orColor(aerial.meta.interest)//color( 125-aerial.meta.interest*100, 125+aerial.meta.interest*50, 125+aerial.meta.interest*175 );
     let isSelected = (aerial.usage == 2);
-    push(), stroke(aerial.meta.LBDB? 100: groundColor), strokeWeight(1);//stroke(isSelected?urColor(1):50), strokeWeight(isSelected?2:.2);
+    push();
+    if (isSelected) {
+      noStroke();
+      fill(0,255,0,100);
+      ellipse(0,0, (r+5)*2);
+    }
+    stroke(aerial.meta.LBDB? 100: groundColor);
+    strokeWeight(1);//stroke(isSelected?urColor(1):50), strokeWeight(isSelected?2:.2);
     // SQM test
     if (orientingOn) fill( aerial.meta.value? orColor(aerial.meta.value): 255 );
     // if (orientingOn) fill( aerial.interest.Cvg>0? orColor(aerial.meta.interest): 255 );
     else fill( 200);
-    if (isSelected) fill(urColor(1));
+    // if (isSelected) fill(urColor(1));
     if (prescribingOn && aerial.meta.prescribed) fill( isSelected? urColor(.6):prColor(1)); 
     if (!onArea) fill(100,50);
     
@@ -39,12 +48,12 @@ const drawAerial = function (aerial) {
           let x = b.vis.pos[0] + (b.meta.p==m?0:-params.mod*2*b.meta.p);// + (b.meta.Bildnr>=3000&&b.meta.Bildnr<5000?m:0);
           let y = b.vis.pos[1];
           vertex( x, y );
-          //draw special line between pairs
+          // Draw Pair Band between image pairs
           [1,2].forEach( v => {
             if (i+v < arr.length && parseInt(arr[i+v].meta.Bildnr) == parseInt(b.meta.Bildnr+1) && arr[i+v].meta.p==m) {
               // console.log(parseInt(arr[i+2].meta.Bildnr)+' '+parseInt(b.meta.Bildnr+1));
               let c = arr[i+v];
-              push(), strokeWeight(12), stroke(b.meta.selected&&c.meta.selected?urColor(1):200);
+              push(), strokeWeight(12), stroke((b.meta.selected&&c.meta.selected)?color(0,255,0,100):color(200, 100));
               line(x,y,c.vis.pos[0]+(c.meta.p==m?0:-params.mod*2*c.meta.p),c.vis.pos[1]), pop();
             }
           })

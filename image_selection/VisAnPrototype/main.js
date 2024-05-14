@@ -30,7 +30,8 @@ let timeMode = 'chronological';
 let clickables = [];
 let hoverables = [];
 let aniSpeed = .5;
-let orientingOn = true;
+let orientingOn = false;
+let userOn = true; // User can operate
 let prescribingOn = true;
 let prGuidance = {};
 let eqClasses;
@@ -42,14 +43,14 @@ const isSmall = true; // for small AOIs such as Vienna samples
 const isWien = true;
 const h = [20,95,130];
 const projects = ['Seybelgasse', 'Postgasse', 'Franz_Barwig_Weg', 'Central_Cemetery', 'BreitenleerStr'];
-const project = 4;
+const project = 1;
 
 //// SKETCH
 
 function preload() {
   font1 = loadFont('assets/Akkurat-Mono.OTF');
   attackData =  loadTable(isWien?'data/AttackList_Vienna.xlsx - Tabelle1.csv':'data/Attack_List_St_Poelten.xlsx - Tabelle1.csv', 'header').rows;
-  // preselected = loadTable('data/Selected_Images_'+projects[project]+'.csv', 'header').rows;
+  preselected = loadTable('data/Selected_Images_'+projects[project]+'.csv', 'header').rows;
 }
 
 
@@ -59,8 +60,8 @@ function setup() {
 }
 
 function resetSketch() {
+  preselectImages(preselected);
   timeline.reset();
-  //preselectImages(preselected);
   clickables.push(timeModeButton);
   clickables.push(finishButton);
   clickables.push(orButton);
@@ -71,7 +72,7 @@ function resetSketch() {
 function draw() {
   background(groundColor);
 
-  guidance.loop();
+  if (prescribingOn) guidance.loop();
   drawTimeline();
   drawEqClasses();
   drawTimemap();
@@ -82,18 +83,19 @@ function draw() {
   // HOVERINGS
   hoverAerials();
   drawTimelineDrag();
+//  if (frameCount == 10) noLoop();
   // drawDateTooltip();
 
   // FOR EVALUATION TASKS
-  if (test && !testOn) {
-    fill(groundColor), noStroke();
-    rect(0,0,width,height-20);
-    fill(0), noStroke(), textSize(18), textAlign(CENTER);
-    text("Click to start",width/2,height/2);
-    textSize(14);
-    text("Orienting "+(orientingOn?"On":"Off"),width/2,height/2+40);
-    text("Prescribing "+(prescribingOn?"On":"Off"),width/2,height/2+60);
-  }
+  // if (test && !testOn) {
+  //   fill(groundColor), noStroke();
+  //   rect(0,0,width,height-20);
+  //   fill(0), noStroke(), textSize(18), textAlign(CENTER);
+  //   text("Click to start",width/2,height/2);
+  //   textSize(14);
+  //   text("Orienting "+(orientingOn?"On":"Off"),width/2,height/2+40);
+  //   text("Prescribing "+(prescribingOn?"On":"Off"),width/2,height/2+60);
+  // }
 }
 
 
@@ -120,4 +122,35 @@ function windowResized() {
 
 function onlyUnique(value, index, self) {
   return self.indexOf(value) === index;
+}
+
+// PRESELECTED IMAGES FILE PROCESSING
+const preselectImages = function (preselected) {
+  console.log("***PRESELECTION PROCESSING***");
+  // Process selected images file --there are cases with no flight number
+  preselected = preselected.filter( a => a.obj['Image']).map( (a, i, arr) => {
+      return {
+        Sortie: (a.obj['Sortie-Nr.']? a.obj['Sortie-Nr.']: arr[i-1].obj['Sortie-Nr.']),
+        Bildnr: a.obj['Image']
+      }
+  }); 
+  // Two cases to account for: separated by - (range) or , (singles)
+  preselected.forEach( a => {
+    if (a.Bildnr.indexOf('-') >= 0) {
+      let nrs = a.Bildnr.split('-');
+      let nrs2 = '';
+      for ( let x = parseInt(nrs[0]); x <= parseInt(nrs[1]); x++) nrs2 += x + (x!=parseInt(nrs[1])?'-':'');
+      a.Bildnr = nrs2;
+    } else if (a.Bildnr.indexOf(',') >= 0) {
+      let nrs = a.Bildnr.split(',');
+      a.Bildnr = nrs.reduce( (agg,nr) => agg.concat(nr+'-') , '');
+    } 
+  });
+  console.log(preselected);
+  // Add status to aerial object
+  aerials.forEach( a => {
+    let isSelected = preselected.filter( b => a.meta.Sortie === b.Sortie && b.Bildnr.indexOf( a.meta.Bildnr ) >= 0 && (test?Date.parse("1945-01-01") < a.time:true)).length==1;
+    a.meta.selected = isSelected;
+    a.usage = isSelected? 2: 1; // TODO: Signal to plugin an image is selected
+  }); 
 }

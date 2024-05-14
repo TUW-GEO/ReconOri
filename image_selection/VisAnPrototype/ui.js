@@ -30,10 +30,14 @@ finishButton = {
       ellipse(this.pos[0], this.pos[1], this.r*2), pop();
     },
     click: function () {
-      log.write('FINISH','','');
+      log.write('FINISH',null,null);
+      console.log("***LOG START***");
       console.log(JSON.stringify(log.log));
-      console.log("Selected set");
+      console.log("SELECTED");
       console.log(JSON.stringify(aerials.filter( a => a.meta.selected).map(a => a.id)));
+      console.log("PRESCRIBED");
+      console.log(JSON.stringify(prGuidance.prescribed.map(a => a.id)));
+      log.write('***LOG END***','','');
     }
   }
 

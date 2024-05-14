@@ -313,7 +313,7 @@ class AerialImage(QGraphicsPixmapItem):
             CREATE TABLE IF NOT EXISTS usages
             (
                 id INTEGER PRIMARY KEY,
-                name TEXT NOT NULL
+                name TEXT UNIQUE NOT NULL
             ) ''')
         db.executemany(
             'INSERT OR IGNORE INTO usages(id, name) VALUES( ?, ? )',
@@ -327,7 +327,7 @@ class AerialImage(QGraphicsPixmapItem):
                 trafo TEXT NOT NULL,
                 trafoLocked INT NOT NULL DEFAULT 0,
                 path TEXT,                     -- Relative to imageRootDir if previewRect is NULL else to previewRootDir.
-                previewRect TEXT,
+                previewRect TEXT CHECK(previewRect ISNULL OR path NOTNULL),
                 meta TEXT NOT NULL
             ) ''')
 

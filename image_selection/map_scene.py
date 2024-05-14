@@ -194,6 +194,7 @@ class MapScene(QGraphicsScene):
                 repl = repl.joinpath(*dbPath.parts[1:])
                 logger.info(f'Failed to create {dbPath}. Using {repl} instead.')
                 dbPath = repl
+                dbPath.parent.mkdir(parents=True, exist_ok=True)
         rmDb = False
         if dbPath.exists():
             button = QMessageBox.question(
@@ -326,8 +327,7 @@ class MapScene(QGraphicsScene):
         # - Attack_List_St_Poelten.xlsx stores them in all upper case,
         # - Projekte LBDB\Image_Selection_Projektbeispiel\Image_Selection_Sample_Vienna\AttackList_Vienna.xlsx in mixed case.
         converters = dict.fromkeys(['DATUM', 'Datum', 'datum'], date2str)
-        df = pd.read_excel(str(fileName), sheet_name='Tabelle1',
-                           converters=converters)
+        df = pd.read_excel(str(fileName), sheet_name='Tabelle1', converters=converters)
         # Homogenize the column names.
         df.rename(mapper=str.capitalize, axis='columns', inplace=True)
         # If we only read the column of attack dates, the rest could be skipped.

@@ -6,7 +6,7 @@ timeline.reset = function () {
   timeline.range = [Date.parse(test?"1945-01-01":aerialDates[0]),Date.parse(aerialDates[aerialDates.length-1])];
   timeline.filterOn = false;
   sendObject([], 'unfilter');
-  log.write('overview',null,null);
+  log.write('user','overview',null,null);
 }
 timeline.map = function (datum) {
   return map( Date.parse(datum), this.range[0], this.range[1], 20, width-20);
@@ -18,7 +18,7 @@ timeline.filter = function (x1,x2) {
     this.range = [this.inversemap(x1), this.inversemap(x2)];
     this.filterOn = true;
     sendObject(aerials.filter( a => a.time >= this.range[0] && a.time <= this.range[1]).map(a => a.id), 'filter');
-    log.write('timeFilter', this.range, null)
+    log.write('user','timeFilter', this.range, null)
 }
 
 // TIME BANNER

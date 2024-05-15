@@ -54,16 +54,22 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
     console.log("Area of AOI: " + aoiArea);
   
     aerials.forEach( a => {
+        // In the beginning start by assuming a buffer around images, as they are not georef yet
+        // This changes to their actual polygon when they are manually georef
         let aerialPoly = toPolygon(a.footprint);
-        // let center = turf.center(aerialPoly);
-        // let radius = Math.sqrt(2)/1.6*turf.distance(aerialPoly.geometry.coordinates[0][0],aerialPoly.geometry.coordinates[0][1],{units: 'kilometers'});
-        // let options = {steps: 10, units: 'kilometers'};
-        // let circle = turf.circle(center, radius, options);
-        // aerialPoly = circle;
+        let center = turf.center(aerialPoly);
+        let radius = Math.sqrt(2)/1.6*turf.distance(aerialPoly.geometry.coordinates[0][0],aerialPoly.geometry.coordinates[0][1],{units: 'kilometers'});
+        let options = {steps: 10, units: 'kilometers'};
+        let circle = turf.circle(center, radius, options);
+        aerialPoly = circle;
+
         let intersection = turf.intersect( aerialPoly, aoiPoly);
         let cvg = intersection? turf.area(intersection): 0;
         let info = cvg/a.meta.MASSTAB;
-        a.polygon = calculatePolygons(a);
+        a.polygon = {
+            full: circle,
+            aoi: intersection
+        }//calculatePolygons(a);
         a.time = new Date(a.meta.Datum);
         a.vis = { pos: [0,0] };
         a.interest = {};
@@ -119,7 +125,7 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
                 // pairedIntersection = turf.intersect( a.polygon.aoi, possiblePairsPoly );
                 a.interest.paired = pairedValue//pairedIntersection? turf.area(pairedIntersection)/turf.area(a.polygon.aoi):0;
                 a.interest.pre = (a.meta.Cvg + pairedValue)*(a.meta.LBDB?2:1);
-            } else a.interest.pre = a.meta.Cvg*(a.meta.LBDB?2:1);
+            } else a.interest.pre = a.meta.Cvg*(a.meta.LBDB?1:.5);
         })
         overviews.forEach( a => {
             if (details.length > 0) {
@@ -127,26 +133,12 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
             let intersectionPoly = turf.intersect( a.polygon.aoi, detailPoly );
             a.interest.overlap = -(intersectionPoly? turf.area(intersectionPoly)/turf.area(a.polygon.aoi):0);
             a.interest.pre = .5*(a.meta.Cvg - (intersectionPoly? turf.area(intersectionPoly)/aoiArea:0))*(a.meta.LBDB?2:1);
-            } a.interest.pre = .5*a.meta.Cvg*(a.meta.LBDB?2:1); // 30000/a.meta.MASSTAB
+            } a.interest.pre = .5*a.meta.Cvg*(a.meta.LBDB?1:.5); // 30000/a.meta.MASSTAB
         })
-        
-        // normalize interest by range within timebin
-        // let ranges = timebin.map( a => a.interest.pre).reduce ( (agg, a) => [Math.min(agg[0],a),Math.max(agg[1],a)], [0,0]);
-        // timebin.forEach( a => {
-        //     a.interest.post = a.interest.pre/ranges[1];
-        //     a.meta.interest = a.interest.post;
-        // });
     })
-    // normalize interest within a dayRange period before and after 
-    aerials.forEach( a => {
-        let aerialSet = aerials.filter( b => Math.abs(a.time.getTime()- b.time.getTime()) < 1000 * 3600 * 24 * dayRange );
-        let ranges = aerialSet.map( a => a.interest.pre).reduce ( (agg, a) => {
-            if (a) return [Math.min(agg[0],a),Math.max(agg[1],a)];
-            else return agg;
-        }, [0,0]);
-        a.interest.post = a.interest.pre/ranges[1];
-        a.meta.interest = a.interest.post;
-    })
+    // Nullify all previous processing and calculate interest again
+    aerials.forEach( a => calculateInterest(a));
+    aerials.forEach( a => calculateInterestPost(a));
 
     attackDates.unshift(aerialDates[0]); // add a zero-attack
     if (test) {
@@ -203,8 +195,12 @@ qgisplugin.aerialFootPrintChanged.connect(handleErrors(function(imgId, _footprin
     let a = aerials.find( a => a.id === imgId);
     a.footprint = _footprint; 
     a.polygon = calculatePolygons(a);
-    console.log(turf.area(a.polygon.aoi));
+    // console.log(turf.area(a.polygon.aoi));
     a.meta.Cvg= a.polygon.aoi? turf.area(a.polygon.aoi)/aoiArea: 0;
+
+    calculateInterest(a);
+    calculateInterestPost(a); // TODO For some unreasonable reason breaks the post of the aerial
+    
     
     calculateAttackCvg();
     guidance.reconsider(a); 

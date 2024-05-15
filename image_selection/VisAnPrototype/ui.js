@@ -37,14 +37,14 @@ finishButton = {
     },
     click: function () {
       userOn = !userOn;
-      log.write('FINISH',null,null);
+      log.write('user','FINISH',null,null);
       console.log("***LOG START***");
       console.log(JSON.stringify(log.log));
       console.log("SELECTED");
       console.log(JSON.stringify(aerials.filter( a => a.meta.selected).map(a => a.id)));
       console.log("PRESCRIBED");
       console.log(JSON.stringify(prGuidance.prescribed.map(a => a.id)));
-      log.write('***LOG END***','','');
+      console.log('***LOG END***');
     }
   }
 
@@ -68,7 +68,7 @@ orButton = {
     },
     click: function () {
       orientingOn = !orientingOn;
-      log.write('orienting'+(orientingOn?'On':'Off'),'','');
+      log.write('user','orienting'+(orientingOn?'On':'Off'),'','');
     }
   }
 
@@ -92,7 +92,7 @@ prButton = {
     },
     click: function () {
       prescribingOn = !prescribingOn;
-      log.write('prescribing'+(prescribingOn?'On':'Off'),'','');
+      log.write('user','prescribing'+(prescribingOn?'On':'Off'),'','');
     }
   }
 

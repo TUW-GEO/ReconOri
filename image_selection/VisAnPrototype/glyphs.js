@@ -15,13 +15,16 @@ const drawAerial = function (aerial) {
     }
     stroke(aerial.meta.LBDB? 100: groundColor);
     strokeWeight(1);//stroke(isSelected?urColor(1):50), strokeWeight(isSelected?2:.2);
-    // SQM test
-    if (orientingOn) fill( aerial.meta.value? orColor(aerial.meta.value): 255 );
+    if (orientingOn) fill( aerial.interest.post? orColor(aerial.interest.post): 255 );
     // if (orientingOn) fill( aerial.interest.Cvg>0? orColor(aerial.meta.interest): 255 );
     else fill( 200);
     // if (isSelected) fill(urColor(1));
-    if (prescribingOn && aerial.meta.prescribed) fill( isSelected? urColor(.6):prColor(1)); 
-    if (!onArea) fill(100,50);
+    if (prescribingOn && aerial.meta.prescribed) fill(prColor(1));//fill( isSelected? urColor(.6):prColor(1)); 
+    // if (!onArea) fill(100,50); 
+    push();
+    fill(0,50), noStroke();
+    if (aerial.previewOpen) ellipse(0, 0, r*2);
+    pop();
     
     ellipse( 0, 0, r*2);
     fill(groundColor), noStroke();
@@ -31,8 +34,8 @@ const drawAerial = function (aerial) {
     if (currentTimebin) text(aerial.meta.Bildnr, 15*(aerial.meta.p==1?1:-1), 3);
     // noFill(), stroke(0), strokeWeight(1);
     // ellipse(-mod,0,aerial.meta.Abd/5);
-    fill(0,100), noStroke();
-    if (aerial.previewOpen) ellipse(0, 0, r*2);
+    
+    
     pop();
   }  
   

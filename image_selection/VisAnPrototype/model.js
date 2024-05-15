@@ -12,7 +12,7 @@
 let prescribedSelectionValue = 0;
 
 let guidance = {
-    state: 0,
+    state: 1,
     prescribed: [],
     log: {
         values: []
@@ -32,9 +32,8 @@ guidance.loop = function () {
     }
     // Outer phase: exploring the solution space with simulated annealing
     else if (guidance.state == 2) {
-        // TODO: simulated annealing
-        // guidance.shuffleWorst(5);
-        // guidance.state = 0;
+        let bestNew = simmulatedAnnealing(guidance.prescribed);
+        if (bestNew) makeNewPrescription(bestNew);
     }
 }
 
@@ -45,6 +44,34 @@ guidance.loop = function () {
 
 // Returns the value of an image given a selection and if the image is contained or not
 // guidance.calculateExchangeValue(aerial, selection, contained)
+
+// Calculates and assigns the individual interest of an aerial and updates its info measure
+function calculateInterest( a ) {
+    let info = a.meta.Cvg/a.meta.MASSTAB*1000;
+    a.meta.information = info;
+    let interest = 0;
+    if (a.type=='detail') interest = info*(a.meta.LBDB?1:.5)*(a.meta.pairs?1:.5);
+    else interest = info*(a.meta.LBDB?1:.5)*4;
+    a.interest.pre = interest;
+    // console.log(a.interest.pre);
+    return interest;
+}
+
+// Calculates and assigns post interest (normalized within global day-range)
+function calculateInterestPost( a ) {
+    let neighborhood = aerials.filter( b => Math.abs(a.time.getTime()- b.time.getTime()) < 1000 * 3600 * 24 * dayRange );
+    let range = neighborhood.reduce((acc, c) => {
+        acc[0] = Math.min(acc[0] || c.interest.pre, c.interest.pre);
+        acc[1] = Math.max(acc[1] || c.interest.pre, c.interest.pre);
+        return acc;
+    }, [Infinity, -Infinity]);
+    
+
+    neighborhood.forEach( b => {
+        b.interest.post = b.interest.pre/range[1];
+    });
+    console.log(a.interest.post);
+}
 
 guidance.orientModel = function() {
     let solutionValue = qualityIndex([...prGuidance.prescribed, ...aerials.filter( b => b.meta.selected)]);
@@ -85,10 +112,11 @@ guidance.reconsider = function (a) {
 
 
 function guidanceSelect(a) {
+    console.log("Prescribing "+a.id);
     a.meta.prescribed = true;
     prGuidance.prescribed.push(a);
     guidance.prescribed.push(a)
-    log.write('prescribe', a.id, [a.meta.value, a.meta.prescribed]);
+    log.write('guide','prescribe', a.id, [a.meta.value, a.interest.post]);
     calculateAttackCvg();
 }
 
@@ -96,7 +124,7 @@ function guidanceDeselect(a) {
     a.meta.prescribed = false;
     prGuidance.prescribed.splice(prGuidance.prescribed.indexOf(a),prGuidance.prescribed.indexOf(a));
     guidance.prescribed.splice(guidance.prescribed.indexOf(a),guidance.prescribed.indexOf(a));
-    log.write('unprescribe', a.id, [a.meta.value, a.meta.prescribed]);
+    log.write('guide','unprescribe', a.id, [a.meta.value, a.interest.post]);
     calculateAttackCvg();
 }
 
@@ -152,15 +180,15 @@ function economyIndex(selection) {
         // Model is showing a preference for "last images"
         // Also, model shows a strange preference for images which cover no attacks
         let bestShot = 0;
-        if (coveringImgs.filter( b => b.interest.type == 'detail').length >= 2 && coveringImgs.some( i => (coveringImgs.filter( b => {
+        if (coveringImgs.filter( b => b.type == 'detail').length >= 2 && coveringImgs.some( i => (coveringImgs.filter( b => {
             let sortieNr0 = [i.id.split('/')[0],parseInt(i.id.split('/')[1])];
             let sortieNr1 = [b.id.split('/')[0],parseInt(b.id.split('/')[1])];
             return (sortieNr1[0] === sortieNr0[0] && Math.abs(sortieNr0[1]-sortieNr1[1]) === 1 && i!=b)
         }).length > 0))) bestShot = 2;
-        // else if (coveringImgs.filter( b => b.interest.type == 'detail').length >= 2) bestShot = .8; 
-        else if (coveringImgs.filter( b => b.interest.type == 'detail' && b.meta.pairs.length > 0).length == 1) bestShot = .8;
-        else if (coveringImgs.filter( b => b.interest.type == 'detail').length == 1) bestShot = .4; 
-        else if (coveringImgs.filter( b => b.interest.type == 'overview').length >= 0) bestShot = .2; 
+        // else if (coveringImgs.filter( b => b.type == 'detail').length >= 2) bestShot = .8; 
+        else if (coveringImgs.filter( b => b.type == 'detail' && b.meta.pairs.length > 0).length == 1) bestShot = .8;
+        else if (coveringImgs.filter( b => b.type == 'detail').length == 1) bestShot = .4; 
+        else if (coveringImgs.filter( b => b.type == 'overview').length >= 0) bestShot = .2; 
         // bestShot *= coveringImgs.map( b => b.meta.info).reduce( (b, agg) => (agg+b)/coveringImgs.length, 0)/1000;
 
         let delayDays = Math.round((firstCoveringImg.time.getTime() - t0)/(1000 * 3600 * 24));
@@ -175,4 +203,95 @@ function qualityIndex(selection) {
 // TODO: Eliminate this function as it overwrites p5
 function constrain(value, min, max) {
     return Math.min(Math.max(value, min), max);
+}
+
+// SIMULATED ANNEALING
+
+function simmulatedAnnealing (startSolution) {
+    let T = 100;
+    let dT = 0.05;
+    let currentSolution = startSolution;
+    let currentValue = qualityIndex(startSolution);
+    let bestValue = qualityIndex(guidance.prescribed);
+    let bestNewSolution = null;
+    while ( T > 0 ) {
+        let candidateSolution = randomSwap(currentSolution, aerials);
+        let candidateValue = qualityIndex(candidateSolution);
+        if (candidateValue > bestValue) {
+            // accept candidate solution
+            currentSolution = candidateSolution;
+            currentValue = candidateValue;
+            // set as best
+            bestNewSolution = candidateSolution;
+            currentValue = candidateValue;
+        } else if (random() < Math.exp(candidateValue-currentValue)/T) {
+            // accept candidate solution
+            currentSolution = candidateSolution;
+            currentValue = candidateValue;
+        }
+        T -= dT;
+    } 
+    return bestNewSolution;
+}
+
+function randomSwap(selectedSet, fullSet) {
+    // Check if both sets are not empty
+    if (selectedSet.length === 0 || fullSet.length === 0) {
+        console.log("One of the sets is empty. Cannot perform swap.");
+        return selectedSet;
+    }
+
+    // Filter selectedSet to include only elements that are not selected (usage!== 2)
+    const availableSelectedElements = PRESELECTED? selectedSet: selectedSet.filter(element => element.usage!== 2);
+
+    // If there are no available elements in selectedSet to swap, return the original set
+    if (availableSelectedElements.length === 0) {
+        console.log("No available elements in selectedSet to swap.");
+        return selectedSet;
+    }
+
+    // Remove a random element from the filtered selectedSet
+    const indexToRemove = Math.floor(Math.random() * availableSelectedElements.length);
+    const removedElement = availableSelectedElements.splice(indexToRemove, 1)[0];
+
+    // Filter out elements from fullSet that are already in selectedSet, prescribed, or discarded
+    const availableElements = fullSet.filter(element => 
+       !selectedSet.includes(element) && 
+       !element.meta.prescribed && 
+        element.usage!== 0
+    );
+
+    // Check if there are any available elements to swap
+    if (availableElements.length === 0) {
+        console.log("No available elements to swap.");
+        return selectedSet;
+    }
+
+    // Select a random element from the filtered fullSet
+    const indexToAdd = Math.floor(Math.random() * availableElements.length);
+    const elementToAdd = availableElements[indexToAdd];
+
+    // Add the selected element to selectedSet
+    selectedSet.push(elementToAdd);
+
+    // Return the updated selectedSet
+    return selectedSet;
+}
+
+function makeNewPrescription(newPrescription) {
+    // Elements to be added to guidance.prescribed
+    const toAdd = newPrescription.filter(element =>!guidance.prescribed.includes(element));
+
+    // Elements to be removed from guidance.prescribed
+    const toRemove = guidance.prescribed.filter(element =>!newPrescription.includes(element));
+
+    // Add new elements to guidance.prescribed
+    toAdd.forEach(element => {
+        guidanceSelect(element);
+    });
+
+    // Remove elements from guidance.prescribed
+    toRemove.forEach(element => {
+        guidanceDeselect(element);
+    });
 }

@@ -30,7 +30,7 @@ let timeMode = 'chronological';
 let clickables = [];
 let hoverables = [];
 let aniSpeed = .5;
-let orientingOn = false;
+let orientingOn = true;
 let userOn = true; // User can operate
 let prescribingOn = true;
 let prGuidance = {};
@@ -43,7 +43,8 @@ const isSmall = true; // for small AOIs such as Vienna samples
 const isWien = true;
 const h = [20,95,130];
 const projects = ['Seybelgasse', 'Postgasse', 'Franz_Barwig_Weg', 'Central_Cemetery', 'BreitenleerStr'];
-const project = 1;
+const project = 4;
+const PRESELECTED = false; // Guidance starts from preselected data as prescription
 
 //// SKETCH
 
@@ -60,7 +61,9 @@ function setup() {
 }
 
 function resetSketch() {
-  preselectImages(preselected);
+  let preselection = preselectImages(preselected);
+  if (PRESELECTED) preselection.forEach( a => guidanceSelect(a));
+
   timeline.reset();
   clickables.push(timeModeButton);
   clickables.push(finishButton);
@@ -146,11 +149,15 @@ const preselectImages = function (preselected) {
       a.Bildnr = nrs.reduce( (agg,nr) => agg.concat(nr+'-') , '');
     } 
   });
-  console.log(preselected);
+  
+  let preselectedAerials = []
   // Add status to aerial object
   aerials.forEach( a => {
     let isSelected = preselected.filter( b => a.meta.Sortie === b.Sortie && b.Bildnr.indexOf( a.meta.Bildnr ) >= 0 && (test?Date.parse("1945-01-01") < a.time:true)).length==1;
     a.meta.selected = isSelected;
     a.usage = isSelected? 2: 1; // TODO: Signal to plugin an image is selected
+    if (isSelected) preselectedAerials.push(a);
   }); 
+  console.log(preselectedAerials.map(a => a.id));
+  return preselectedAerials;
 }

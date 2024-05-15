@@ -25,7 +25,7 @@ function hoverAerials() {
 function mousePressed() {
   if (test && !testOn && mouseY < height-20) {
     testOn = true;
-    log.write('START','',[orientingOn,prescribingOn]);
+    log.write('user','START','',[orientingOn,prescribingOn]);
   } 
   if (mouseY < h[1]) dragStart = mouseX;
 }
@@ -43,7 +43,7 @@ function mouseClicked() {
   let clickedAerial = resolveMouseAerial();
   if (clickedAerial) {
     sendObject(clickedAerial.id, clickedAerial.previewOpen? 'closePreview':'openPreview');
-    log.write('preview', clickedAerial.id, [clickedAerial.meta.value, clickedAerial.meta.prescribed]);
+    log.write('user','preview', clickedAerial.id, [clickedAerial.meta.value, clickedAerial.meta.prescribed]);
     clickedAerial.previewOpen = !clickedAerial.previewOpen;
   }
 }
@@ -53,7 +53,7 @@ function mouseClicked() {
 const userUnset = function (aerial) {
   aerial.usage = 1;
   aerial.meta.selected = false;
-  log.write('unset', aerial.id, [aerial.meta.value, aerial.meta.prescribed]);
+  log.write('user','unset', aerial.id, [aerial.meta.value, aerial.meta.prescribed]);
   calculateAttackCvg();
   
 }
@@ -61,7 +61,7 @@ const userUnset = function (aerial) {
 const userSelect = function (aerial) {
   aerial.usage = 2;
   aerial.meta.selected = true;
-  log.write('select', aerial.id, [aerial.meta.value, aerial.meta.prescribed]);
+  log.write('user','select', aerial.id, [aerial.meta.value, aerial.meta.prescribed]);
   calculateAttackCvg();
   guidance.reconsider(aerial);
 }
@@ -69,7 +69,7 @@ const userSelect = function (aerial) {
 const userDiscard = function (aerial) {
   aerial.usage = 0;
   aerial.meta.selected = false;
-  log.write('discard', aerial.id, [aerial.meta.value, aerial.meta.prescribed]);
+  log.write('user','discard', aerial.id, [aerial.meta.value, aerial.meta.prescribed]);
   calculateAttackCvg();
   guidance.reconsider(aerial);
 }

@@ -13,6 +13,7 @@ let prescribedSelectionValue = 0;
 
 let guidance = {
     state: 1,
+    timer: 60,
     prescribed: [],
     log: {
         values: []
@@ -21,14 +22,17 @@ let guidance = {
 
 // Guidance loop
 guidance.loop = function () {
+    guidance.timer = constrain(guidance.timer-=1,0,Infinity);
+    // console.log(guidance.timer);
+    // console.log(guidance.timer);
     if (guidance.state == 0) {
         return 0;
     }
     // Inner phase: hard constraints not yet satisfied, building a complete solution
-    else if (guidance.state == 1) {
-        let delay = 2;
+    else if (guidance.state == 1 && guidance.timer == 0) {
+        let delay = 4;
         if (frameCount%delay===0) guidance.orientModel();
-        else if (frameCount%delay===(delay-1)) guidance.generateSelectionFrom(aerials.filter(a => !guidance.prescribed.includes(a)));
+        else if (frameCount%delay===(delay-1)) guidance.generateSelectionFrom(aerials.filter(a => !guidance.prescribed.includes(a) && a.usage !== 0));
     }
     // Outer phase: exploring the solution space with simulated annealing
     else if (guidance.state == 2) {
@@ -37,10 +41,11 @@ guidance.loop = function () {
     }
 }
 
-// guidance.shuffleWorst = function (n) {
-//     // Order ascending
-//     prGuidance.prescribed.sort( (a,b) => a.meta.value > b.meta.value? 1:-1).splice(0, n);
-// }
+guidance.shuffleWorst = function (n) {
+    // Order ascending
+    let shuffled = guidance.prescribed.slice().sort( (a,b) => a.meta.value > b.meta.value? 1:-1).splice(0, n);
+    shuffled.forEach( a => guidanceDeselect(a));
+}
 
 // Returns the value of an image given a selection and if the image is contained or not
 // guidance.calculateExchangeValue(aerial, selection, contained)
@@ -70,21 +75,25 @@ function calculateInterestPost( a ) {
     neighborhood.forEach( b => {
         b.interest.post = b.interest.pre/range[1];
     });
-    console.log(a.interest.post);
 }
 
+// Orient model gives a value to every image by considering its contribution to a solution consisting of both SELECTED and PRESCRIBED images
+// TODO Make solution arrays not contain repeated images
 guidance.orientModel = function() {
-    let solutionValue = qualityIndex([...prGuidance.prescribed, ...aerials.filter( b => b.meta.selected)]);
+    let jointSolution = [...guidance.prescribed, ...aerials.filter( b => b.usage==2 && !guidance.prescribed.includes(b))]
+    let solutionValue = qualityIndex(jointSolution);
     guidance.log.values.push(solutionValue);
+    // console.log(guidance.log.values);
     // TODO: aerials.filter( a => a.usage != 1) does not work
     aerials.forEach( a => {
-        if (a.usage == 0) { // User-discarded
-            a.meta.value = -99; // Exile
-        } else if (a.prescribed || a.selected) {
-            let selectionWithoutAerial = [...prGuidance.prescribed, ...aerials.filter( b => b.meta.selected && b !== a)];
+        // if (a.usage == 0) { // User-discarded
+        //     a.meta.value = -99; // Exile
+        // } else 
+        if (guidance.prescribed.includes(a) || a.meta.selected) {
+            let selectionWithoutAerial = [...jointSolution.filter( b => b !== a)];
             a.meta.value = qualityIndex(selectionWithoutAerial)-solutionValue;
         } else {
-            let selectionWithAerial = [...prGuidance.prescribed, ...aerials.filter( b => b.meta.selected), a];
+            let selectionWithAerial = [...jointSolution, a];
             a.meta.value = qualityIndex(selectionWithAerial)-solutionValue;
         }
     });
@@ -95,7 +104,7 @@ guidance.orientModel = function() {
 }
 
 guidance.generateSelectionFrom = function (aerials) {
-    let imageLimit = 40;
+    let imageLimit = test?16:40;
     let bestPick = aerials.reduce((highest, current) => {
         return current.meta.value > highest.meta.value? current : highest;
       }, aerials[0]);
@@ -107,6 +116,7 @@ guidance.generateSelectionFrom = function (aerials) {
 
 guidance.reconsider = function (a) {
    guidanceDeselect(a);
+//    shuffleWorst(3);
    guidance.state = 1;
 }
 
@@ -197,13 +207,13 @@ function economyIndex(selection) {
 }
 
 function qualityIndex(selection) {
-    return economyIndex(selection)*timeCvgSawIndex(selection)+ownedIndex(selection)*.05+spatialCvgIndex(selection)//*infoIndex(selection);
+    return economyIndex(selection)*timeCvgSawIndex(selection)+(ownedIndex(selection)+spatialCvgIndex(selection)+infoIndex(selection));
 }
 
 // TODO: Eliminate this function as it overwrites p5
-function constrain(value, min, max) {
-    return Math.min(Math.max(value, min), max);
-}
+// function constrain(value, min, max) {
+//     return Math.min(Math.max(value, min), max);
+// }
 
 // SIMULATED ANNEALING
 

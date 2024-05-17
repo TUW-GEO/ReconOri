@@ -18,6 +18,12 @@ qgisplugin.aerialsLoaded.connect(handleErrors(function(_aerials) {
     aerials = _aerials.sort( (a,b) => a.meta.Datum > b.meta.Datum).filter( a => a.footprint);
     aerialDates = aerials.map( a => a.meta.Datum).filter(onlyUnique);
     currentTimebin = '';
+
+    if (test) {
+        aerials = aerials.filter( a => Date.parse("1945-01-01") < Date.parse(a.meta.Datum) );
+        attackDates = attackDates.filter( a => Date.parse("1945-01-01") < Date.parse(a) );
+        aerialDates = aerialDates.filter( a => Date.parse("1945-01-01") < Date.parse(a) );
+    }
 }));
   
 qgisplugin.attackDataLoaded.connect(handleErrors(function(_attackData){
@@ -82,7 +88,10 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
         a.meta.interest = 0;
         a.meta.prescribed = false;
         a.previewOpen = false;
-        if (a.usage == 2) a.meta.selected = true;
+
+        // PRESELECT from database
+        // Not working
+        // if (a.usage == 2) userSelect(a);//a.meta.selected = true;
         
         let nr = new String(a.meta.Bildnr);
         a.meta.p = nr.slice(0,1) === '3'? -1:nr.slice(0,1) === '4'? 1:0; // polarity: -1, 0, 1 (left, center, right)
@@ -141,22 +150,21 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
     aerials.forEach( a => calculateInterestPost(a));
 
     attackDates.unshift(aerialDates[0]); // add a zero-attack
-    if (test) {
-        attackDates = attackDates.filter( a => Date.parse("1945-01-01") < Date.parse(a) );
-        aerialDates = aerialDates.filter( a => Date.parse("1945-01-01") < Date.parse(a) );
-    }//attackDates.splice(0,attackDates.length-9);
+    
 
-    console.log(JSON.stringify(aerials.filter( a => Date.parse("1945-01-01") < a.time ).map( a=> a.id)));
-
+    // console.log(JSON.stringify(aerials.filter( a => Date.parse("1945-01-01") < a.time ).map( a=> a.id)));
+    // Create attack objects
     attacks = attackDates.map( (a, i) => {
         atTime = new Date(a).getTime();
+        // atacksRows.find( row => row.Datum == a);
         return {
           date: attackDates[i],
           time: atTime,
           flights: aerialDates.filter( d => d >= a && ((i+1)<attackDates.length? d < attackDates[i+1]: true) ),
           extFlights: aerialDates.filter( d => d >= a && (new Date(d).getTime())-atTime < 1000 * 3600 * 24 * dayRange),
           coverage: 0, // calculated in setup because of preselected images
-          prescribed: false
+          prescribed: false,
+          pos: [0,0]
         }
     });
     
@@ -200,9 +208,9 @@ qgisplugin.aerialFootPrintChanged.connect(handleErrors(function(imgId, _footprin
 
     calculateInterest(a);
     calculateInterestPost(a); // TODO For some unreasonable reason breaks the post of the aerial
-    
-    
     calculateAttackCvg();
+    
+    guidance.timer = 60;
     guidance.reconsider(a); 
 }));
   

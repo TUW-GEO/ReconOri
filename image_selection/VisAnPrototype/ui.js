@@ -43,7 +43,9 @@ finishButton = {
       console.log("SELECTED");
       console.log(JSON.stringify(aerials.filter( a => a.meta.selected).map(a => a.id)));
       console.log("PRESCRIBED");
-      console.log(JSON.stringify(prGuidance.prescribed.map(a => a.id)));
+      console.log(JSON.stringify(guidance.prescribed.map(a => a.id)));
+      console.log("SOLUTION VALUE HISTORY");
+      console.log(guidance.log.values);
       console.log('***LOG END***');
     }
   }
@@ -103,9 +105,15 @@ const drawStats = function () {
 
     let x = 20;
     push(), fill(100), textFont("Helvetica"), textStyle(BOLD), textSize(10), text("DoRIAH",1.5,-1.5), pop();
-    timeModeButton.pos = [x+=120, height-7]; text(aerials.length+"/"+attackDates.length,x+=10,-1.5); 
-    finishButton.pos = [x+=180, height-7]; text(aerials.filter( a => a.meta.selected).length+"/"+attacks.filter(a => a.coverage>0).length,x+=10,-1.5);
-    prButton.pos = [x+=180, height-7]; text(prescribingOn?prGuidance.prescribed.length+"/"+attacks.filter(a => a.prescribed>0).length:0,x+=10,-1.5);
+    timeModeButton.pos = [x+=120, height-7]; 
+    // text(aerials.length+"/"+attackDates.length,x+=10,-1.5); 
+    text(aerials.length+" ("+attackDates.length+")" ,x+=10,-1.5); 
+    finishButton.pos = [x+=180, height-7]; 
+    // text(aerials.filter( a => a.meta.selected).length+"/"+attacks.filter(a => a.coverage>0).length,x+=10,-1.5);
+    text(aerials.filter( a => a.meta.selected).length,x+=10,-1.5);
+    prButton.pos = [x+=180, height-7]; 
+    // text(prescribingOn?guidance.prescribed.length+"/"+attacks.filter(a => a.prescribed>0).length:0,x+=10,-1.5);
+    text(guidance.prescribed.length,x+=10,-1.5);
     orButton.pos = [x+=180, height-7];
     pop();
 }
@@ -132,7 +140,7 @@ const drawTooltip = function (a) {
     text("Datum: "+a.meta.Datum, x, y += lineSpace);
     text("This "+ a.type +" image...", x, y += lineSpace);
     text("is " +( a.owned?"":"not ") + "owned by LBDB", x, y += lineSpace);
-    text("has a "+Math.round(a.meta.Cvg,2)*100+"% coverage over the AOI", x, y += lineSpace);
+    text("has a "+Math.round(a.meta.Cvg*100,2)+"% coverage over the AOI", x, y += lineSpace);
     text("has a scale of "+a.meta.MASSTAB, x, y += lineSpace);
     text("is "+(a.usage==2?"selected":(a.usage==1?"not set":"discarded")), x, y += lineSpace);
     if (a.meta.pairs.length > 0) text("can be paired", x, y += lineSpace);

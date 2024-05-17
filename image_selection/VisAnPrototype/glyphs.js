@@ -7,10 +7,17 @@ const drawAerial = function (aerial) {
 
     // let interest = orColor(aerial.meta.interest)//color( 125-aerial.meta.interest*100, 125+aerial.meta.interest*50, 125+aerial.meta.interest*175 );
     let isSelected = (aerial.usage == 2);
+    let isPrescribed = (guidance.prescribed.includes(aerial));
     push();
+    // Highlight the glyph with user color (green) if the aerial is selected
+    // Highlight with red if prescribed but not selected
     if (isSelected) {
       noStroke();
       fill(0,255,0,100);
+      ellipse(0,0, (r+5)*2);
+    } else if ( isPrescribed ) {
+      noStroke();
+      fill(255,70,30,120);
       ellipse(0,0, (r+5)*2);
     }
     stroke(aerial.meta.LBDB? 100: groundColor);
@@ -19,7 +26,7 @@ const drawAerial = function (aerial) {
     // if (orientingOn) fill( aerial.interest.Cvg>0? orColor(aerial.meta.interest): 255 );
     else fill( 200);
     // if (isSelected) fill(urColor(1));
-    if (prescribingOn && aerial.meta.prescribed) fill(prColor(1));//fill( isSelected? urColor(.6):prColor(1)); 
+    // if (prescribingOn && guidance.prescribed.includes(aerial)) fill(prColor(1));//fill( isSelected? urColor(.6):prColor(1)); 
     // if (!onArea) fill(100,50); 
     push();
     fill(0,50), noStroke();

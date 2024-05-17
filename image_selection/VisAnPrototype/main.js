@@ -3,23 +3,22 @@
   ip: Ignacio Perez-Messina
 
   IMPORTANT NOTES
-  + Because of the attack dates, this version is currently only working for Vienna projects
+  + Because of the harcoded attack dates, this version is currently only working for Vienna projects
 
   DEV NOTES
   + using certain p5 functions (e.g., abs, map, probably the ones that overload js) at certain points makes plugin crash on reload
-  + hovering does not switch highlighting item if uninterrupted
 */
 
 let aoiPoly, aoiArea;
 let aerials = [];
 let attackDates = ["1944-03-17","1944-05-24","1944-05-29","1944-06-16","1944-06-26","1944-07-08","1944-07-16","1944-08-22","1944-08-23","1944-09-10","1944-10-07","1944-10-11","1944-10-13","1944-10-17","1944-11-01","1944-11-03","1944-11-05","1944-11-06","1944-11-07","1944-11-17","1944-11-18","1944-11-19","1944-12-02","1944-12-03","1944-12-11","1944-12-18","1944-12-27","1945-01-15","1945-01-21","1945-02-07","1945-02-08","1945-02-13","1945-02-14","1945-02-15","1945-02-19","1945-02-20","1945-02-21","1945-03-04","1945-03-12","1945-03-15","1945-03-16","1945-03-20","1945-03-21","1945-03-22","1945-03-23","1945-03-30"];
 let attacks = [];
+// let attackTable = [];
 let aoi = [];
 let footprints = {};
 let availability = {};
 let timebins = [];
 let aerialDates = [];
-let attackData;
 let currentTimebin = '';
 let hoveredFlag, hoveredAerial = '';
 let prevHoveredAerial = null;
@@ -36,21 +35,21 @@ let prescribingOn = true;
 let prGuidance = {};
 let eqClasses;
 let testOn = true; // Should be false for real tests
-const test = false;
+const test = true;
 const groundColor = 236; //236
 const dayRange = 25;
 const isSmall = true; // for small AOIs such as Vienna samples
 const isWien = true;
 const h = [20,95,130];
 const projects = ['Seybelgasse', 'Postgasse', 'Franz_Barwig_Weg', 'Central_Cemetery', 'BreitenleerStr'];
-const project = 4;
-const PRESELECTED = false; // Guidance starts from preselected data as prescription
+const project = 0;
+const PRESELECTED = true; // Guidance starts from preselected data as prescription
 
 //// SKETCH
 
 function preload() {
   font1 = loadFont('assets/Akkurat-Mono.OTF');
-  attackData =  loadTable(isWien?'data/AttackList_Vienna.xlsx - Tabelle1.csv':'data/Attack_List_St_Poelten.xlsx - Tabelle1.csv', 'header').rows;
+  attackTable =  loadTable(isWien?'data/AttackList_Vienna.xlsx - Tabelle1.csv':'data/Attack_List_St_Poelten.xlsx - Tabelle1.csv', 'header').rows;
   preselected = loadTable('data/Selected_Images_'+projects[project]+'.csv', 'header').rows;
 }
 
@@ -60,7 +59,50 @@ function setup() {
   resetSketch();
 }
 
+// function convertDateFormat(inputDate) {
+//   const [day, month, year] = inputDate.split('.');
+//   const date = new Date(year, month - 1, day); // Subtract 1 because months are 0-indexed
+//   return date.toISOString().split('T')[0]; // Formats to YYYY-MM-DD
+// }
+
+// function areDatesEquivalent(date1, date2) {
+//   const formattedDate2 = convertDateFormat(date2);
+//   return date1 === formattedDate2;
+// }
+
 function resetSketch() {
+  // ATTACK TABLE DATA
+  attackRows = attackTable.map ( a => a.obj );
+  console.log(JSON.stringify(attackRows));
+  attackObjs = [];
+  let lastAttack = null;
+  attackRows.forEach( row => {
+    row.pos = [0,0];
+    if (row["Datum"]) {
+      let datum = row["Datum"].split('/');
+      if (datum[0].length == 1) datum[0] = "0"+datum[0];
+      if (datum[1].length == 1) datum[1] = "0"+datum[1];
+      // console.log(datum);
+      let formattedDate = datum[2]+"-"+datum[1]+"-"+datum[0];
+      // console.log(formattedDate);
+      let attack = attacks.find( a => formattedDate == a.date);
+      // console.log(attack);
+      
+      if (attack) {
+        Object.keys(row).forEach( key => {
+          attack[key] = row[key];
+        });
+        lastAttack = attack;
+      } 
+    } else if (lastAttack && row["Ziel"]) {
+      lastAttack["Bomb Type"] = lastAttack["Bomb Type"]+"\n"+row["Bomb Type"];
+      lastAttack["Ziel"] = lastAttack["Ziel"]+"\n"+row["Ziel"];
+    }
+  });
+  console.log(JSON.stringify(attacks));
+  // attackDates.forEach( d => )
+  console.log(JSON.stringify(attackObjs.map(a => (a.Datum)).filter(a => a)));
+
   let preselection = preselectImages(preselected);
   if (PRESELECTED) preselection.forEach( a => guidanceSelect(a));
 
@@ -85,6 +127,7 @@ function draw() {
 
   // HOVERINGS
   hoverAerials();
+  hoverAttacks();
   drawTimelineDrag();
 //  if (frameCount == 10) noLoop();
   // drawDateTooltip();
@@ -123,6 +166,19 @@ function windowResized() {
 
 //// UTILS
 
+function formatDate(inputString) {
+  // Create a Date object from the input string
+  const date = new Date(inputString);
+
+  // Extract the day, month, and year
+  const day = String(date.getDate()).padStart(2, '0'); // padStart ensures two digits
+  const month = String(date.getMonth() + 1).padStart(2, '0'); // getMonth returns 0-based months, so we add 1
+  const year = date.getFullYear();
+
+  // Return the formatted date string
+  return `${year}-${month}-${day}`;
+}
+
 function onlyUnique(value, index, self) {
   return self.indexOf(value) === index;
 }
@@ -158,6 +214,29 @@ const preselectImages = function (preselected) {
     a.usage = isSelected? 2: 1; // TODO: Signal to plugin an image is selected
     if (isSelected) preselectedAerials.push(a);
   }); 
-  console.log(preselectedAerials.map(a => a.id));
+  // console.log(preselectedAerials.map(a => a.id));
   return preselectedAerials;
 }
+
+// ATTACK DATA
+// function createAttacks(attackTable) {
+//   let attackData = [];
+//   let previousValidDatum = null;
+
+//   attackTable.map( a => a.obj ).forEach((row, index) => {
+//       if (row.Datum!== "") {
+//           // If the current row has a valid Datum, add it to the attacks array
+//           attackData.push(row);
+//           previousValidDatum = row.Datum; // Update the previousValidDatum to the current row's Datum
+//       } else {
+//           // If the current row's Datum is empty, concatenate its fields with the previousValidDatum
+//           const concatenatedRow = {
+//              ...previousValidDatum, // Include all fields from the previousValidDatum
+//              ...row // Include all fields from the current row
+//           };
+//           attackData.push(concatenatedRow);
+//       }
+//   });
+//   console.log(JSON.stringify(attackData));
+//   return attackData;
+// }

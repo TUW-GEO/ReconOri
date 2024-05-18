@@ -188,9 +188,11 @@ class MapScene(QGraphicsScene):
             try:
                 dbPath.touch(exist_ok=True)
             except OSError:
-                repl = Path.home() / 'DoRIAH' / 'ImageSelection'
+                # User workshop
+                import getpass
+                repl = Path(r'X:\DoRIAH') / getpass.getuser() / 'image_selection'
                 if dbPath.drive:
-                    repl = repl / dbPath.drive[:-1]
+                    repl = repl / dbPath.drive[:-1]  # indicate the DB's drive name as sub-directory
                 repl = repl.joinpath(*dbPath.parts[1:])
                 logger.info(f'Failed to create {dbPath}. Using {repl} instead.')
                 dbPath = repl
@@ -246,6 +248,7 @@ class MapScene(QGraphicsScene):
         if rmDb:
             dbPath.unlink()
         self.__db = sqlite3.connect(dbPath, isolation_level=None)
+        self.__db.execute('PRAGMA busy_timeout = 5000')
         self.__db.execute('PRAGMA foreign_keys = ON')
         AerialImage.createTables(self.__db)
 

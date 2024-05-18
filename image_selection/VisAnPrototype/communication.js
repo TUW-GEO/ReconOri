@@ -1,76 +1,3 @@
-//// GEOMETRIC
-
-/**
- * Calculates the spatial coverage of a georeferenced aerial image over the area of interest (AOI).
- * @param {Object} aoiPoly - The AOI polygon in GeoJSON format.
- * @param {Object} aoiArea - The area of the AOI in square kilometers.
- * @param {Array} aerialFootprint - The footprint of the aerial image as an array of coordinates.
- * @returns {number} The spatial coverage of the aerial image over the AOI as a ratio.
- */
-function calculateImageCoverage(aoiPoly, aoiArea, aerialPoly) {
-    // Find the intersection of the circle with the AOI
-    let intersection = turf.intersect(aerialPoly, aoiPoly);
-
-    // Calculate the coverage as the area of the intersection divided by the AOI area
-    let coverage = intersection ? turf.area(intersection) / aoiArea : 0;
-
-    return coverage;
-}
-
-// Convert a footprint to a polygon
-const toPolygon = function (footprint) {
-    let convertedCoorArr = [footprint.map(a => turf.toWgs84([a.x, a.y]))];
-    convertedCoorArr[0].push(convertedCoorArr[0][0]);
-    return turf.polygon(convertedCoorArr);
-}
-
-
-const aggregateCoverage = function( polygons ) {
-    polygons = polygons.filter( a => a );
-    if (polygons.length > 0) {
-        polygons = polygons.reduce( (union, a) => turf.union(union,a), polygons[0]);
-        return turf.area(polygons)/aoiArea;
-    } else return 0;
-}
-
-const calculateAttackCvg = function () {
-    attacks.forEach( (a ,i) => {
-        let selectedImages = [];
-        a.extFlights.forEach( (d, j) => {
-            selectedImages = [...selectedImages, ...aerials.filter( aerial => aerial.meta.Datum === d && (aerial.meta.selected || aerial.meta.prescribed))];
-        })
-        a.coverage = [
-            aggregateCoverage(selectedImages.filter( i => i.meta.selected).map( b => b.polygon.aoi)),
-            aggregateCoverage(selectedImages.filter( i => i.meta.prescribed).map( b => b.polygon.aoi))
-        ]
-        console.log(a.coverage);
-    })
-}
-
-// PRESELECTED IMAGES FILE PROCESSING
-const preselect = function (preselected) {
-    preselected = preselected.filter( a => a.obj['Image']).map( (a, i, arr) => {
-        return {
-          Sortie: (a.obj['Sortie-Nr.']? a.obj['Sortie-Nr.']: arr[i-1].obj['Sortie-Nr.']),
-          Bildnr: a.obj['Image']}
-      }); // Process selected images file --there are cases with no flight number
-      preselected.forEach( a => {
-        if (a.Bildnr.indexOf('-') >= 0) {
-          let nrs = a.Bildnr.split('-');
-          let nrs2 = ''
-          for ( let x = parseInt(nrs[0]); x <= parseInt(nrs[1]); x++) nrs2 += x + (x!=parseInt(nrs[1])?'-':'');
-          a.Bildnr = nrs2;
-        } else if (a.Bildnr.indexOf(',') >= 0) {
-          let nrs = a.Bildnr.split(',');
-          a.Bildnr = nrs.reduce( (agg,nr) => agg.concat(nr+'-') , '');
-        } // Two cases to account for: separated by - (range) or , (singles)
-      });
-      aerials.forEach( a => {
-        let isSelected = preselected.filter( b => a.meta.Sortie === b.Sortie && b.Bildnr.indexOf( a.meta.Bildnr ) >= 0 && (test?Date.parse("1945-01-01") < a.time:true)).length==1;
-        a.meta.selected = isSelected;
-      }); // Add status to aerial object
-}
-
 //// COMMUNICATION
 
 // wk 2022-08-04: exceptions must not escape from Qt slots!
@@ -91,6 +18,12 @@ qgisplugin.aerialsLoaded.connect(handleErrors(function(_aerials) {
     aerials = _aerials.sort( (a,b) => a.meta.Datum > b.meta.Datum).filter( a => a.footprint);
     aerialDates = aerials.map( a => a.meta.Datum).filter(onlyUnique);
     currentTimebin = '';
+
+    if (test) {
+        aerials = aerials.filter( a => Date.parse("1945-01-01") < Date.parse(a.meta.Datum) );
+        attackDates = attackDates.filter( a => Date.parse("1945-01-01") < Date.parse(a) );
+        aerialDates = aerialDates.filter( a => Date.parse("1945-01-01") < Date.parse(a) );
+    }
 }));
   
 qgisplugin.attackDataLoaded.connect(handleErrors(function(_attackData){
@@ -127,16 +60,22 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
     console.log("Area of AOI: " + aoiArea);
   
     aerials.forEach( a => {
+        // In the beginning start by assuming a buffer around images, as they are not georef yet
+        // This changes to their actual polygon when they are manually georef
         let aerialPoly = toPolygon(a.footprint);
-        // let center = turf.center(aerialPoly);
-        // let radius = Math.sqrt(2)/1.6*turf.distance(aerialPoly.geometry.coordinates[0][0],aerialPoly.geometry.coordinates[0][1],{units: 'kilometers'});
-        // let options = {steps: 10, units: 'kilometers'};
-        // let circle = turf.circle(center, radius, options);
-        // aerialPoly = circle;
+        let center = turf.center(aerialPoly);
+        let radius = Math.sqrt(2)/1.6*turf.distance(aerialPoly.geometry.coordinates[0][0],aerialPoly.geometry.coordinates[0][1],{units: 'kilometers'});
+        let options = {steps: 10, units: 'kilometers'};
+        let circle = turf.circle(center, radius, options);
+        aerialPoly = circle;
+
         let intersection = turf.intersect( aerialPoly, aoiPoly);
         let cvg = intersection? turf.area(intersection): 0;
         let info = cvg/a.meta.MASSTAB;
-        a.polygon = calculatePolygons(a);
+        a.polygon = {
+            full: circle,
+            aoi: intersection
+        }//calculatePolygons(a);
         a.time = new Date(a.meta.Datum);
         a.vis = { pos: [0,0] };
         a.interest = {};
@@ -149,7 +88,10 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
         a.meta.interest = 0;
         a.meta.prescribed = false;
         a.previewOpen = false;
-        if (a.usage == 2) a.meta.selected = true;
+
+        // PRESELECT from database
+        // Not working
+        // if (a.usage == 2) userSelect(a);//a.meta.selected = true;
         
         let nr = new String(a.meta.Bildnr);
         a.meta.p = nr.slice(0,1) === '3'? -1:nr.slice(0,1) === '4'? 1:0; // polarity: -1, 0, 1 (left, center, right)
@@ -192,7 +134,7 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
                 // pairedIntersection = turf.intersect( a.polygon.aoi, possiblePairsPoly );
                 a.interest.paired = pairedValue//pairedIntersection? turf.area(pairedIntersection)/turf.area(a.polygon.aoi):0;
                 a.interest.pre = (a.meta.Cvg + pairedValue)*(a.meta.LBDB?2:1);
-            } else a.interest.pre = a.meta.Cvg*(a.meta.LBDB?2:1);
+            } else a.interest.pre = a.meta.Cvg*(a.meta.LBDB?1:.5);
         })
         overviews.forEach( a => {
             if (details.length > 0) {
@@ -200,44 +142,29 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
             let intersectionPoly = turf.intersect( a.polygon.aoi, detailPoly );
             a.interest.overlap = -(intersectionPoly? turf.area(intersectionPoly)/turf.area(a.polygon.aoi):0);
             a.interest.pre = .5*(a.meta.Cvg - (intersectionPoly? turf.area(intersectionPoly)/aoiArea:0))*(a.meta.LBDB?2:1);
-            } a.interest.pre = .5*a.meta.Cvg*(a.meta.LBDB?2:1); // 30000/a.meta.MASSTAB
+            } a.interest.pre = .5*a.meta.Cvg*(a.meta.LBDB?1:.5); // 30000/a.meta.MASSTAB
         })
-        
-        // normalize interest by range within timebin
-        // let ranges = timebin.map( a => a.interest.pre).reduce ( (agg, a) => [Math.min(agg[0],a),Math.max(agg[1],a)], [0,0]);
-        // timebin.forEach( a => {
-        //     a.interest.post = a.interest.pre/ranges[1];
-        //     a.meta.interest = a.interest.post;
-        // });
     })
-    // normalize interest within a dayRange period before and after 
-    aerials.forEach( a => {
-        let aerialSet = aerials.filter( b => Math.abs(a.time.getTime()- b.time.getTime()) < 1000 * 3600 * 24 * dayRange );
-        let ranges = aerialSet.map( a => a.interest.pre).reduce ( (agg, a) => {
-            if (a) return [Math.min(agg[0],a),Math.max(agg[1],a)];
-            else return agg;
-        }, [0,0]);
-        a.interest.post = a.interest.pre/ranges[1];
-        a.meta.interest = a.interest.post;
-    })
+    // Nullify all previous processing and calculate interest again
+    aerials.forEach( a => calculateInterest(a));
+    aerials.forEach( a => calculateInterestPost(a));
 
     attackDates.unshift(aerialDates[0]); // add a zero-attack
-    if (test) {
-        attackDates = attackDates.filter( a => Date.parse("1945-01-01") < Date.parse(a) );
-        aerialDates = aerialDates.filter( a => Date.parse("1945-01-01") < Date.parse(a) );
-    }//attackDates.splice(0,attackDates.length-9);
+    
 
-    console.log(JSON.stringify(aerials.filter( a => Date.parse("1945-01-01") < a.time ).map( a=> a.id)));
-
+    // console.log(JSON.stringify(aerials.filter( a => Date.parse("1945-01-01") < a.time ).map( a=> a.id)));
+    // Create attack objects
     attacks = attackDates.map( (a, i) => {
         atTime = new Date(a).getTime();
+        // atacksRows.find( row => row.Datum == a);
         return {
           date: attackDates[i],
           time: atTime,
           flights: aerialDates.filter( d => d >= a && ((i+1)<attackDates.length? d < attackDates[i+1]: true) ),
           extFlights: aerialDates.filter( d => d >= a && (new Date(d).getTime())-atTime < 1000 * 3600 * 24 * dayRange),
           coverage: 0, // calculated in setup because of preselected images
-          prescribed: false
+          prescribed: false,
+          pos: [0,0]
         }
     });
     
@@ -265,17 +192,25 @@ qgisplugin.areaOfInterestLoaded.connect(handleErrors(function(_aoi){
 
     // PRESCRIBING (AND ORIENTING) GUIDANCE
     prGuidance.prescribed = [];
+    guidance.prescribed = [];
 
     // resetSketch();
 }));
   
 qgisplugin.aerialFootPrintChanged.connect(handleErrors(function(imgId, _footprint) {
-    console.log("Footprint of " + imgId + " has changed to " + JSON.stringify(_footprint, null, 4));
+    // console.log("Footprint of " + imgId + " has changed to " + JSON.stringify(_footprint, null, 4));
     footprints[imgId] = _footprint;
-    let a = aerials.filter( a => a.id === imgId)[0];
+    let a = aerials.find( a => a.id === imgId);
+    a.footprint = _footprint; 
     a.polygon = calculatePolygons(a);
-    a.meta.Cvg= calculateImageCoverage(aoiPoly, aoiArea, a.polygon.full);
+    // console.log(turf.area(a.polygon.aoi));
+    a.meta.Cvg= a.polygon.aoi? turf.area(a.polygon.aoi)/aoiArea: 0;
+
+    calculateInterest(a);
+    calculateInterestPost(a); // TODO For some unreasonable reason breaks the post of the aerial
     calculateAttackCvg();
+    
+    guidance.timer = 60;
     guidance.reconsider(a); 
 }));
   
@@ -309,4 +244,47 @@ const sendObject = function (object, link) {
     else if (link === 'closePreview') qgisplugin.showAsImage(object, false);
     // document.getElementById(link).click();
     return 0;
+}
+
+//// GEOMETRIC
+
+
+function calculateImageCoverage(aoiPoly, aoiArea, aerialPoly) {
+    // Find the intersection of the circle with the AOI
+    let intersection = turf.intersect(aerialPoly, aoiPoly);
+
+    // Calculate the coverage as the area of the intersection divided by the AOI area
+    let coverage = intersection ? turf.area(intersection) / aoiArea : 0;
+
+    return coverage;
+}
+
+// Convert a footprint to a polygon
+const toPolygon = function (footprint) {
+    let convertedCoorArr = [footprint.map(a => turf.toWgs84([a.x, a.y]))];
+    convertedCoorArr[0].push(convertedCoorArr[0][0]);
+    return turf.polygon(convertedCoorArr);
+}
+
+
+const aggregateCoverage = function( polygons ) {
+    polygons = polygons.filter( a => a );
+    if (polygons.length > 0) {
+        polygons = polygons.reduce( (union, a) => turf.union(union,a), polygons[0]);
+        return turf.area(polygons)/aoiArea;
+    } else return 0;
+}
+
+const calculateAttackCvg = function () {
+    attacks.forEach( (a ,i) => {
+        let selectedImages = [];
+        a.extFlights.forEach( (d, j) => {
+            selectedImages = [...selectedImages, ...aerials.filter( aerial => aerial.meta.Datum === d && (aerial.meta.selected || aerial.meta.prescribed))];
+        })
+        a.coverage = [
+            aggregateCoverage(selectedImages.filter( i => i.meta.selected).map( b => b.polygon.aoi)),
+            aggregateCoverage(selectedImages.filter( i => i.meta.prescribed).map( b => b.polygon.aoi))
+        ]
+        // console.log(a.coverage);
+    })
 }

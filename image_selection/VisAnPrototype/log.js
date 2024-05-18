@@ -1,10 +1,11 @@
 let log = { log: [] };
 
-log.write = function (operation_, obj_, guidance_) {
+log.write = function (agent, operation_, obj_, guidance_) {
     this.log.push({
+      a: agent,
       operation: operation_,
       obj: obj_,
       t: new Date(),
-      guidance: guidance_
+      g: guidance_
     })
   }

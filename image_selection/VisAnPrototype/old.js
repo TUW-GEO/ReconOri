@@ -92,22 +92,22 @@
   // if (getPaired(details,flights) || getPaired(overviews,flights)) arc(0,0,r/2,r/2,PI,0, CHORD);
 //}
 
-const drawViewfinder = function (aggCvg, r) {
-    fill(100,100,200), noStroke();
-    ellipse(0,0,sqrt(aggCvg[1])*r);
-    fill(150,150,255);
-    ellipse(0,0,sqrt(aggCvg[0])*r);
-    stroke(r), noFill(), strokeWeight(.5);
-    ellipse(0,0,sqrt(1)*r); 
-}
+// const drawViewfinder = function (aggCvg, r) {
+//     fill(100,100,200), noStroke();
+//     ellipse(0,0,sqrt(aggCvg[1])*r);
+//     fill(150,150,255);
+//     ellipse(0,0,sqrt(aggCvg[0])*r);
+//     stroke(r), noFill(), strokeWeight(.5);
+//     ellipse(0,0,sqrt(1)*r); 
+// }
 
-const visualizeQuality = function () {
-    let scale = 500;
-    noStroke();
-    fill(orColor(1));
-    rect(width,height-15,-qualityIndex([...prGuidance.prescribed, ...aerials.filter( a => a.meta.selected)])*scale,5);
-    fill(prColor(1));
-    rect(width,height-10,-qualityIndex(prGuidance.prescribed)*scale,5);
-    fill(urColor(1));
-    rect(width,height,-qualityIndex(aerials.filter( a => a.meta.selected))*scale,-5);
-}
+// const visualizeQuality = function () {
+//     let scale = 500;
+//     noStroke();
+//     fill(orColor(1));
+//     rect(width,height-15,-qualityIndex([...prGuidance.prescribed, ...aerials.filter( a => a.meta.selected)])*scale,5);
+//     fill(prColor(1));
+//     rect(width,height-10,-qualityIndex(prGuidance.prescribed)*scale,5);
+//     fill(urColor(1));
+//     rect(width,height,-qualityIndex(aerials.filter( a => a.meta.selected))*scale,-5);
+// }

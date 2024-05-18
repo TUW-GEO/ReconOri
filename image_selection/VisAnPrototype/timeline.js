@@ -5,8 +5,8 @@ let timeline = {};
 timeline.reset = function () {
   timeline.range = [Date.parse(test?"1945-01-01":aerialDates[0]),Date.parse(aerialDates[aerialDates.length-1])];
   timeline.filterOn = false;
-  sendObject([], 'unfilter');
-  log.write('overview',null,null);
+  test? sendObject(aerials.filter( a => a.time >= this.range[0] && a.time <= this.range[1]).map(a => a.id), 'filter') : sendObject([], 'unfilter');
+  log.write('user','overview',null,null);
 }
 timeline.map = function (datum) {
   return map( Date.parse(datum), this.range[0], this.range[1], 20, width-20);
@@ -18,7 +18,7 @@ timeline.filter = function (x1,x2) {
     this.range = [this.inversemap(x1), this.inversemap(x2)];
     this.filterOn = true;
     sendObject(aerials.filter( a => a.time >= this.range[0] && a.time <= this.range[1]).map(a => a.id), 'filter');
-    log.write('timeFilter', this.range, null)
+    log.write('user','timeFilter', this.range, null)
 }
 
 // TIME BANNER
@@ -137,6 +137,9 @@ const drawEqClasses = function() {
 const drawAttack = function (attack, r) {
   // let c = hovered === attack.date? color(255,130,20):56;
   push(), translate(timeline.map(attack.date),h[1]);
+  // assign positions to attack hoverables
+  attack.pos = [timeline.map(attack.date),h[1]-4];
+  // ellipse(...attack.pos, 10);
   // push(), drawingContext.setLineDash([2, 2]), strokeWeight(1), stroke(c);
   // line(0,0,0,h[0]), pop()
   
@@ -144,7 +147,7 @@ const drawAttack = function (attack, r) {
   noStroke(), fill(groundColor);
   rect(-3,0,6,-10);
   
-  if (prescribingOn) fill(prColor(1)), noStroke(), rect(-3,0,6,-10*attack.coverage[1]);
+  // if (prescribingOn) fill(prColor(1)), noStroke(), rect(-3,0,6,-10*attack.coverage[1]);
   fill(urColor(1)), noStroke();
   rect(-3,0,6,-10*attack.coverage[0]);
   stroke(50), strokeWeight(.4), noFill();

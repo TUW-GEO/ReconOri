@@ -17,27 +17,36 @@ timeModeButton = {
     }
   }
 
-// FINISH BUTTON
+// USER BUTTON
 finishButton = {
     name: "USER",
     id: 'finishButton',
     pos: [0,0],
     r: 4,
     draw: function () {
-      push(), noStroke(), fill(urColor(1));
+      push();
+      strokeWeight(1);
+      stroke(urColor(1));
+      userOn? fill(urColor(1)): noFill();
+      ellipse(this.pos[0], this.pos[1], this.r*2);
+
       textAlign(RIGHT);
+      noStroke(), fill(urColor(1));
       text(this.name, this.pos[0]- this.r*3, height-3.5);
-      ellipse(this.pos[0], this.pos[1], this.r*2), pop();
+      pop();
     },
     click: function () {
-      log.write('FINISH',null,null);
+      userOn = !userOn;
+      log.write('user','FINISH',null,null);
       console.log("***LOG START***");
       console.log(JSON.stringify(log.log));
       console.log("SELECTED");
       console.log(JSON.stringify(aerials.filter( a => a.meta.selected).map(a => a.id)));
       console.log("PRESCRIBED");
-      console.log(JSON.stringify(prGuidance.prescribed.map(a => a.id)));
-      log.write('***LOG END***','','');
+      console.log(JSON.stringify(guidance.prescribed.map(a => a.id)));
+      console.log("SOLUTION VALUE HISTORY");
+      console.log(guidance.log.values);
+      console.log('***LOG END***');
     }
   }
 
@@ -48,14 +57,20 @@ orButton = {
     pos: [0,0],
     r: 4,
     draw: function () {
-      push(), noStroke(), fill(orColor(1));
+      push();
+      strokeWeight(1);
+      stroke(orColor(1));
+      orientingOn? fill(orColor(1)):noFill();
+      ellipse(this.pos[0], this.pos[1], this.r*2);
+
       textAlign(RIGHT);
+      noStroke(), fill(orColor(1));
       text(this.name, this.pos[0]- this.r*3, height-3.5);
-      ellipse(this.pos[0], this.pos[1], this.r*2), pop();
+      pop();
     },
     click: function () {
       orientingOn = !orientingOn;
-      log.write('orienting'+(orientingOn?'On':'Off'),'','');
+      log.write('user','orienting'+(orientingOn?'On':'Off'),'','');
     }
   }
 
@@ -66,14 +81,20 @@ prButton = {
     pos: [0,0],
     r: 4,
     draw: function () {
-      push(), noStroke(), fill(prColor(1));
+      push();
+      strokeWeight(1);
+      stroke(prColor(1));
+      prescribingOn? fill(prColor(1)):noFill();
+      ellipse(this.pos[0], this.pos[1], this.r*2)
+
       textAlign(RIGHT);
+      noStroke(), fill(prColor(1));
       text(this.name, this.pos[0]- this.r*3, height-3.5);
-      ellipse(this.pos[0], this.pos[1], this.r*2), pop();
+      pop();
     },
     click: function () {
       prescribingOn = !prescribingOn;
-      log.write('prescribing'+(prescribingOn?'On':'Off'),'','');
+      log.write('user','prescribing'+(prescribingOn?'On':'Off'),'','');
     }
   }
 
@@ -84,9 +105,15 @@ const drawStats = function () {
 
     let x = 20;
     push(), fill(100), textFont("Helvetica"), textStyle(BOLD), textSize(10), text("DoRIAH",1.5,-1.5), pop();
-    timeModeButton.pos = [x+=120, height-7]; text(aerials.length+"/"+attackDates.length,x+=10,-1.5); 
-    finishButton.pos = [x+=180, height-7]; text(aerials.filter( a => a.meta.selected).length+"/"+attacks.filter(a => a.coverage>0).length,x+=10,-1.5);
-    prButton.pos = [x+=180, height-7]; text(prescribingOn?prGuidance.prescribed.length+"/"+attacks.filter(a => a.prescribed>0).length:0,x+=10,-1.5);
+    timeModeButton.pos = [x+=120, height-7]; 
+    // text(aerials.length+"/"+attackDates.length,x+=10,-1.5); 
+    text(aerials.length+" ("+attackDates.length+")" ,x+=10,-1.5); 
+    finishButton.pos = [x+=180, height-7]; 
+    // text(aerials.filter( a => a.meta.selected).length+"/"+attacks.filter(a => a.coverage>0).length,x+=10,-1.5);
+    text(aerials.filter( a => a.meta.selected).length,x+=10,-1.5);
+    prButton.pos = [x+=180, height-7]; 
+    // text(prescribingOn?guidance.prescribed.length+"/"+attacks.filter(a => a.prescribed>0).length:0,x+=10,-1.5);
+    text(guidance.prescribed.length,x+=10,-1.5);
     orButton.pos = [x+=180, height-7];
     pop();
 }
@@ -113,7 +140,7 @@ const drawTooltip = function (a) {
     text("Datum: "+a.meta.Datum, x, y += lineSpace);
     text("This "+ a.type +" image...", x, y += lineSpace);
     text("is " +( a.owned?"":"not ") + "owned by LBDB", x, y += lineSpace);
-    text("has a "+Math.round(a.meta.Cvg,2)*100+"% coverage over the AOI", x, y += lineSpace);
+    text("has a "+Math.round(a.meta.Cvg*100,2)+"% coverage over the AOI", x, y += lineSpace);
     text("has a scale of "+a.meta.MASSTAB, x, y += lineSpace);
     text("is "+(a.usage==2?"selected":(a.usage==1?"not set":"discarded")), x, y += lineSpace);
     if (a.meta.pairs.length > 0) text("can be paired", x, y += lineSpace);
@@ -148,3 +175,6 @@ const drawDateTooltip = function() {
   text(0, mouseX, h[0]+14);
   pop();
  }
+
+ // TODO Attack Tooltip
+ 

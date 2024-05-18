@@ -307,6 +307,8 @@ class AerialImage(QGraphicsPixmapItem):
 
     previewRootDir: Path
 
+    scaleCartesian2map: float
+
     @staticmethod
     def createTables(db: sqlite3.Connection) -> None:
         db.execute('''
@@ -711,7 +713,7 @@ Double-click to close.<br/>
         self.__point.setTransformState(transformState)
 
     def __originalTransform(self) -> QTransform:
-        scale = self.__radiusBild / (__class__.__pixMapWidth / 2)
+        scale = self.__radiusBild * __class__.scaleCartesian2map / (__class__.__pixMapWidth / 2)
         # Actually, 2 times this scale seems a bit closer to the true scale.
         return QTransform.fromScale(scale, scale)
 

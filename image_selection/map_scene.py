@@ -25,6 +25,7 @@ from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, Qt, QPointF, QSettings
 from qgis.PyQt.QtGui import QKeyEvent, QPen, QPolygonF
 from qgis.PyQt.QtWidgets import QFileDialog, QGraphicsPolygonItem, QGraphicsScene, QInputDialog, QMessageBox
 
+import numpy as np
 import pandas as pd
 from osgeo import ogr, osr
 import sqlite3
@@ -186,7 +187,8 @@ class MapScene(QGraphicsScene):
         dbPath = fileName.with_suffix('.sqlite')
         if not dbPath.exists():
             try:
-                dbPath.touch(exist_ok=True)
+                dbPath.touch()
+                dbPath.unlink()
             except OSError:
                 # User workshop
                 import getpass
@@ -259,7 +261,7 @@ class MapScene(QGraphicsScene):
         # Speed up the creating of a new DB, especially if it is located on a network drive.
         # Also, errors during setup will leave an existing DB in its original state.
         self.__db.execute('BEGIN TRANSACTION')
-        for row in df.itertuples(index=False):
+        for idx, row in enumerate(df.itertuples(index=False)):
             imgId = f'{row.Datum.year}-{row.Datum.month:02}-{row.Datum.day:02}_{row.Sortie}_{row.Bildnr}.ecw'
             if not (AerialImage.imageRootDir / imgId).exists():
                 imgId = (Path(row.Sortie) / f'{row.Bildnr}.ecw').as_posix()
@@ -277,6 +279,16 @@ class MapScene(QGraphicsScene):
             if csDb.EPSGTreatsAsNorthingEasting() or csDb.EPSGTreatsAsLatLong():
                 x, y = y, x
             wcsCtr = db2wcs.TransformPoint(x, y)
+            if idx == 0:
+                # Consider the scale distortion of Web Mercator.
+                csWgs84Cartesian = osr.SpatialReference()
+                csWgs84Cartesian.ImportFromEPSG(4978)
+                wcs2cartesian = osr.CoordinateTransformation(self.__wcs, csWgs84Cartesian)
+                pt2 = np.array(wcsCtr)
+                pt2[0] += 1000
+                cartes1 = np.array(wcs2cartesian.TransformPoint(*wcsCtr))
+                cartes2 = np.array(wcs2cartesian.TransformPoint(*pt2))
+                AerialImage.scaleCartesian2map = float(1000. / np.linalg.norm(cartes2 - cartes1))
             # WCS -> CS QGraphicsScene: invert y-coordinate
             aerialObjects.append(AerialObject(self, QPointF(wcsCtr[0], -wcsCtr[1]), str(imgId), row, self.__db))
         self.__db.execute('COMMIT TRANSACTION')

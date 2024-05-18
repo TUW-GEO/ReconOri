@@ -144,7 +144,7 @@ class MainWindow(FormBase):
                             f'<GetCapabilitiesUrl>{url}</GetCapabilitiesUrl>'
                             f'<Layer>{layers[0]}</Layer>'
                             # '<OfflineMode>true</OfflineMode>'
-                            f'<Cache><Path>{Config.gdalCachePath.value}/gdalwmscache</Path></Cache>'
+                            f'<Cache><Path>{Config.gdalCachePath.value}</Path></Cache>'
                             f'<Timeout>{Config.httpTimeoutSeconds.value}</Timeout>'
                             '</GDAL_WMTS>')
                     ui.mapSelect.addItem(icon, prefix + desc, path)

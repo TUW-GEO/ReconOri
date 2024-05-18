@@ -794,7 +794,7 @@ Double-click to close.<br/>
         scale = (np.linalg.det(gdalTrafo[:, 1:].T) / np.linalg.det(transform[:2, :2])) ** .5
         msgs = [f'{len(aerialPts)} homologous points', f'Shift: {shift:.2f}m', f'Scale: {scale:.2f}']
         logger.info(f'{Path(path).name} georeferenced: ' + '; '.join(msgs))
-        button = QMessageBox.question(None, 'Automatic Georeferencing Results', '\n'.join(msgs) + '\nAccept?')
+        button = QMessageBox.question(self.scene().views()[0], 'Automatic Georeferencing Results', '\n'.join(msgs) + '\nAccept?')
         if button == QMessageBox.No:
             self.setPos(pos)
             self.setTransform(tr)

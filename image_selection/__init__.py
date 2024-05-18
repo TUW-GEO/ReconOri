@@ -40,6 +40,7 @@ class Config(enum.Enum):
     # GDAL_HTTP_TIMEOUT seems to be always overruled by the internal default of 300s
     #  - which is used if <Timeout> is not given or empty in XML.
     httpTimeoutSeconds = 10
+
     # Cache/Path defaults to ./gdalwmscache, but the CWD may not be writable, e.g. for user1@doriah1: C:\Users\Public\Desktop\QGIS 3.22.10\
     # tempfile.gettempdir() yields C:\Users\<user>\AppData\Local\Temp\ on Windows 10.
     gdalCachePath = str(Path(tempfile.gettempdir()) / 'gdalwmscache')

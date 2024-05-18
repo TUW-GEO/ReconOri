@@ -200,7 +200,7 @@ class MapScene(QGraphicsScene):
         rmDb = False
         if dbPath.exists():
             button = QMessageBox.question(
-                None, 'Data base exists', f'Data base {dbPath} already exists.<br/>Open and load orientations? Otherwise, it will be overwritten.',
+                self.views()[0], 'Data base exists', f'Data base {dbPath} already exists.<br/>Open and load orientations? Otherwise, it will be overwritten.',
                 QMessageBox.Open | QMessageBox.Discard | QMessageBox.Abort)
             if button == QMessageBox.Abort:
                 return
@@ -293,14 +293,14 @@ class MapScene(QGraphicsScene):
                 len(shouldBeThere), len(xlsImgFiles), sheet_name, ', '.join(shouldBeThere)))
         for msg in msgs:
             logger.warning(msg)
-            QMessageBox.warning(None, 'Inconsistency', _truncateMsg(msg))
+            QMessageBox.warning(self.views()[0], 'Inconsistency', _truncateMsg(msg))
 
         images = [el.image() for el in aerialObjects]
         availabilityCounts = collections.Counter((image.availability() for image in images))
         title = 'Availabilities of {} aerials'.format(len(aerialObjects))
         msgs = [f'{el.name}:\t{availabilityCounts[el]}' for el in reversed(Availability)]
         logger.info(title + ': ' + ','.join(msgs))
-        QMessageBox.information(None, title, title + '\n' + '\n'.join(msgs))
+        QMessageBox.information(self.views()[0], title, title + '\n' + '\n'.join(msgs))
 
         try:
             zusammenfassung = pd.read_excel(str(fileName), sheet_name='Zusammenfassung', nrows=2)

@@ -94,17 +94,20 @@ def _loadMatcher():
 _loadMatcherThread = threading.Thread(target=_loadMatcher)
 _loadMatcherThread.start()
 
-# gdal.ReprojectImage seems to simply always read at maximum resolution.
+# gdal.ReprojectImage seems to simply always read at maximum resolution - see the HTTP request URLs.
 # Without setting the maximum zoom level, it reads at level 20, which Basemap provides within Vienna only.
 # Hence, outside Vienna this raises unless ZeroBlockHttpCodes are set to return a black image in that case.
 # But that takes ages, and it results in a warped orthophoto that is fully black.
-_maxZoomLevel = 18 # 19 is necessary for success. Lower levels for speed-up.
+# With 18, this still downloads lots of tiles for aerials that cover a large area.
+# Having downloaded hundreds of tiles, this may fail, because basemap does not allow for downloading too much data at once.
+# 17 corresponds to a GSD of 1.2m, which should still be more than enough, even for aerials with a small GSD, downsampled to 1000 x 1000 px.
+_maxZoomLevel = 17 # 19 is necessary for success. Lower levels for speed-up.
 _orthoFn = f'''
     <GDAL_WMTS>
         <GetCapabilitiesUrl>https://maps.wien.gv.at/basemap/1.0.0/WMTSCapabilities.xml</GetCapabilitiesUrl>
         <Layer>bmaporthofoto30cm</Layer>
         <ZoomLevel>{_maxZoomLevel}</ZoomLevel>
-        <Cache><Path>{Config.gdalCachePath.value}/gdalwmscache</Path></Cache>
+        <Cache><Path>{Config.gdalCachePath.value}</Path></Cache>
         <Timeout>{Config.httpTimeoutSeconds.value}</Timeout>
     </GDAL_WMTS>'''
 _dsOrtho = gdal.Open(_orthoFn.strip())
@@ -113,7 +116,7 @@ def georef(dsAerial: gdal.Dataset, px2prjAerial: np.ndarray):
     while _loadMatcherThread.is_alive():
         logger.info('Waiting for the matcher to load.')
         QCoreApplication.processEvents()  # Forward the Qt signal to StatusBarLogHandler
-        _loadMatcherThread.join(5.)  # timeout of StatusBarLogHandler
+        _loadMatcherThread.join(5.)  # timeout of StatusBarLogHandler. Use the same to display the message in the status bar until the matcher is loaded.
     if _matcher is None:
         raise Exception('Automatic georeferencing unavailable!')
     
@@ -155,7 +158,19 @@ def georef(dsAerial: gdal.Dataset, px2prjAerial: np.ndarray):
     px2prjAerialMatchRes[:, 1:] *= aerialSquareSize / matchResolutionPx
     dsOrthoWarped.SetGeoTransform(tuple(px2prjAerialMatchRes.flat))
     dsOrthoWarped.SetSpatialRef(_dsOrtho.GetSpatialRef())
-    gdal.ReprojectImage(_dsOrtho, dsOrthoWarped, eResampleAlg=gdal.GRA_Average)
+    # Image_Selection_Projektbeispiel\Images\15SG-1185\4126.ecw
+    # GRA_NearestNeighbour:  43 inliers. Total time: 1.2s. Matching time: 0.7s.
+    # GRA_Bilinear:          27 inliers. Total time: 1.6s. Matching time: 0.7s.
+    # GRA_Average:           24 inliers. Total time: 2.3s. Matching time: 0.7s.
+    # Image_Selection_Projektbeispiel\Images\15SG-1045\4040.ecw
+    # GRA_NearestNeighbour: 182 inliers. Total time: 1.0s. Matching time: 0.8s.
+    # GRA_Bilinear:         152 inliers. Total time: 1.3s. Matching time: 0.7s.
+    # GRA_Average:          150 inliers. Total time: 1.8s. Matching time: 0.7s.
+    # Image_Selection_Projektbeispiel\Images\15SG-1345\4090.ecw
+    # GRA_NearestNeighbour:  87 inliers. Total time: 0.9s. Matching time: 0.7s.
+    # GRA_Bilinear:          87 inliers. Total time: 1.0s. Matching time: 0.7s.
+    # GRA_Average:           80 inliers. Total time: 1.4s. Matching time: 0.7s.
+    gdal.ReprojectImage(_dsOrtho, dsOrthoWarped, eResampleAlg=gdal.GRA_NearestNeighbour)
     #cv2.imwrite(r'D:\19_DoRIAH\ImageSelection_dev\orthoWarped.jpg', cv2.cvtColor(orthoWarped[:, :, :3], cv2.COLOR_RGB2BGR))
 
     startMatching = time.time()

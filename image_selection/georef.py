@@ -29,6 +29,7 @@ else:
     sys.path.append(r'X:\DoRIAH\common\PythonPackages\Python312\site-packages')
 
 import logging
+import math
 from pathlib import Path
 import threading
 import time
@@ -158,6 +159,7 @@ def georef(dsAerial: gdal.Dataset, px2prjAerial: np.ndarray):
     px2prjAerialMatchRes[:, 1:] *= aerialSquareSize / matchResolutionPx
     dsOrthoWarped.SetGeoTransform(tuple(px2prjAerialMatchRes.flat))
     dsOrthoWarped.SetSpatialRef(_dsOrtho.GetSpatialRef())
+    # Timings based on _maxZoomLevel = 18:
     # Image_Selection_Projektbeispiel\Images\15SG-1185\4126.ecw
     # GRA_NearestNeighbour:  43 inliers. Total time: 1.2s. Matching time: 0.7s.
     # GRA_Bilinear:          27 inliers. Total time: 1.6s. Matching time: 0.7s.
@@ -191,7 +193,8 @@ def georef(dsAerial: gdal.Dataset, px2prjAerial: np.ndarray):
     thresh_m = 50
     orthoWarpedGsd_m = abs(np.linalg.det(geotransform(dsOrthoWarped)[:, 1:])) ** .5
     thresh_px = thresh_m / orthoWarpedGsd_m
-    H, inliers = cv2.estimateAffinePartial2D(orthoPts, to=aerialPts, method=cv2.RANSAC, ransacReprojThreshold=thresh_px)
+    maxIters = _maxNumItersRANSAC(nModelPoints=4, inlierRatio=.1, confidence=.99)
+    H, inliers = cv2.estimateAffinePartial2D(orthoPts, to=aerialPts, method=cv2.RANSAC, ransacReprojThreshold=thresh_px, maxIters=maxIters)
     inliers = inliers.astype(bool).squeeze()
     orthoPts = (H[:, :2] @ orthoPts.T).T + H[:, 2]
     if 0:
@@ -206,7 +209,9 @@ def georef(dsAerial: gdal.Dataset, px2prjAerial: np.ndarray):
                 cv2.circle(aerialBGR, center=pt1, radius=2, color=(255, 0, 255), thickness=1, lineType=cv2.LINE_AA, shift=0)
                 cv2.line(aerialBGR, pt1, pt2, color=col, thickness=1, lineType=cv2.LINE_AA, shift=0)
         cv2.imwrite(rf'D:\19_DoRIAH\ImageSelection_dev\{Path(dsAerial.GetFileList()[0]).stem}.jpg', aerialBGR)
-
+    scaleMatch2square = aerialSquareSize / matchResolutionPx
+    aerialPts *= scaleMatch2square
+    orthoPts *= scaleMatch2square
     gt = geotransform(dsOrthoWarped)
     # GDAL stores the offset in the left-most column, OpenCV in the right-most one.
     gt = np.roll(gt, shift=-1, axis=1)
@@ -219,10 +224,8 @@ def georef(dsAerial: gdal.Dataset, px2prjAerial: np.ndarray):
         dsOrthoWarped.SetGeoTransform(tuple(gt.flat))
         gdal.ReprojectImage(_dsOrtho, dsOrthoWarped, eResampleAlg=gdal.GRA_Average)
         cv2.imwrite(r'D:\19_DoRIAH\ImageSelection_dev\orthoWarped_final.jpg', cv2.cvtColor(orthoWarped[:, :, :3], cv2.COLOR_RGB2BGR))
-    gt[:, 1:] *= matchResolutionPx / aerialSquareSize
-
-    logger.debug(f'Total time: {time.time() - startTime:.1f}s. Matching time: {matchingTook:.1f}s.')
-
+    gt[:, 1:] *= 1. / scaleMatch2square
+    logger.debug(f'Total time: {time.time() - startTime:.1f}s. Matching time: {matchingTook:.1f}s. Inlier ratio: {inliers.sum() / len(inliers):.2%}')
     return gt, aerialPts[inliers], orthoPts[inliers]
 
 
@@ -248,3 +251,8 @@ _dtype2gdalTypeName = {
     np.dtype(np.float32): 'Float32',
     np.dtype(np.float64): 'Float64'
 }
+
+def _maxNumItersRANSAC(nModelPoints: int, inlierRatio: float, confidence: float) -> int:
+    b = inlierRatio ** nModelPoints
+    k = math.log(1. - confidence) / math.log(1. - b)
+    return int(math.ceil(k))

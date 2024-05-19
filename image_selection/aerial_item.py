@@ -769,23 +769,32 @@ Double-click to close.<br/>
                 gdalTrafo, aerialPts, orthoPts = georef(ds, gdalTrafo)
             except:
                 return logger.exception('Automatic georeferencing failed.')
+        scaleNative2display = __class__.__pixMapWidth / ds.RasterXSize
+        aerialPts *= scaleNative2display
+        orthoPts *= scaleNative2display
+        off = np.array([self.offset().x(), self.offset().y()])
+        aerialPts += off
+        orthoPts += off
+        ptRadius = 2
         ptPen = QPen(Qt.magenta, 1)
-        brush = QBrush(Qt.magenta)
-        linePen = QPen(Qt.cyan, 1)
-        radius = 2
-        pts = []
-        for aerialPt, diff in zip(aerialPts, orthoPts - aerialPts, strict=True):
-            pts.append(QGraphicsEllipseItem(-radius, -radius, 2 * radius, 2 * radius, self))
-            pts[-1].setFlag(QGraphicsItem.ItemIgnoresTransformations)
-            pts[-1].setPos(*aerialPt)
-            pts[-1].setPen(ptPen)
-            pts[-1].setBrush(brush)
-            line = QGraphicsLineItem(0, 0, diff[0], diff[1], pts[-1])
+        ptBrush = QBrush(Qt.magenta)
+        # Must not set QGraphicsItem.ItemIgnoresTransformations on the lines, or their rotations and lengths will be wrong.
+        # To still result in lines with a width of 2px on screen, adapt it.
+        # Since the view cannot be changed while the lines are displayed, this static width will always be displayed as wanted.
+        linePen = QPen(Qt.cyan, 2. / self.deviceTransform(self.scene().views()[0].viewportTransform()).determinant() ** .5)
+        items = []
+        for aerialPt, orthoPt in zip(aerialPts, orthoPts, strict=True):
+            pt = QGraphicsEllipseItem(-ptRadius, -ptRadius, 2 * ptRadius, 2 * ptRadius, self)
+            pt.setFlag(QGraphicsItem.ItemIgnoresTransformations)
+            pt.setPos(*aerialPt)
+            pt.setPen(ptPen)
+            pt.setBrush(ptBrush)
+            line = QGraphicsLineItem(*aerialPt, *orthoPt, self)
             line.setPen(linePen)
+            items.extend((pt, line))
         gdalTrafo[1, :] *= -1.  # WCS -> Scene
-        gdalTrafo[:, 1:] *= ds.RasterXSize / __class__.__pixMapWidth  # native -> display resolution.
-        off = self.offset()
-        newPos = gdalTrafo[:, 0] + gdalTrafo[:, 1:] @ (-off.x(), -off.y())
+        gdalTrafo[:, 1:] *= 1. / scaleNative2display
+        newPos = gdalTrafo[:, 0] + gdalTrafo[:, 1:] @ -off
         newTr = gdalTrafo[:, 1:].T
         newTr = QTransform(newTr[0, 0], newTr[0, 1], newTr[1, 0], newTr[1, 1], 0., 0.)
         # These will call self.itemChange, update point's position and store the new orientation in the DB.
@@ -800,9 +809,9 @@ Double-click to close.<br/>
         if button == QMessageBox.No:
             self.setPos(pos)
             self.setTransform(tr)
-        for pt in pts:
-            pt.setParentItem(None)
-            self.scene().removeItem(pt)
+        for item in items:
+            item.setParentItem(None)
+            self.scene().removeItem(item)
 
     def id(self):
         return self.__id

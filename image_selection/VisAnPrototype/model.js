@@ -25,27 +25,37 @@ guidance.loop = function () {
     guidance.timer = constrain(guidance.timer-=1,0,Infinity);
     // console.log(guidance.timer);
     // console.log(guidance.timer);
-    if (guidance.state == 0) {
+    if (guidance.state == 0 || guidance.timer>0) {
         return 0;
     }
     // Inner phase: hard constraints not yet satisfied, building a complete solution
-    else if (guidance.state == 1 && guidance.timer == 0) {
+    else if (guidance.state == 1 ) {
         let delay = 4;
         if (frameCount%delay===0) guidance.orientModel();
-        else if (frameCount%delay===(delay-1)) guidance.generateSelectionFrom(aerials.filter(a => !guidance.prescribed.includes(a) && a.usage !== 0));
+        else if (frameCount%delay===(delay-1)) {
+            guidance.generateSelectionFrom(aerials.filter(a => !guidance.prescribed.includes(a) && a.usage !== 0));
+            guidance.log.values.push(qualityIndex(guidance.prescribed));
+        } 
     }
     // Outer phase: exploring the solution space with simulated annealing
-    else if (guidance.state == 2) {
-        let bestNew = simmulatedAnnealing(guidance.prescribed);
-        if (bestNew) makeNewPrescription(bestNew);
+    else if (guidance.state == 2 && TASK == 2 ) {
+        let bestNew = simmulatedAnnealing(guidance.prescribed.slice());
+        // if (bestNew) console.log([qualityIndex(bestNew),qualityIndex(guidance.prescribed)]);
+        if (bestNew ) {
+            console.log(qualityIndex(bestNew));
+            makeNewPrescription(bestNew);
+            console.log(qualityIndex(guidance.prescribed));
+
+        }
+        guidance.timer = 20;
     }
 }
 
-guidance.shuffleWorst = function (n) {
-    // Order ascending
-    let shuffled = guidance.prescribed.slice().sort( (a,b) => a.meta.value > b.meta.value? 1:-1).splice(0, n);
-    shuffled.forEach( a => guidanceDeselect(a));
-}
+// guidance.shuffleWorst = function (n) {
+//     // Order ascending
+//     let shuffled = guidance.prescribed.slice().sort( (a,b) => a.meta.value > b.meta.value? 1:-1).splice(0, n);
+//     shuffled.forEach( a => guidanceDeselect(a));
+// }
 
 // Returns the value of an image given a selection and if the image is contained or not
 // guidance.calculateExchangeValue(aerial, selection, contained)
@@ -82,7 +92,7 @@ function calculateInterestPost( a ) {
 guidance.orientModel = function() {
     let jointSolution = [...guidance.prescribed, ...aerials.filter( b => b.usage==2 && !guidance.prescribed.includes(b))]
     let solutionValue = qualityIndex(jointSolution);
-    guidance.log.values.push(solutionValue);
+    // guidance.log.values.push(solutionValue);
     // console.log(guidance.log.values);
     // TODO: aerials.filter( a => a.usage != 1) does not work
     aerials.forEach( a => {
@@ -134,7 +144,8 @@ function guidanceDeselect(a) {
     a.meta.prescribed = false;
     prGuidance.prescribed.splice(prGuidance.prescribed.indexOf(a),prGuidance.prescribed.indexOf(a));
     guidance.prescribed.splice(guidance.prescribed.indexOf(a),guidance.prescribed.indexOf(a));
-    log.write('guide','unprescribe', a.id, [a.meta.value, a.interest.post]);
+    // Deactivated because it logs too much when footprint is being changed
+    // log.write('guide','unprescribe', a.id, [a.meta.value, a.interest.post]);
     calculateAttackCvg();
 }
 
@@ -219,10 +230,11 @@ function qualityIndex(selection) {
 
 function simmulatedAnnealing (startSolution) {
     let T = 100;
-    let dT = 0.05;
+    let dT = 0.1;
     let currentSolution = startSolution;
-    let currentValue = qualityIndex(startSolution);
-    let bestValue = qualityIndex(guidance.prescribed);
+    // let currentValue = qualityIndex(startSolution);
+    let currentValue = 0;
+    let bestValue = qualityIndex(startSolution);
     let bestNewSolution = null;
     while ( T > 0 ) {
         let candidateSolution = randomSwap(currentSolution, aerials);
@@ -233,7 +245,8 @@ function simmulatedAnnealing (startSolution) {
             currentValue = candidateValue;
             // set as best
             bestNewSolution = candidateSolution;
-            currentValue = candidateValue;
+            bestValue = candidateValue;
+            console.log(bestValue);
         } else if (random() < Math.exp(candidateValue-currentValue)/T) {
             // accept candidate solution
             currentSolution = candidateSolution;
@@ -291,15 +304,12 @@ function randomSwap(selectedSet, fullSet) {
 function makeNewPrescription(newPrescription) {
     // Elements to be added to guidance.prescribed
     const toAdd = newPrescription.filter(element =>!guidance.prescribed.includes(element));
-
     // Elements to be removed from guidance.prescribed
     const toRemove = guidance.prescribed.filter(element =>!newPrescription.includes(element));
-
     // Add new elements to guidance.prescribed
     toAdd.forEach(element => {
         guidanceSelect(element);
     });
-
     // Remove elements from guidance.prescribed
     toRemove.forEach(element => {
         guidanceDeselect(element);

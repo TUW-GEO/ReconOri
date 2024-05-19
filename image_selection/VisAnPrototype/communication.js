@@ -207,10 +207,10 @@ qgisplugin.aerialFootPrintChanged.connect(handleErrors(function(imgId, _footprin
     a.meta.Cvg= a.polygon.aoi? turf.area(a.polygon.aoi)/aoiArea: 0;
 
     calculateInterest(a);
-    calculateInterestPost(a); // TODO For some unreasonable reason breaks the post of the aerial
+    calculateInterestPost(a);
     calculateAttackCvg();
     
-    guidance.timer = 60;
+    // guidance.timer = 50;
     guidance.reconsider(a); 
 }));
   
@@ -223,10 +223,10 @@ qgisplugin.aerialUsageChanged.connect(handleErrors(function(imgId, usage){
     console.log("Usage of " + imgId + " has changed to " + usage);
     let aerial = aerials.find( a => a.id === imgId);
     if (usage==2) userSelect(aerial);
-    else if (usage==0) userDiscard(aerial);
     else if (usage==1) userUnset(aerial);
+    else if (usage==0) userDiscard(aerial);
     // Trigger Guidance behaviour
-    guidance.reconsider(aerial);
+    // guidance.reconsider(aerial);
 }));
 
 

@@ -44,7 +44,9 @@ finishButton = {
       console.log(JSON.stringify(aerials.filter( a => a.meta.selected).map(a => a.id)));
       console.log("PRESCRIBED");
       console.log(JSON.stringify(guidance.prescribed.map(a => a.id)));
-      console.log("SOLUTION VALUE HISTORY");
+      console.log("USER SOLUTION VALUE HISTORY");
+      console.log(userSolutionValues);
+      console.log("GUIDANCE SOLUTION VALUE HISTORY");
       console.log(guidance.log.values);
       console.log('***LOG END***');
     }
@@ -176,5 +178,23 @@ const drawDateTooltip = function() {
   pop();
  }
 
- // TODO Attack Tooltip
- 
+ //  Attack Tooltip
+function hoverAttacks() {
+  attacks.forEach( a => {
+    if (dist(mouseX,mouseY,...a.pos) < 4) {
+      push();
+      fill('black'), textSize(11), textAlign(LEFT), textFont('Helvetica'), strokeWeight(5), stroke(255);
+      
+      textStyle(BOLD);
+      text("Date",20,h[1]+20);
+      text("Bomb Type",100,h[1]+20);
+      text("Ziel",300,h[1]+20);
+
+      textStyle(NORMAL);
+      text(a.date,20,h[1]+40);
+      text(a["Bomb Type"],100,h[1]+40);
+      text(a["Ziel"],300,h[1]+40);
+      pop();
+    }
+  })
+}

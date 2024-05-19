@@ -14,11 +14,14 @@ const drawAerial = function (aerial) {
     if (isSelected) {
       noStroke();
       fill(0,255,0,100);
-      ellipse(0,0, (r+5)*2);
-    } else if ( isPrescribed ) {
+      if (guidance.prescribed.includes(aerial)) arc(0,0, (r+5)*2,(r+5)*2,-PI,0);
+      else ellipse(0,0, (r+5)*2);
+    }
+    if ( isPrescribed ) {
       noStroke();
       fill(255,70,30,120);
-      ellipse(0,0, (r+5)*2);
+      if (isSelected) arc(0,0, (r+5)*2, (r+5)*2, 0, -PI);
+      else ellipse(0,0, (r+5)*2);
     }
     stroke(aerial.meta.LBDB? 100: groundColor);
     strokeWeight(1);//stroke(isSelected?urColor(1):50), strokeWeight(isSelected?2:.2);

@@ -34,7 +34,9 @@ let userOn = true; // User can operate
 let prescribingOn = true;
 let prGuidance = {};
 let eqClasses;
+let userSolutionValues = [];
 let testOn = true; // Should be false for real tests
+const TASK = 2;
 const test = true;
 const groundColor = 236; //236
 const dayRange = 25;
@@ -71,6 +73,10 @@ function setup() {
 // }
 
 function resetSketch() {
+  // TASK BEHAVIOUR FOR USER STUDY
+  // if (TASK==2) {
+  //   guidance.prescribed.forEach( a => guidance.reconsider(a));
+  // }
   // ATTACK TABLE DATA
   attackRows = attackTable.map ( a => a.obj );
   console.log(JSON.stringify(attackRows));
@@ -99,12 +105,12 @@ function resetSketch() {
       lastAttack["Ziel"] = lastAttack["Ziel"]+"\n"+row["Ziel"];
     }
   });
-  console.log(JSON.stringify(attacks));
+  // console.log(JSON.stringify(attacks));
   // attackDates.forEach( d => )
-  console.log(JSON.stringify(attackObjs.map(a => (a.Datum)).filter(a => a)));
+  // console.log(JSON.stringify(attackObjs.map(a => (a.Datum)).filter(a => a)));
 
   let preselection = preselectImages(preselected);
-  if (PRESELECTED) preselection.forEach( a => guidanceSelect(a));
+  // if (PRESELECTED) preselection.forEach( a => guidanceSelect(a));
 
   timeline.reset();
   clickables.push(timeModeButton);

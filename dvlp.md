@@ -7,13 +7,15 @@ There is no real need for this tool to be integrated into QGIS, because having u
 Uses browser technologies: modern JavaScript (p5.js) embedded in HTML with CSS. Problems when viewing it in browsers:
 
 - Get Around Same Origin Policy
+  
   - Firefox: `privacy.file_unique_origin=False`
-
+  
   - Chrome: seems impossible -> run (local) web server: `python -m http.server 8000 --bind 127.0.0.1` ->  http://localhost:8000/
 
 - WebGL over RDP: p5.js needs a WebGL canvas for rendering 3d objects.
+  
   - Firefox: can be rendered over RDP, having installed [something from nVIDIA](https://www.khronos.org/news/permalink/nvidia-provides-opengl-accelerated-remote-desktop-for-geforce-5e88fc2035e342.98417181).
-
+  
   - Chrome: no problem. Still, Qt Webengine errors with: `js: Uncaught Error: Error creating webgl context`
 
 ## QGIS environment
@@ -104,12 +106,12 @@ Created with the QGIS PlugIn "Plugin Builder 3":
 
 > Your plugin ImageSelection was created in:
 >  E:\P\Projects\19_DoRIAH\ImageSelection\QGisPlugIn\image_selection 
->
+> 
 > Your QGIS plugin directory is located at:
 >  C:/Users/wk/AppData/Roaming/QGIS/QGIS3/profiles/default/python/plugins 
->
+> 
 > ### What's Next
->
+> 
 > 1. If resources.py is not present in your plugin directory, compile the resources file using pyrcc5 (simply use pb_tool or make if you have automake) 
 > 2. Optionally, test the generated sources using make test (or run tests from your IDE) 
 > 3. Copy the entire directory containing your new plugin to the QGIS plugin directory (see Notes below) 
@@ -117,12 +119,12 @@ Created with the QGIS PlugIn "Plugin Builder 3":
 > 5. Customize it by editing the implementation file image_selection.py 
 > 6. Create your own custom icon, replacing the default icon.png 
 > 7. Modify your user interface by opening image_selection_dialog_base.ui in Qt Designer 
->
+> 
 > Notes: 
->
+> 
 > - You can use pb_tool to compile, deploy, and manage your plugin. Tweak the *pb_tool.cfg* file included with your plugin as you add files. Install pb_tool using *pip* or *easy_install*. See http://loc8.cc/pb_tool for more information. 
 > - You can also use the Makefile to compile and deploy when you make changes. This requires GNU make (gmake). The Makefile is ready to use, however you will have to edit it to add addional Python source files, dialogs, and translations. 
->
+> 
 > For information on writing PyQGIS code, see http://loc8.cc/pyqgis_resources for a list of resources. 
 
 - GNU Makefile deleted - let's use pb_tool instead.
@@ -132,7 +134,7 @@ Created with the QGIS PlugIn "Plugin Builder 3":
 To make the PlugIn accessible to the QGIS PlugIn manager, either
 
 - create a symbolic directory link. [VS Code does not support this, as it opens the same file twice](https://github.com/microsoft/vscode/issues/100533).
-
+  
   ```
   %APPDATA%\QGIS\QGIS3\profiles\default\python\plugins\image_selection 
   ->
@@ -198,7 +200,6 @@ and set
 #### Reformatting
 
 Use autopep8. Simply wait for VS Code to prompt for its installation. VS Code will then install autopep8 into the Python interpreter selected for the workspace.
-
 
 ## Icons
 

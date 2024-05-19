@@ -25,6 +25,7 @@ from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, Qt, QPointF, QSettings
 from qgis.PyQt.QtGui import QKeyEvent, QPen, QPolygonF
 from qgis.PyQt.QtWidgets import QFileDialog, QGraphicsPolygonItem, QGraphicsScene, QInputDialog, QMessageBox
 
+import numpy as np
 import pandas as pd
 from osgeo import ogr, osr
 import sqlite3
@@ -186,11 +187,14 @@ class MapScene(QGraphicsScene):
         dbPath = fileName.with_suffix('.sqlite')
         if not dbPath.exists():
             try:
-                dbPath.touch(exist_ok=True)
+                dbPath.touch()
+                dbPath.unlink()
             except OSError:
-                repl = Path.home() / 'DoRIAH' / 'ImageSelection'
+                # User workshop
+                import getpass
+                repl = Path(r'X:\DoRIAH') / getpass.getuser() / 'image_selection'
                 if dbPath.drive:
-                    repl = repl / dbPath.drive[:-1]
+                    repl = repl / dbPath.drive[:-1]  # indicate the DB's drive name as sub-directory
                 repl = repl.joinpath(*dbPath.parts[1:])
                 logger.info(f'Failed to create {dbPath}. Using {repl} instead.')
                 dbPath = repl
@@ -198,7 +202,7 @@ class MapScene(QGraphicsScene):
         rmDb = False
         if dbPath.exists():
             button = QMessageBox.question(
-                None, 'Data base exists', f'Data base {dbPath} already exists.<br/>Open and load orientations? Otherwise, it will be overwritten.',
+                self.views()[0], 'Data base exists', f'Data base {dbPath} already exists.<br/>Open and load orientations? Otherwise, it will be overwritten.',
                 QMessageBox.Open | QMessageBox.Discard | QMessageBox.Abort)
             if button == QMessageBox.Abort:
                 return
@@ -246,6 +250,7 @@ class MapScene(QGraphicsScene):
         if rmDb:
             dbPath.unlink()
         self.__db = sqlite3.connect(dbPath, isolation_level=None)
+        self.__db.execute('PRAGMA busy_timeout = 5000')
         self.__db.execute('PRAGMA foreign_keys = ON')
         AerialImage.createTables(self.__db)
 
@@ -256,7 +261,7 @@ class MapScene(QGraphicsScene):
         # Speed up the creating of a new DB, especially if it is located on a network drive.
         # Also, errors during setup will leave an existing DB in its original state.
         self.__db.execute('BEGIN TRANSACTION')
-        for row in df.itertuples(index=False):
+        for idx, row in enumerate(df.itertuples(index=False)):
             imgId = f'{row.Datum.year}-{row.Datum.month:02}-{row.Datum.day:02}_{row.Sortie}_{row.Bildnr}.ecw'
             if not (AerialImage.imageRootDir / imgId).exists():
                 imgId = (Path(row.Sortie) / f'{row.Bildnr}.ecw').as_posix()
@@ -274,6 +279,16 @@ class MapScene(QGraphicsScene):
             if csDb.EPSGTreatsAsNorthingEasting() or csDb.EPSGTreatsAsLatLong():
                 x, y = y, x
             wcsCtr = db2wcs.TransformPoint(x, y)
+            if idx == 0:
+                # Consider the scale distortion of Web Mercator.
+                csWgs84Cartesian = osr.SpatialReference()
+                csWgs84Cartesian.ImportFromEPSG(4978)
+                wcs2cartesian = osr.CoordinateTransformation(self.__wcs, csWgs84Cartesian)
+                pt2 = np.array(wcsCtr)
+                pt2[0] += 1000
+                cartes1 = np.array(wcs2cartesian.TransformPoint(*wcsCtr))
+                cartes2 = np.array(wcs2cartesian.TransformPoint(*pt2))
+                AerialImage.scaleCartesian2map = float(1000. / np.linalg.norm(cartes2 - cartes1))
             # WCS -> CS QGraphicsScene: invert y-coordinate
             aerialObjects.append(AerialObject(self, QPointF(wcsCtr[0], -wcsCtr[1]), str(imgId), row, self.__db))
         self.__db.execute('COMMIT TRANSACTION')
@@ -290,14 +305,14 @@ class MapScene(QGraphicsScene):
                 len(shouldBeThere), len(xlsImgFiles), sheet_name, ', '.join(shouldBeThere)))
         for msg in msgs:
             logger.warning(msg)
-            QMessageBox.warning(None, 'Inconsistency', _truncateMsg(msg))
+            QMessageBox.warning(self.views()[0], 'Inconsistency', _truncateMsg(msg))
 
         images = [el.image() for el in aerialObjects]
         availabilityCounts = collections.Counter((image.availability() for image in images))
         title = 'Availabilities of {} aerials'.format(len(aerialObjects))
         msgs = [f'{el.name}:\t{availabilityCounts[el]}' for el in reversed(Availability)]
         logger.info(title + ': ' + ','.join(msgs))
-        QMessageBox.information(None, title, title + '\n' + '\n'.join(msgs))
+        QMessageBox.information(self.views()[0], title, title + '\n' + '\n'.join(msgs))
 
         try:
             zusammenfassung = pd.read_excel(str(fileName), sheet_name='Zusammenfassung', nrows=2)

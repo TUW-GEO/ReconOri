@@ -30,15 +30,20 @@ import logging
 from pathlib import Path
 import shutil
 import sys
+import tempfile
 
-# WMTS opens a WMS dataset for each overview level, passing timeout as option.
-# But GDALWMSDataset::Initialize uses atoi, and Curl interprets 0 as 'no timeout'.
-# Hence, do not use a timeout smaller than 1s.
-# WMS uses this timeout accordingly.
-# GDAL_HTTP_TIMEOUT seems to be always overruled by the internal default of 300s
-#  - which is used if <Timeout> is not given or empty in XML.
-class HttpTimeout(enum.IntEnum):
-    seconds = 10
+class Config(enum.Enum):
+    # WMTS opens a WMS dataset for each overview level, passing timeout as option.
+    # But GDALWMSDataset::Initialize uses atoi, and Curl interprets 0 as 'no timeout'.
+    # Hence, do not use a timeout smaller than 1s.
+    # WMS uses this timeout accordingly.
+    # GDAL_HTTP_TIMEOUT seems to be always overruled by the internal default of 300s
+    #  - which is used if <Timeout> is not given or empty in XML.
+    httpTimeoutSeconds = 10
+
+    # Cache/Path defaults to ./gdalwmscache, but the CWD may not be writable, e.g. for user1@doriah1: C:\Users\Public\Desktop\QGIS 3.22.10\
+    # tempfile.gettempdir() yields C:\Users\<user>\AppData\Local\Temp\ on Windows 10.
+    gdalCachePath = str(Path(tempfile.gettempdir()) / 'gdalwmscache')
 
 
 _logger: logging.Logger | None = None
@@ -89,6 +94,7 @@ class GdalPushLogHandler:
 def classFactory(iface: QgisInterface):
     #from osgeo import gdal
 
+    import getpass
     from .main import ImageSelection
 
     global _logger, _logFileHandler
@@ -96,11 +102,16 @@ def classFactory(iface: QgisInterface):
     _logger = logging.getLogger(__name__)
     # Please note that without logging to a file by setting a filename the logging may be multithreaded which heavily slows down the output.
 
-    logFilePathName = 'image_selection.log'
-    try:
-        _logFileHandler = logging.FileHandler(Path(__file__).parent / logFilePathName, 'w')
-    except OSError:
-        _logFileHandler = logging.FileHandler(Path.home() / logFilePathName, 'w')
+    # User workshop: X:\DoRIAH
+    for parentDir in Path(__file__).parent, Path(r'X:\DoRIAH') / getpass.getuser() / 'image_selection', Path.home():
+        try:
+            _logFileHandler = logging.FileHandler(parentDir / 'image_selection.log', 'w')
+        except OSError as ex:
+            pass
+        else:
+            break
+    else:
+        raise ex
 
     
     logFormatter = logging.Formatter('{asctime}.{msecs:03.0f} {levelname}: {name} - {message}',

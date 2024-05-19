@@ -14,6 +14,7 @@ with zipfile.ZipFile(archivePath, 'w', zipfile.ZIP_DEFLATED) as archive:
     os.chdir(plugInName)
     for name in ('__init__.py',
                  'aerial_item.py',
+                 'georef.py',
                  'image_selection.cfg',
                  'main.py',
                  'main_window.py',

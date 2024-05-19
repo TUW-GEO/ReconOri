@@ -38,9 +38,7 @@ import numpy as np
 from numpy.linalg import det
 from osgeo import gdal, osr
 
-from . import HttpTimeout, GdalPushLogHandler
-
-osr.UseExceptions()
+from . import Config, GdalPushLogHandler
 
 logger = logging.getLogger(__name__)
 
@@ -293,7 +291,7 @@ class MapReadThread(threading.Thread):
                         xml.etree.ElementTree.SubElement(root, 'Cache')
                     if timeout is None:
                         elem = xml.etree.ElementTree.SubElement(root, 'Timeout')
-                        elem.text = str(HttpTimeout.seconds)
+                        elem.text = str(Config.httpTimeoutSeconds.value)
                     self.dataset = gdal.Open(xml.etree.ElementTree.tostring(root, encoding='unicode'))
 
         geoTrafo = np.array(self.dataset.GetGeoTransform()).reshape((2, 3))

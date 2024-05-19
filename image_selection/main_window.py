@@ -28,17 +28,16 @@ from qgis.PyQt.uic import loadUiType
 import configparser
 import logging
 from pathlib import Path
-import tempfile
 import traceback
 
 from osgeo import gdal
+gdal.UseExceptions()
 
-from . import HttpTimeout, getLoggerAndFileHandler, GdalPushLogHandler
+from . import Config, getLoggerAndFileHandler, GdalPushLogHandler
 from .map_scene import MapScene, Availability, Usage
 from .aerial_item import Visualization
 from .preview_window import claheAvailable, ContrastEnhancement
 
-gdal.UseExceptions()
 
 class AerialCombo(QComboBox):
     """The drop-down table of loaded aerials."""
@@ -145,10 +144,8 @@ class MainWindow(FormBase):
                             f'<GetCapabilitiesUrl>{url}</GetCapabilitiesUrl>'
                             f'<Layer>{layers[0]}</Layer>'
                             # '<OfflineMode>true</OfflineMode>'
-                            # Cache/Path defaults to ./gdalwmscache, but the CWD may not be writable, e.g. for user1@doriah1: C:\Users\Public\Desktop\QGIS 3.22.10\
-                            # tempfile.gettempdir() yields C:\Users\<user>\AppData\Local\Temp\gdalwmscache\ on Windows 10.
-                            f'<Cache><Path>{tempfile.gettempdir()}/gdalwmscache</Path></Cache>'
-                            f'<Timeout>{HttpTimeout.seconds}</Timeout>'
+                            f'<Cache><Path>{Config.gdalCachePath.value}</Path></Cache>'
+                            f'<Timeout>{Config.httpTimeoutSeconds.value}</Timeout>'
                             '</GDAL_WMTS>')
                     ui.mapSelect.addItem(icon, prefix + desc, path)
                 ui.mapSelect.insertSeparator(ui.mapSelect.count())

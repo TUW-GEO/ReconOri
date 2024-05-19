@@ -49,9 +49,9 @@ from __future__ import annotations
 
 from qgis.PyQt.QtCore import pyqtSlot, QEvent, QObject, QPointF, QSize, QRect, Qt
 from qgis.PyQt.QtGui import QBitmap, QBrush, QColor, QCursor, QFocusEvent, QHelpEvent, QIcon, QImage, QKeyEvent, QPen, QPainter, QPixmap, QTransform
-from qgis.PyQt.QtWidgets import (QDialog, QGraphicsEffect, QGraphicsEllipseItem, QGraphicsItem, QMenu, QGraphicsPixmapItem,
+from qgis.PyQt.QtWidgets import (QDialog, QGraphicsEffect, QGraphicsEllipseItem, QGraphicsItem, QGraphicsLineItem, QGraphicsPixmapItem,
                                  QGraphicsSceneContextMenuEvent, QGraphicsSceneMouseEvent,
-                                 QGraphicsSceneWheelEvent, QStyle, QStyleOptionGraphicsItem, QWhatsThis, QWidget)
+                                 QGraphicsSceneWheelEvent, QMenu, QMessageBox, QStyle, QStyleOptionGraphicsItem, QWhatsThis, QWidget)
 
 import numpy as np
 from osgeo import gdal
@@ -306,6 +306,8 @@ class AerialImage(QGraphicsPixmapItem):
     imageRootDir: Path
 
     previewRootDir: Path
+
+    scaleCartesian2map: float
 
     @staticmethod
     def createTables(db: sqlite3.Connection) -> None:
@@ -711,7 +713,7 @@ Double-click to close.<br/>
         self.__point.setTransformState(transformState)
 
     def __originalTransform(self) -> QTransform:
-        scale = self.__radiusBild / (__class__.__pixMapWidth / 2)
+        scale = self.__radiusBild * __class__.scaleCartesian2map / (__class__.__pixMapWidth / 2)
         # Actually, 2 times this scale seems a bit closer to the true scale.
         return QTransform.fromScale(scale, scale)
 
@@ -742,7 +744,74 @@ Double-click to close.<br/>
             self.__requestPixMap()
 
     def __georeference(self):
-        georef()
+        # Pass current aerial orientation as GDAL transform
+        pos = self.pos()
+        tr: QTransform = self.transform()
+        transform = np.array([[tr.m11(), tr.m12(), tr.m13()],
+                              [tr.m21(), tr.m22(), tr.m23()],
+                              [tr.m31(), tr.m32(), tr.m33()]])
+        assert abs(transform[2, :] - (0, 0, 1)).max() < 1.e-7
+        assert abs(transform[:, 2] - (0, 0, 1)).max() < 1.e-7
+        # Top/left image corner in scene CS.
+        # Same as: transform[:2, :2].T @ self.offset() + self.pos()
+        topLeft = self.mapToScene(self.offset())
+        gdalTrafo = np.zeros((2, 3))
+        gdalTrafo[:, 0] = topLeft.x(), topLeft.y()
+        gdalTrafo[:, 1:] = transform[:2, :2].T  # Qt actually uses the transpose.
+        path, previewRect = self.__db.execute('SELECT path, previewRect FROM aerials WHERE id == ?',
+                                              [self.__id]).fetchone()
+        assert previewRect is None
+        with GdalPushLogHandler():
+            ds = gdal.Open(str(__class__.imageRootDir / path))
+            gdalTrafo[:, 1:] *= __class__.__pixMapWidth / ds.RasterXSize  # display -> native resolution.
+            gdalTrafo[1, :] *= -1.  # Scene -> WCS
+            try:
+                gdalTrafo, aerialPts, orthoPts = georef(ds, gdalTrafo)
+            except:
+                return logger.exception('Automatic georeferencing failed.')
+        scaleNative2display = __class__.__pixMapWidth / ds.RasterXSize
+        aerialPts *= scaleNative2display
+        orthoPts *= scaleNative2display
+        off = np.array([self.offset().x(), self.offset().y()])
+        aerialPts += off
+        orthoPts += off
+        ptRadius = 2
+        ptPen = QPen(Qt.magenta, 1)
+        ptBrush = QBrush(Qt.magenta)
+        # Must not set QGraphicsItem.ItemIgnoresTransformations on the lines, or their rotations and lengths will be wrong.
+        # To still result in lines with a width of 2px on screen, adapt it.
+        # Since the view cannot be changed while the lines are displayed, this static width will always be displayed as wanted.
+        linePen = QPen(Qt.cyan, 2. / self.deviceTransform(self.scene().views()[0].viewportTransform()).determinant() ** .5)
+        items = []
+        for aerialPt, orthoPt in zip(aerialPts, orthoPts, strict=True):
+            pt = QGraphicsEllipseItem(-ptRadius, -ptRadius, 2 * ptRadius, 2 * ptRadius, self)
+            pt.setFlag(QGraphicsItem.ItemIgnoresTransformations)
+            pt.setPos(*aerialPt)
+            pt.setPen(ptPen)
+            pt.setBrush(ptBrush)
+            line = QGraphicsLineItem(*aerialPt, *orthoPt, self)
+            line.setPen(linePen)
+            items.extend((pt, line))
+        gdalTrafo[1, :] *= -1.  # WCS -> Scene
+        gdalTrafo[:, 1:] *= 1. / scaleNative2display
+        newPos = gdalTrafo[:, 0] + gdalTrafo[:, 1:] @ -off
+        newTr = gdalTrafo[:, 1:].T
+        newTr = QTransform(newTr[0, 0], newTr[0, 1], newTr[1, 0], newTr[1, 1], 0., 0.)
+        # These will call self.itemChange, update point's position and store the new orientation in the DB.
+        self.setPos(*newPos)
+        self.setTransform(newTr)
+        shift = (pos.x(), pos.y()) - newPos
+        shift = np.sum(shift ** 2) ** .5
+        scale = (np.linalg.det(gdalTrafo[:, 1:].T) / np.linalg.det(transform[:2, :2])) ** .5
+        msgs = [f'{len(aerialPts)} homologous points', f'Shift: {shift:.2f}m', f'Scale: {scale:.2f}']
+        logger.info(f'{Path(path).name} georeferenced: ' + '; '.join(msgs))
+        button = QMessageBox.question(self.scene().views()[0], 'Automatic Georeferencing Results', '\n'.join(msgs) + '\nAccept?')
+        if button == QMessageBox.No:
+            self.setPos(pos)
+            self.setTransform(tr)
+        for item in items:
+            item.setParentItem(None)
+            self.scene().removeItem(item)
 
     def id(self):
         return self.__id

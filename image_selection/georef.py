@@ -20,14 +20,6 @@
  ***************************************************************************/
 """
 
-# For User Workshop only:
-import sys
-import platform
-if platform.node() == 'wk':
-    sys.path.append(r'X:\guests-events\DoRIAH\common\PythonPackages\Python312\site-packages')
-else:
-    sys.path.append(r'X:\DoRIAH\common\PythonPackages\Python312\site-packages')
-
 import logging
 import math
 from pathlib import Path

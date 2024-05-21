@@ -94,7 +94,6 @@ class GdalPushLogHandler:
 def classFactory(iface: QgisInterface):
     #from osgeo import gdal
 
-    import getpass
     from .main import ImageSelection
 
     global _logger, _logFileHandler
@@ -102,8 +101,7 @@ def classFactory(iface: QgisInterface):
     _logger = logging.getLogger(__name__)
     # Please note that without logging to a file by setting a filename the logging may be multithreaded which heavily slows down the output.
 
-    # User workshop: X:\DoRIAH
-    for parentDir in Path(__file__).parent, Path(r'X:\DoRIAH') / getpass.getuser() / 'image_selection', Path.home():
+    for parentDir in Path(__file__).parent, Path.home():
         try:
             _logFileHandler = logging.FileHandler(parentDir / 'image_selection.log', 'w')
         except OSError as ex:

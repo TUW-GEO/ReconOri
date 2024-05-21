@@ -37,7 +37,6 @@ import gc
 import json
 import logging
 from pathlib import Path
-from typing import Callable
 
 from .aerial_item import ContrastEnhancement, AerialObject, AerialImage, Availability, Usage
 
@@ -185,20 +184,6 @@ class MapScene(QGraphicsScene):
     def __loadAerialsFile(self, fileName: Path) -> None:
         logger.info(f'Spreadsheet with image meta data to load: {fileName}')
         dbPath = fileName.with_suffix('.sqlite')
-        if not dbPath.exists():
-            try:
-                dbPath.touch()
-                dbPath.unlink()
-            except OSError:
-                # User workshop
-                import getpass
-                repl = Path(r'X:\DoRIAH') / getpass.getuser() / 'image_selection'
-                if dbPath.drive:
-                    repl = repl / dbPath.drive[:-1]  # indicate the DB's drive name as sub-directory
-                repl = repl.joinpath(*dbPath.parts[1:])
-                logger.info(f'Failed to create {dbPath}. Using {repl} instead.')
-                dbPath = repl
-                dbPath.parent.mkdir(parents=True, exist_ok=True)
         rmDb = False
         if dbPath.exists():
             button = QMessageBox.question(

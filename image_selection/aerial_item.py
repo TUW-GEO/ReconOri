@@ -775,7 +775,7 @@ Double-click to close.<br/>
         off = np.array([self.offset().x(), self.offset().y()])
         aerialPts += off
         orthoPts += off
-        ptRadius = 2
+        ptRadius = 3
         ptPen = QPen(Qt.magenta, 1)
         ptBrush = QBrush(Qt.magenta)
         # Must not set QGraphicsItem.ItemIgnoresTransformations on the lines, or their rotations and lengths will be wrong.

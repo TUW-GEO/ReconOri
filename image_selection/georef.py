@@ -197,14 +197,14 @@ def georef(dsAerial: gdal.Dataset, px2prjAerial: np.ndarray):
     if 0:
         aerialBGR = cv2.cvtColor(aerial, cv2.COLOR_GRAY2BGR)
         # Print inliers on top
-        for sel, col in zip((~inliers, inliers), ((0, 0, 255), (255, 255, 0)), strict=True):
+        for sel, ptCol, lineCol in zip((~inliers, inliers), ((255, 0, 255), (0, 255, 0)), ((0, 0, 255), (255, 255, 0)), strict=True):
             aerPts = aerialPts[sel]
             ortPts = orthoPts[sel]
             for aerialPt, orthoPt in zip(aerPts, ortPts, strict=True):
                 pt1 = tuple(int(el) for el in aerialPt)
                 pt2 = tuple(int(el) for el in orthoPt)
-                cv2.circle(aerialBGR, center=pt1, radius=2, color=(255, 0, 255), thickness=1, lineType=cv2.LINE_AA, shift=0)
-                cv2.line(aerialBGR, pt1, pt2, color=col, thickness=1, lineType=cv2.LINE_AA, shift=0)
+                cv2.circle(aerialBGR, center=pt1, radius=2, color=ptCol, thickness=1, lineType=cv2.LINE_AA, shift=0)
+                cv2.line(aerialBGR, pt1, pt2, color=lineCol, thickness=1, lineType=cv2.LINE_AA, shift=0)
         cv2.imwrite(rf'D:\19_DoRIAH\ImageSelection_dev\{Path(dsAerial.GetFileList()[0]).stem}.jpg', aerialBGR)
     scaleMatch2square = aerialSquareSize / matchResolutionPx
     aerialPts *= scaleMatch2square

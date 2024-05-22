@@ -559,7 +559,7 @@ Double-click to close.<br/>
                            lambda: self.__setTransformState(TransformState.original if (self.transform() == self.__originalTransform() and self.pos() == self.__origPos) else TransformState.changed))
         elif self.flags() & QGraphicsItem.ItemIsMovable:
             if self.__availability in (Availability.image, ):  # TODO Availability.preview
-                menu.addAction(QIcon(':/plugins/image_selection/magnet'), 'Auto-georeference', lambda: self.__georeference())
+                menu.addAction(QIcon(':/plugins/image_selection/magnet'), 'Auto-georeference', self.__georeference)
             menu.addAction(QIcon(':/plugins/image_selection/lock'), 'Lock transform', lambda: self.__setTransformState(TransformState.locked))
         if self.__transformState == TransformState.changed:
             menu.addAction(QIcon(':/plugins/image_selection/home'), 'Reset transform', self.__resetTransform)

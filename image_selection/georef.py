@@ -46,7 +46,12 @@ def _loadMatcher():
     time.sleep(.5)
     try:
         import io
+        import platform
         import sys
+        if platform.node() == 'wk':
+            import os
+            os.add_dll_directory(r'd:\swdvlp64_2015\oriental\build\vcpkg_installed\x64-oriental\bin')
+            sys.path.append(r'C:\Python312-x64\Lib\site-packages\cv2\python-3.12')
         import cv2
         import torch
         from torchvision.transforms import ToTensor

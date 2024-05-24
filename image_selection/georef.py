@@ -87,19 +87,10 @@ def _loadMatcher():
 _loadMatcherThread = threading.Thread(target=_loadMatcher)
 _loadMatcherThread.start()
 
-# gdal.ReprojectImage seems to simply always read at maximum resolution - see the HTTP request URLs.
-# Without setting the maximum zoom level, it reads at level 20, which Basemap provides within Vienna only.
-# Hence, outside Vienna this raises unless ZeroBlockHttpCodes are set to return a black image in that case.
-# But that takes ages, and it results in a warped orthophoto that is fully black.
-# With 18, this still downloads lots of tiles for aerials that cover a large area.
-# Having downloaded hundreds of tiles, this may fail, because basemap does not allow for downloading too much data at once.
-# 17 corresponds to a GSD of 1.2m, which should still be more than enough, even for aerials with a small GSD, downsampled to 1000 x 1000 px.
-_maxZoomLevel = 17 # 19 is necessary for success. Lower levels for speed-up.
 _orthoFn = f'''
     <GDAL_WMTS>
         <GetCapabilitiesUrl>https://maps.wien.gv.at/basemap/1.0.0/WMTSCapabilities.xml</GetCapabilitiesUrl>
         <Layer>bmaporthofoto30cm</Layer>
-        <ZoomLevel>{_maxZoomLevel}</ZoomLevel>
         <Cache><Path>{Config.gdalCachePath.value}</Path></Cache>
         <Timeout>{Config.httpTimeoutSeconds.value}</Timeout>
     </GDAL_WMTS>'''
@@ -126,12 +117,6 @@ def georef(dsAerial: gdal.Dataset, px2prjAerial: np.ndarray):
 
     assert px2prjAerial.shape == (2, 3)
     matchResolutionPx = 1000
-    #aerial = dsAerial.ReadAsArray(band_list=[1])
-    #assert aerial.ndim == 2
-    #aerialSquareSize = min(aerial.shape)
-    #aerial = aerial[:aerialSquareSize, :aerialSquareSize]
-    #aerial = cv2.resize(aerial, dsize=(matchResolutionPx, matchResolutionPx), interpolation=cv2.INTER_AREA)
-    #cv2.imwrite(r'D:\19_DoRIAH\ImageSelection_dev\aerialCv.png', aerial)
     aerialSquareSize = min(dsAerial.RasterXSize, dsAerial.RasterYSize)
     aerial = dsAerial.ReadAsArray(
         xsize=aerialSquareSize,
@@ -142,35 +127,50 @@ def georef(dsAerial: gdal.Dataset, px2prjAerial: np.ndarray):
         resample_alg=gdal.GRIORA_Gauss,
         # Aerials typically have a single band only, but some have 3 (RGB), e.g. Projekte LBDB\Image_Selection_Projektbeispiel\Images\15SG-1185\
         band_list=[1])
-    # offset by about 1px!?
     #cv2.imwrite(r'D:\19_DoRIAH\ImageSelection_dev\aerialGdal.png', aerial)
     
-    orthoWarped = np.zeros((matchResolutionPx, matchResolutionPx, _dsOrtho.RasterCount), np.uint8)
+    orthoWarped = np.zeros((matchResolutionPx, matchResolutionPx, 3), np.uint8)
     dsOrthoWarped = gdal.Open(_memDataset(orthoWarped), gdal.GA_Update)
     px2prjAerialMatchRes = px2prjAerial.copy()
     px2prjAerialMatchRes[:, 1:] *= aerialSquareSize / matchResolutionPx
     dsOrthoWarped.SetGeoTransform(tuple(px2prjAerialMatchRes.flat))
     dsOrthoWarped.SetSpatialRef(_dsOrtho.GetSpatialRef())
-    # Timings based on _maxZoomLevel = 18:
+    # Timings for matching an image the second time, when image content is already in the GDAL cache, each time starting from the same ori.
+    # Matching-only time is always  0.7s.
+    # Timings for ReprojectImage with _maxZoomLevel = 18. ReprojectImage always reads the maximum resolution level, independent of the output GSD:
     # Image_Selection_Projektbeispiel\Images\15SG-1185\4126.ecw
-    # GRA_NearestNeighbour:  43 inliers. Total time: 1.2s. Matching time: 0.7s.
-    # GRA_Bilinear:          27 inliers. Total time: 1.6s. Matching time: 0.7s.
-    # GRA_Average:           24 inliers. Total time: 2.3s. Matching time: 0.7s.
+    # GRA_NearestNeighbour:  43 inliers. Total time: 1.2s.
+    # GRA_Bilinear:          27 inliers. Total time: 1.6s.
+    # GRA_Average:           24 inliers. Total time: 2.3s.
     # Image_Selection_Projektbeispiel\Images\15SG-1045\4040.ecw
-    # GRA_NearestNeighbour: 182 inliers. Total time: 1.0s. Matching time: 0.8s.
-    # GRA_Bilinear:         152 inliers. Total time: 1.3s. Matching time: 0.7s.
-    # GRA_Average:          150 inliers. Total time: 1.8s. Matching time: 0.7s.
+    # GRA_NearestNeighbour: 182 inliers. Total time: 1.0s.
+    # GRA_Bilinear:         152 inliers. Total time: 1.3s.
+    # GRA_Average:          150 inliers. Total time: 1.8s.
     # Image_Selection_Projektbeispiel\Images\15SG-1345\4090.ecw
-    # GRA_NearestNeighbour:  87 inliers. Total time: 0.9s. Matching time: 0.7s.
-    # GRA_Bilinear:          87 inliers. Total time: 1.0s. Matching time: 0.7s.
-    # GRA_Average:           80 inliers. Total time: 1.4s. Matching time: 0.7s.
-    gdal.ReprojectImage(_dsOrtho, dsOrthoWarped, eResampleAlg=gdal.GRA_NearestNeighbour)
-    #cv2.imwrite(r'D:\19_DoRIAH\ImageSelection_dev\orthoWarped.jpg', cv2.cvtColor(orthoWarped[:, :, :3], cv2.COLOR_RGB2BGR))
+    # GRA_NearestNeighbour:  87 inliers. Total time: 0.9s.
+    # GRA_Bilinear:          87 inliers. Total time: 1.0s.
+    # GRA_Average:           80 inliers. Total time: 1.4s.
+    #gdal.ReprojectImage(_dsOrtho, dsOrthoWarped, eResampleAlg=gdal.GRA_NearestNeighbour)
+    # Timings for Warp, which automatically selects an appropriate overview level:
+    # Image_Selection_Projektbeispiel\Images\15SG-1185\4126.ecw
+    # GRA_NearestNeighbour:  43 inliers. Total time: 0.8s.
+    # GRA_Bilinear:          53 inliers. Total time: 0.9s.
+    # GRA_Average:           49 inliers. Total time: 0.9s.
+    # Image_Selection_Projektbeispiel\Images\15SG-1045\4040.ecw
+    # GRA_NearestNeighbour: 112 inliers. Total time: 0.8s.
+    # GRA_Bilinear:         133 inliers. Total time: 0.9s.
+    # GRA_Average:          138 inliers. Total time: 0.7s.
+    # Image_Selection_Projektbeispiel\Images\15SG-1345\4090.ecw
+    # GRA_NearestNeighbour: 156 inliers. Total time: 0.8s.
+    # GRA_Bilinear:         175 inliers. Total time: 0.9s.
+    # GRA_Average:          157 inliers. Total time: 0.9s.
+    gdal.Warp(dsOrthoWarped, _dsOrtho, resampleAlg=gdal.GRA_Bilinear, srcBands=[1, 2, 3])
+    #cv2.imwrite(r'D:\19_DoRIAH\ImageSelection_dev\orthoWarped.jpg', cv2.cvtColor(orthoWarped, cv2.COLOR_RGB2BGR))
 
     startMatching = time.time()
     def match():
         with torch.no_grad():
-            batch = {'image0': toTensor(aerial), 'image1': toTensor(orthoWarped[:, :, :3] @ [0.299, 0.587, 0.114])}
+            batch = {'image0': toTensor(aerial), 'image1': toTensor(orthoWarped @ [0.299, 0.587, 0.114])}
             _matcher(batch)
             aerialPts = batch['mkpts0_f'].cpu().numpy()
             orthoPts = batch['mkpts1_f'].cpu().numpy()
@@ -214,8 +214,8 @@ def georef(dsAerial: gdal.Dataset, px2prjAerial: np.ndarray):
     if 0:
         orthoWarped[:] = 0
         dsOrthoWarped.SetGeoTransform(tuple(gt.flat))
-        gdal.ReprojectImage(_dsOrtho, dsOrthoWarped, eResampleAlg=gdal.GRA_Average)
-        cv2.imwrite(r'D:\19_DoRIAH\ImageSelection_dev\orthoWarped_final.jpg', cv2.cvtColor(orthoWarped[:, :, :3], cv2.COLOR_RGB2BGR))
+        gdal.Warp(dsOrthoWarped, _dsOrtho, resampleAlg=gdal.GRA_Average)
+        cv2.imwrite(r'D:\19_DoRIAH\ImageSelection_dev\orthoWarped_final.jpg', cv2.cvtColor(orthoWarped, cv2.COLOR_RGB2BGR))
     gt[:, 1:] *= 1. / scaleMatch2square
     logger.debug(f'Total time: {time.time() - startTime:.1f}s. Matching time: {matchingTook:.1f}s. Inlier ratio: {inliers.sum() / len(inliers):.2%}')
     return gt, aerialPts[inliers], orthoPts[inliers]

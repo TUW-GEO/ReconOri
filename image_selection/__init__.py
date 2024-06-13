@@ -13,10 +13,8 @@
                                  A QGIS plugin
  Guided selection of images with implicit coarse geo-referencing.
                               -------------------
-        begin                : 2021-11-12
         copyright            : (C) 2021 by Photogrammetry @ GEO, TU Wien, Austria
         email                : wilfried.karel@geo.tuwien.ac.at
-        git sha              : $Format:%H$
  ***************************************************************************/
 
 This script initializes the plugin, making it known to QGIS.

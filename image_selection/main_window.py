@@ -368,7 +368,7 @@ class MainWindow(FormBase):
 
     @pyqtSlot()
     def __readme(self):
-        path = Path(__file__).parent.parent / 'README.md'
+        path = Path(__file__).parent / 'README.md'
         with path.open() as fin:
             contents = fin.read()
         txtEdt = QTextEdit(self)

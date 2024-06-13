@@ -28,9 +28,9 @@ At any point, an aerial belongs to each of these categories:
 
 All states are indicated graphically. Use the buttons above the map view to control if aerials with the respective state shall be shown or not.
 
-Tested with QGIS 3.22 LTR and 3.34 LTR on Windows, installed with the *standalone installer (MSI)*.
+Tested with QGIS 3.34 LTR on Windows, installed with the *standalone installer (MSI)*.
 
-May still work with QGIS 3.16.14 *standalone installer (MSI)*. Does not work with the QGIS 3.16.14 *network installer*, since that comes with Python 3.7 instead of 3.9.  Does not work with even older releases, but should work with newer ones.
+Should work with newer releases.
 
 ## Compilation
 
@@ -38,13 +38,13 @@ Skip this step if you have received a package archive (`.zip`).
 
 Open the *OSGeo4W* shell that comes with QGIS, and compile the resources by calling *pyQt5*'s resource compiler:
 
-```
+```batch
 ... image_selection>pyrcc5 -o resources_rc.py resources.qrc
 ```
 
 To create a package archive:
 
-```
+```batch
 ... image_selection>python create_archive.py
 ```
 
@@ -56,11 +56,7 @@ There are different ways to make the PlugIn accessible in QGIS:
 
 2. Or: place/extract the PlugIn-folder somewhere on your file system. 
    
-   1. Put/extract the PlugIn-folder into the place where the QGIS PlugIn manager expects it: make the PlugIn-folder *image_selection* a sub-directory of:
-      
-      ```
-      %USERPROFILE%\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins
-      ```
+   1. Put/extract the PlugIn-folder into the place where the QGIS PlugIn manager expects it: make the PlugIn-folder *image_selection* a sub-directory of `%USERPROFILE%\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins`
       
       In case you use a non-default QGIS profile, replace `default` with that profile's name. You may make the PlugIn folder a sub-directory either as a copy, or as a symbolic link.
    
@@ -72,15 +68,28 @@ You should now see the PlugIn icon in the QGIS main window. If not: menu `View` 
 
 ### Optional Dependencies
 
-For reading / writing Excel 2010 xlsx/xlsm/xltx/xltm files, install openpyxl. To do so, open the OSGeo4W Shell from your start menu and enter:
+#### Automated Geo-Referencing
 
+Extract https://github.com/WKarel/se2-loftr/archive/camera-ready.zip  into `%APPDATA%\Python\Python312\site-packages\`, and rename the folder `se2-loftr-camera-ready` to `se2_loftr`. In the OSGeo4W Shell, enter:
+
+```batch
+python -m pip install torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2 --index-url https://download.pytorch.org/whl/cu121
+python -m pip install einops yacs kornia e2cnn pytorch-lightning opencv-python-headless
 ```
+
+#### Excel 2010 files
+
+For reading / writing Excel 2010 xlsx/xlsm/xltx/xltm files, install `openpyxl`. To do so, open the OSGeo4W Shell from your start menu and enter:
+
+```batch
 python -m pip install openpyxl
 ```
 
+#### Contrast Limited, Adaptive Histogram Equalization
+
 To make Contrast Limited, Adaptive Histogram Equalization available as image enhancement, enter in the OSGeo4W Shell:
 
-```
+```batch
 python -m pip install scikit-image
 ```
 

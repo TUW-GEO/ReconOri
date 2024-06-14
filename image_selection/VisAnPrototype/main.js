@@ -1,12 +1,30 @@
 /*
-  DoRIAH Image Selection - Visualization
+  DoRIAH Image Selection
+  Prototype  v.2
   ip: Ignacio Perez-Messina
+  ignacio.messina@tuwien.ac.at
+
+  This prototype interactively visualizes aerial images and recorded attacks into a timeline while
+  also providing guidance for their selection. To properly understand and use this prototype, 
+  special documentation should be requested to ip.
+  
+  INTERACTIVE FEATURES
+  + Hover over an attack to display basic metadata
+  + Hover over an image-glyph to display its metadata and highlight it on the map
+  + Click on an image-glyph to open its preview on the map 
+  + Drag from left to right on the upper part of the timeline to zoom into that time period
+  + Click on the upper part of the timeline to go back to the overview
+  + Click on the gre (data) button at the bottom to de/activate isospaced view
+  + Click on the blue (orienting) and red (prescribing) buttons at the bottom to de/activate guidance
+
+  GUIDANCE FEATURES
+  + Orienting guidance displays image interest based on image metadata shading image-glyphs in blue
+  + Prescribing guidance highlights red a possible selection of images and tries to adapt to the user's
+    current selection
 
   IMPORTANT NOTES
+  + To start, after loading aerials and AOI, visualization needs to be realoaded (right-click)
   + Because of the harcoded attack dates, this version is currently only working for Vienna projects
-
-  DEV NOTES
-  + using certain p5 functions (e.g., abs, map, probably the ones that overload js) at certain points makes plugin crash on reload
 */
 
 let aoiPoly, aoiArea;
@@ -37,7 +55,7 @@ let eqClasses;
 let userSolutionValues = [];
 let testOn = true; // Should be false for real tests
 const TASK = 2;
-const test = true;
+const test = false;
 const groundColor = 236; //236
 const dayRange = 25;
 const isSmall = true; // for small AOIs such as Vienna samples

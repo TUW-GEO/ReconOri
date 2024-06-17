@@ -76,3 +76,7 @@ You should now see the PlugIn icon in the QGIS main window. If not: menu `View` 
 ## Configuration
 
 Edit `image_selection/image_selection.cfg`, such that images and previews are found.
+
+## Acknowledgement
+
+This software is an outcome of project [DoRIAH](https://cvl.tuwien.ac.at/project/doriah/), funded by the [FFG](https://www.ffg.at) program “IKT der Zukunft” – an initiative of the [Bundesministerium für Klimaschutz, Umwelt, Energie, Mobilität, Innovation und Technologie (BMK)](https://www.bmk.gv.at/) (Ministry for Climate Action, Environment, Energy, Mobility, Innovation and Technology), grant number 880883.

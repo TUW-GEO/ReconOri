@@ -10,9 +10,8 @@ os.chdir(Path(__file__).parent)
 plugInName = Path('image_selection')
 archivePath = f'{plugInName}.zip'
 with zipfile.ZipFile(archivePath, 'w', zipfile.ZIP_DEFLATED) as archive:
-    archive.write('README.md', plugInName / 'README.md')
     os.chdir(plugInName)
-    for name in ('README.md'
+    for name in ('README.md',
                  'LICENSE',
                  '__init__.py',
                  'aerial_item.py',

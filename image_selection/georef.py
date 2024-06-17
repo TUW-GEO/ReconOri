@@ -45,6 +45,7 @@ def _loadMatcher():
     try:
         import io
         import sys
+        import urllib.request
         import cv2
         from se2_loftr import src
         from se2_loftr.src.loftr import LoFTR
@@ -69,7 +70,12 @@ def _loadMatcher():
             sys.stderr = io.StringIO()
         torch.set_default_tensor_type(torch.cuda.FloatTensor)
         cpuMatcher = LoFTR(config=lower_config(loftr_ds_e2.cfg.LOFTR))
-        weightsFn = Path(src.__file__).parents[1] / "weights" / "4rot.ckpt"
+        weightsFn = Path(__file__).parent / 'se2-loftr-4rot.ckpt'
+        if not weightsFn.exists():
+            logger.info('Downloading weights.')
+            with (urllib.request.urlopen('https://cloud.geo.tuwien.ac.at/s/ezo6dj9rd2wXxQm/download') as fin,
+                  weightsFn.open('wb') as fout):
+                fout.write(fin.read())
         cpuMatcher.load_state_dict(torch.load(weightsFn)['state_dict'])
         _matcher = cpuMatcher.eval().cuda()
         if stderrWasNone:

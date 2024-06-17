@@ -2,7 +2,7 @@
 
 Load a spread sheet with meta data of eligible aerial images, and show them minimized at the given locations on top of a web map. Double-click onto one of them to load and show its image content, and to judge its quality. If the respective image file is missing, then no image content is displayed. In that case, however, a preview image may be available. Use the context menu to find it.
 
-Shift, rotate, and scale aerials with respect to the background map in order to decide if they shall be considered for further processing. If so, mark them as *selected*, using the context menu.
+Shift, rotate, and scale aerials with respect to the background map, or use the function for doing so automatically, in order to decide if they shall be considered for further processing. If so, mark them as *selected*, using the context menu.
 
 For help on how to navigate the map or transform aerials, click the help button first, and then either on the map or on an aerial.
 
@@ -32,54 +32,26 @@ Tested with QGIS 3.34 LTR on Windows, installed with the *standalone installer (
 
 Should work with newer releases.
 
-## Compilation
-
-Skip this step if you have received a package archive (`.zip`).
-
-Open the *OSGeo4W* shell that comes with QGIS, and compile the resources by calling *pyQt5*'s resource compiler:
-
-```batch
-... image_selection>pyrcc5 -o resources_rc.py resources.qrc
-```
-
-To create a package archive:
-
-```batch
-... image_selection>python create_archive.py
-```
-
 ## Installation on Windows
-
-There are different ways to make the PlugIn accessible in QGIS:
-
-1. if installing from a package archive (`.zip`), the easiest way is via menu `PlugIns` → entry `Manage and install plugins` → tab `Install from ZIP`: choose the path to the archive and hit `Install Plugin`.
-
-2. Or: place/extract the PlugIn-folder somewhere on your file system. 
-   
-   1. Put/extract the PlugIn-folder into the place where the QGIS PlugIn manager expects it: make the PlugIn-folder *image_selection* a sub-directory of `%USERPROFILE%\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins`
-      
-      In case you use a non-default QGIS profile, replace `default` with that profile's name. You may make the PlugIn folder a sub-directory either as a copy, or as a symbolic link.
-   
-   2. Otherwise, you may place/extract your PlugIn-folder anywhere and tell QGIS where to find it. To do so, before starting QGIS, set the environment variable `QGIS_PLUGINPATH` to the parent directory of the PlugIn folder, wherever that is.
-
-Afterwards, activate the PlugIn in the QGIS PlugIn manager: menu `PlugIns` → entry `Manage and install plugins` → tab `Installed` → Check `DoRIAH Image Selection`.
-
-You should now see the PlugIn icon in the QGIS main window. If not: menu `View` → entry `Tool boxes` → check `PlugIn tool box`.
 
 ### Optional Dependencies
 
 #### Automated Geo-Referencing
 
-Extract https://github.com/WKarel/se2-loftr/archive/camera-ready.zip  into `%APPDATA%\Python\Python312\site-packages\`, and rename the folder `se2-loftr-camera-ready` to `se2_loftr`. In the OSGeo4W Shell, enter:
+Only works with a CUDA-capable graphics card installed.
+
+Open the OSGeo4W shell from your start menu, and enter:
 
 ```batch
 python -m pip install torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2 --index-url https://download.pytorch.org/whl/cu121
 python -m pip install einops yacs kornia e2cnn pytorch-lightning opencv-python-headless
 ```
 
+Extract https://github.com/WKarel/se2-loftr/archive/camera-ready.zip into `%APPDATA%\Python\Python312\site-packages\`, and rename the folder `se2-loftr-camera-ready` to `se2_loftr`.
+
 #### Excel 2010 files
 
-For reading / writing Excel 2010 xlsx/xlsm/xltx/xltm files, install `openpyxl`. To do so, open the OSGeo4W Shell from your start menu and enter:
+For reading Excel 2010 xlsx/xlsm/xltx/xltm files, `openpyxl` needs to be installed. In the OSGeo4W shell, enter:
 
 ```batch
 python -m pip install openpyxl
@@ -87,11 +59,19 @@ python -m pip install openpyxl
 
 #### Contrast Limited, Adaptive Histogram Equalization
 
-To make Contrast Limited, Adaptive Histogram Equalization available as image enhancement, enter in the OSGeo4W Shell:
+To make Contrast Limited, Adaptive Histogram Equalization available as image enhancement, enter in the OSGeo4W shell:
 
 ```batch
 python -m pip install scikit-image
 ```
+
+### PlugIn Itself
+
+To make the PlugIn accessible in QGIS, use menu `PlugIns` → entry `Manage and install plugins` → tab `Install from ZIP`,  choose the path to the PlugIn's package archive (`.zip`), and hit `Install Plugin`.
+
+Afterwards, activate the PlugIn in the QGIS PlugIn manager: menu `PlugIns` → entry `Manage and install plugins` → tab `Installed` → Check `DoRIAH Image Selection`.
+
+You should now see the PlugIn icon in the QGIS main window. If not: menu `View` → entry `Tool boxes` → check `PlugIn tool box`.
 
 ## Configuration
 

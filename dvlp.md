@@ -288,8 +288,32 @@ The DB table `aerials` has 6 entries that are important for the image selection 
 - `imgPath`: the actual relative path to the image or preview file. Must exist unless NULL. If the image file according to `imgId` exists, then this is set immediately. Otherwise, this is set once the preview file and rectangle have been determined.
 - `previewRect`: if not NULL: the rectangle within `imgPath` that covers the image content of this preview. Set when the preview file and rectangle have been determined. If not NULL, then imgPath must not be NULL, either.
 
-# Coordinate Systems
+## Coordinate Systems
 
 The PlugIn's Object-CS is Web Mercator, independently of the currently selected WMS. Web-Mercator has its origin at the intersection of the Greenwich meridian and the equator, with +X pointing eastwards, and +Y northwards. The CS of QGraphicsScene is the same, only with invertierted y-Axis, because Qt CSs have their origins at the left/top, with +x pointing rightwards, and +y downwards: [Coordinate System | Qt GUI 5.15.16](https://doc.qt.io/qt-5/coordsys.html)
 
 Like all QGraphicsItems, AerialImage may be transformed, see [Graphics View Framework | Qt Widgets 5.15.16](https://doc.qt.io/qt-5/graphicsview.html#the-graphics-view-coordinate-system): every item owns a 3x3-Matrix, and additionally a position in the scene (reduction point). To transform a point from item- into scene cooordinates, multiply that point in homogeneous coordinates with the [transpose](https://doc.qt.io/qt-5/qtransform.html#basic-matrix-operations) of that matrix. aerial_item.py ensures that this 3x3 matrix remains a pure 2D rotation and scaling, which implies that its lowest row and rightmost column are (0, 0, 1). The CS of every QGraphicsItem has its origin at the left/top. But in order for AerialImage and AerialPoint to have the same transformation matrix and scene position, AerialImage is displayed at an offset that is half the pixmap width and height. This offset hence depends on the resolution of the pixmap. AerialImage displays its image downscaled to 3000 columns and as many rows as necessary to keep pixels squared. As long as no image content is available, AerialImage uses a default, square pixmap of 3000 x 3000 pixels. When a (different) preview rectangle has been determined, then its image contents get displayed, which generally changes the aspect ratio of the pixmap. Hence, the offset is adapted in this case, such that the item CS origin stays at the image center.
+
+## Compilation
+
+Open the *OSGeo4W* shell that comes with QGIS, and compile the resources by calling *pyQt5*'s resource compiler:
+
+```batch
+... image_selection>pyrcc5 -o resources_rc.py resources.qrc
+```
+
+To create a package archive:
+
+```batch
+... image_selection>python create_archive.py
+```
+
+## Dvlp-Installation
+
+End-users shall install the PlugIn using a package archive created as above. Instead, developers may place/extract the PlugIn-folder somewhere on the file system.
+
+1. Put/extract the PlugIn-folder into the place where the QGIS PlugIn manager expects it: make the PlugIn-folder *image_selection* a sub-directory of `%USERPROFILE%\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins`
+   
+   In case you use a non-default QGIS profile, replace `default` with that profile's name. You may make the PlugIn folder a sub-directory either as a copy, or as a symbolic link.
+
+2. Otherwise, you may place/extract your PlugIn-folder anywhere and tell QGIS where to find it. To do so, before starting QGIS, set the environment variable `QGIS_PLUGINPATH` to the parent directory of the PlugIn folder, wherever that is.

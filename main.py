@@ -9,9 +9,9 @@
 
 """
 /***************************************************************************
- ImageSelection
+ SelORecon
                                  A QGIS plugin
- Guided selection of images with implicit coarse geo-referencing.
+ Guided selection and orientation of aerial reconnaissance images.
                                -------------------
         copyright            : (C) 2021 by Photogrammetry @ GEO, TU Wien, Austria
         email                : wilfried.karel@geo.tuwien.ac.at
@@ -43,13 +43,13 @@ from .main_window import MainWindow
 logger = logging.getLogger(__name__)
 
 
-class ImageSelection:
+class SelORecon:
 
     def __init__(self, iface: QgisInterface):
         self.iface = iface
         self.plugin_dir = Path(__file__).parent
         self.actions = []
-        self.menu = '&DoRIAH Image Selection'
+        self.menu = '&SelORecon'
         self.dlg = None
 
     def add_action(self, icon_path: str, text: str, callback: Callable, parent: QWidget | None = None) -> None:
@@ -63,15 +63,15 @@ class ImageSelection:
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
         self.add_action(
-            ':/plugins/image_selection/bomb',
-            'Select Images',
+            ':/plugins/selorecon/bomb',
+            'SelORecon',
             self.run,
             self.iface.mainWindow())
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
-            self.iface.removePluginMenu('&DoRIAH Image Selection', action)
+            self.iface.removePluginMenu('&SelORecon', action)
             self.iface.removeToolBarIcon(action)
         if self.dlg is not None:
             self.dlg.unload()

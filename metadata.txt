@@ -1,14 +1,14 @@
 [general]
-name=DoRIAH Image Selection
+name=SelORecon
 qgisMinimumVersion=3.0
-description=Guided selection of images with implicit coarse geo-referencing.
+description=Guided selection and orientation of aerial reconnaissance images.
 version=1.0
 author=Wilfried Karel
 email=wilfried.karel@geo.tuwien.ac.at
 
-about=Given a project area, the respective query results of Luftbilddatenbank GmbH's data bases, and access to its folders of preview and already ordered images, help the user to select the cheapest image set sufficient to meet the required analysis quality. Saves the implicitly found geo-referencing of selected images, to be re-used during fine geo-referencing.
+about=Given a project area, the respective query results of Luftbilddatenbank GmbH's data bases, and access to its folders of preview and already ordered images, help the user to select the cheapest image set sufficient to meet the required analysis quality.
 
-repository=https://github.com/TUW-GEO/ReconOri
+repository=https://github.com/TUW-GEO/selorecon
 
 
 homepage=https://cvl.tuwien.ac.at/project/doriah/

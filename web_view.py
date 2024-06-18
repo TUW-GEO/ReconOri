@@ -9,9 +9,9 @@
 
 """
 /***************************************************************************
- ImageSelection
+ SelORecon
                                  A QGIS plugin
- Guided selection of images with implicit coarse geo-referencing.
+ Guided selection and orientation of aerial reconnaissance images.
                               -------------------
         copyright            : (C) 2021 by Photogrammetry @ GEO, TU Wien, Austria
         email                : wilfried.karel@geo.tuwien.ac.at

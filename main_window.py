@@ -9,9 +9,9 @@
 
 """
 /***************************************************************************
- ImageSelection
+ SelORecon
                                  A QGIS plugin
- Guided selection of images with implicit coarse geo-referencing.
+ Guided selection and orientation of aerial reconnaissance images.
                              -------------------
         copyright            : (C) 2021 by Photogrammetry @ GEO, TU Wien, Austria
         email                : wilfried.karel@geo.tuwien.ac.at
@@ -69,7 +69,7 @@ class MainWindow(FormBase):
         ui = self.ui = Form()
         ui.setupUi(self)
         self.__config = configparser.ConfigParser()
-        with open(Path(__file__).parent / 'image_selection.cfg') as fin:
+        with open(Path(__file__).parent / 'selorecon.cfg') as fin:
             self.__config.read_file(fin)
 
         ui.splitter.setSizes([100, 500])
@@ -108,9 +108,9 @@ class MainWindow(FormBase):
     def __initMap(self):
         ui = self.ui
         with GdalPushLogHandler():
-            austria = QIcon(':/plugins/image_selection/austria')
-            vienna = QIcon(':/plugins/image_selection/vienna')
-            globe = QIcon(':/plugins/image_selection/globe-green')
+            austria = QIcon(':/plugins/selorecon/austria')
+            vienna = QIcon(':/plugins/selorecon/vienna')
+            globe = QIcon(':/plugins/selorecon/globe-green')
             defIdx = 0
             # QGIS seems to set the CWD to %USERPROFILE%/Documents, and the default WMTS cache path is ./gdalwmscache
             for isWMTS, icon, prefix, url in [
@@ -199,18 +199,18 @@ class MainWindow(FormBase):
 
         menu = QMenu(self)
         group = QActionGroup(menu)
-        arrowResize090 = QIcon(':/plugins/image_selection/arrow-resize-090')
+        arrowResize090 = QIcon(':/plugins/selorecon/arrow-resize-090')
         minMax = group.addAction(menu.addAction(arrowResize090, 'Stretch to minimum / maximum',
                                  self.__onContrastEnhancement))
         minMax.setData(ContrastEnhancement.minMax)
         minMax.setCheckable(True)
-        chart = QIcon(':/plugins/image_selection/chart')
+        chart = QIcon(':/plugins/selorecon/chart')
         histogram = group.addAction(menu.addAction(chart, 'Histogram equalization',
                                     self.__onContrastEnhancement))
         histogram.setData(ContrastEnhancement.histogram)
         histogram.setCheckable(True)
         if claheAvailable:
-            chartPlus = QIcon(':/plugins/image_selection/chart--plus')
+            chartPlus = QIcon(':/plugins/selorecon/chart--plus')
             clahe = group.addAction(menu.addAction(chartPlus, 'Contrast limited, adaptive histogram equalization',
                                     self.__onContrastEnhancement))
             clahe.setData(ContrastEnhancement.clahe)
@@ -227,8 +227,8 @@ class MainWindow(FormBase):
                                  (ui.aerialsBlue, Availability.findPreview),
                                  (ui.aerialsGreen, Availability.preview),
                                  (ui.aerialsYellow, Availability.image))
-        target = QIcon(':/plugins/image_selection/target')
-        picture = QIcon(':/plugins/image_selection/picture')
+        target = QIcon(':/plugins/selorecon/target')
+        picture = QIcon(':/plugins/selorecon/picture')
         for button, avail in self.__availabilities:
             def func(button=button, avail=avail):
                 return self.__onAvailabilityChanged(button, avail)
@@ -277,7 +277,7 @@ class MainWindow(FormBase):
         scene.addAerialsVisible.connect(self.__addAerialsVisible)
         scene.noAerialsVisible.connect(self.__noAerialsVisible)
         scene.aerialsLoaded.connect(self.__onAerialsLoaded)
-        scene.projectChanged.connect(lambda projectName: self.setWindowTitle(f'DoRIAH Image Selection: {projectName}'))
+        scene.projectChanged.connect(lambda projectName: self.setWindowTitle(f'SelORecon: {projectName}'))
 
     def unload(self) -> None:
         try:

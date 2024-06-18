@@ -9,9 +9,9 @@
 
 """
 /***************************************************************************
- ImageSelection
+ SelORecon
                                  A QGIS plugin
- Guided selection of images with implicit coarse geo-referencing.
+ Guided selection and orientation of aerial reconnaissance images.
                               -------------------
         copyright            : (C) 2021 by Photogrammetry @ GEO, TU Wien, Austria
         email                : wilfried.karel@geo.tuwien.ac.at
@@ -293,9 +293,9 @@ class AerialImage(QGraphicsPixmapItem):
 
     __pixMapWidth: Final = 3000  # Approx. width of a microfilm scan, it seems.
 
-    __rotateCursor: Final = QCursor(QPixmap(':/plugins/image_selection/rotate'))
+    __rotateCursor: Final = QCursor(QPixmap(':/plugins/selorecon/rotate'))
 
-    __transparencyCursor: Final = QCursor(QPixmap(':/plugins/image_selection/eye'))
+    __transparencyCursor: Final = QCursor(QPixmap(':/plugins/selorecon/eye'))
 
     __threadPool: futures.ThreadPoolExecutor | None = None
 
@@ -539,28 +539,28 @@ Double-click to close.<br/>
         menu = QMenu('menu')
         menu.setToolTipsVisible(True)
         if self.__availability in (Availability.findPreview, Availability.preview):
-            menu.addAction(QIcon(':/plugins/image_selection/image-crop'), 'Find preview', lambda: self.__findPreview())
+            menu.addAction(QIcon(':/plugins/selorecon/image-crop'), 'Find preview', lambda: self.__findPreview())
         menu.addSection('Usage')
         usage = self.usage()
         if usage != Usage.unset:
-            menu.addAction(QIcon(':/plugins/image_selection/selection'),
+            menu.addAction(QIcon(':/plugins/selorecon/selection'),
                            'Unset', lambda: self.__setUsage(Usage.unset))
         if usage != Usage.selected:
-            menu.addAction(QIcon(':/plugins/image_selection/tick'),
+            menu.addAction(QIcon(':/plugins/selorecon/tick'),
                            'Select', lambda: self.__setUsage(Usage.selected))
         if usage != Usage.discarded:
-            menu.addAction(QIcon(':/plugins/image_selection/cross'),
+            menu.addAction(QIcon(':/plugins/selorecon/cross'),
                            'Discard', lambda: self.__setUsage(Usage.discarded))
         menu.addSeparator()
         if self.__transformState == TransformState.locked:
-            menu.addAction(QIcon(':/plugins/image_selection/unlock'), 'Unlock transform',
+            menu.addAction(QIcon(':/plugins/selorecon/unlock'), 'Unlock transform',
                            lambda: self.__setTransformState(TransformState.original if (self.transform() == self.__originalTransform() and self.pos() == self.__origPos) else TransformState.changed))
         elif self.flags() & QGraphicsItem.ItemIsMovable:
             if self.__availability in (Availability.image, ):  # TODO Availability.preview
-                menu.addAction(QIcon(':/plugins/image_selection/magnet'), 'Auto-georeference', self.__georeference)
-            menu.addAction(QIcon(':/plugins/image_selection/lock'), 'Lock transform', lambda: self.__setTransformState(TransformState.locked))
+                menu.addAction(QIcon(':/plugins/selorecon/magnet'), 'Auto-georeference', self.__georeference)
+            menu.addAction(QIcon(':/plugins/selorecon/lock'), 'Lock transform', lambda: self.__setTransformState(TransformState.locked))
         if self.__transformState == TransformState.changed:
-            menu.addAction(QIcon(':/plugins/image_selection/home'), 'Reset transform', self.__resetTransform)
+            menu.addAction(QIcon(':/plugins/selorecon/home'), 'Reset transform', self.__resetTransform)
         menu.exec(event.screenPos())
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget) -> None:
@@ -855,7 +855,7 @@ def _getPixMap(path: Path, width: int, rect: QRect, rotationCcw: int, contrast: 
     return QPixmap.fromImage(img)
 
 def _makeOverlay(name: str, parent: QGraphicsItem, flag: QGraphicsItem.GraphicsItemFlag | None = None):
-    pm = QPixmap(':/plugins/image_selection/' + name)
+    pm = QPixmap(':/plugins/selorecon/' + name)
     item = QGraphicsPixmapItem(pm, parent)
     item.setOffset(-pm.width() / 2, -pm.height() / 2)
     item.setTransformationMode(Qt.SmoothTransformation)

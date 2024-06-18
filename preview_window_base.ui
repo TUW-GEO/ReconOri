@@ -15,7 +15,7 @@
   </property>
   <property name="windowIcon">
    <iconset resource="resources.qrc">
-    <normaloff>:/plugins/image_selection/image-crop</normaloff>:/plugins/image_selection/image-crop</iconset>
+    <normaloff>:/plugins/selorecon/image-crop</normaloff>:/plugins/selorecon/image-crop</iconset>
   </property>
   <property name="sizeGripEnabled">
    <bool>true</bool>
@@ -52,7 +52,7 @@
             </property>
             <property name="icon">
              <iconset resource="resources.qrc">
-              <normaloff>:/plugins/image_selection/rotateLeft</normaloff>:/plugins/image_selection/rotateLeft</iconset>
+              <normaloff>:/plugins/selorecon/rotateLeft</normaloff>:/plugins/selorecon/rotateLeft</iconset>
             </property>
            </widget>
           </item>
@@ -66,7 +66,7 @@
             </property>
             <property name="icon">
              <iconset resource="resources.qrc">
-              <normaloff>:/plugins/image_selection/rotateRight</normaloff>:/plugins/image_selection/rotateRight</iconset>
+              <normaloff>:/plugins/selorecon/rotateRight</normaloff>:/plugins/selorecon/rotateRight</iconset>
             </property>
            </widget>
           </item>
@@ -80,7 +80,7 @@
             </property>
             <property name="icon">
              <iconset resource="resources.qrc">
-              <normaloff>:/plugins/image_selection/contrast-stretch</normaloff>:/plugins/image_selection/contrast-stretch</iconset>
+              <normaloff>:/plugins/selorecon/contrast-stretch</normaloff>:/plugins/selorecon/contrast-stretch</iconset>
             </property>
             <property name="checkable">
              <bool>true</bool>
@@ -168,7 +168,7 @@
   <customwidget>
    <class>GraphicsView</class>
    <extends>QGraphicsView</extends>
-   <header>image_selection.preview_window</header>
+   <header>selorecon.preview_window</header>
   </customwidget>
  </customwidgets>
  <resources>

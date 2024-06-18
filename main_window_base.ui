@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>ImageSelectionDialogBase</class>
- <widget class="QMainWindow" name="ImageSelectionDialogBase">
+ <class>MainWindowBase</class>
+ <widget class="QMainWindow" name="MainWindowBase">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -11,11 +11,11 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>DoRIAH Image Selection</string>
+   <string>SelORecon</string>
   </property>
   <property name="windowIcon">
    <iconset resource="resources.qrc">
-    <normaloff>:/plugins/image_selection/bomb</normaloff>:/plugins/image_selection/bomb</iconset>
+    <normaloff>:/plugins/selorecon/bomb</normaloff>:/plugins/selorecon/bomb</iconset>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout_2">
@@ -134,7 +134,7 @@
                </property>
                <property name="icon">
                 <iconset resource="resources.qrc">
-                 <normaloff>:/plugins/image_selection/zoom-in</normaloff>:/plugins/image_selection/zoom-in</iconset>
+                 <normaloff>:/plugins/selorecon/zoom-in</normaloff>:/plugins/selorecon/zoom-in</iconset>
                </property>
               </widget>
              </item>
@@ -145,7 +145,7 @@
                </property>
                <property name="icon">
                 <iconset resource="resources.qrc">
-                 <normaloff>:/plugins/image_selection/zoom-out</normaloff>:/plugins/image_selection/zoom-out</iconset>
+                 <normaloff>:/plugins/selorecon/zoom-out</normaloff>:/plugins/selorecon/zoom-out</iconset>
                </property>
               </widget>
              </item>
@@ -156,7 +156,7 @@
                </property>
                <property name="icon">
                 <iconset resource="resources.qrc">
-                 <normaloff>:/plugins/image_selection/zoom-native</normaloff>:/plugins/image_selection/zoom-native</iconset>
+                 <normaloff>:/plugins/selorecon/zoom-native</normaloff>:/plugins/selorecon/zoom-native</iconset>
                </property>
               </widget>
              </item>
@@ -167,7 +167,7 @@
                </property>
                <property name="icon">
                 <iconset resource="resources.qrc">
-                 <normaloff>:/plugins/image_selection/zoom-fit</normaloff>:/plugins/image_selection/zoom-fit</iconset>
+                 <normaloff>:/plugins/selorecon/zoom-fit</normaloff>:/plugins/selorecon/zoom-fit</iconset>
                </property>
               </widget>
              </item>
@@ -203,7 +203,7 @@
                </property>
                <property name="icon">
                 <iconset resource="resources.qrc">
-                 <normaloff>:/plugins/image_selection/films</normaloff>:/plugins/image_selection/films</iconset>
+                 <normaloff>:/plugins/selorecon/films</normaloff>:/plugins/selorecon/films</iconset>
                </property>
               </widget>
              </item>
@@ -217,7 +217,7 @@
                </property>
                <property name="icon">
                 <iconset resource="resources.qrc">
-                 <normaloff>:/plugins/image_selection/calendar</normaloff>:/plugins/image_selection/calendar</iconset>
+                 <normaloff>:/plugins/selorecon/calendar</normaloff>:/plugins/selorecon/calendar</iconset>
                </property>
               </widget>
              </item>
@@ -231,7 +231,7 @@
                </property>
                <property name="icon">
                 <iconset resource="resources.qrc">
-                 <normaloff>:/plugins/image_selection/layer-shape-polygon</normaloff>:/plugins/image_selection/layer-shape-polygon</iconset>
+                 <normaloff>:/plugins/selorecon/layer-shape-polygon</normaloff>:/plugins/selorecon/layer-shape-polygon</iconset>
                </property>
               </widget>
              </item>
@@ -258,7 +258,7 @@
                </property>
                <property name="icon">
                 <iconset resource="resources.qrc">
-                 <normaloff>:/plugins/image_selection/contrast-stretch</normaloff>:/plugins/image_selection/contrast-stretch</iconset>
+                 <normaloff>:/plugins/selorecon/contrast-stretch</normaloff>:/plugins/selorecon/contrast-stretch</iconset>
                </property>
                <property name="checkable">
                 <bool>true</bool>
@@ -294,7 +294,7 @@
                </property>
                <property name="icon">
                 <iconset resource="resources.qrc">
-                 <normaloff>:/plugins/image_selection/flag-gray</normaloff>:/plugins/image_selection/flag-gray</iconset>
+                 <normaloff>:/plugins/selorecon/flag-gray</normaloff>:/plugins/selorecon/flag-gray</iconset>
                </property>
                <property name="checkable">
                 <bool>true</bool>
@@ -320,7 +320,7 @@
                </property>
                <property name="icon">
                 <iconset resource="resources.qrc">
-                 <normaloff>:/plugins/image_selection/flag-blue</normaloff>:/plugins/image_selection/flag-blue</iconset>
+                 <normaloff>:/plugins/selorecon/flag-blue</normaloff>:/plugins/selorecon/flag-blue</iconset>
                </property>
                <property name="checkable">
                 <bool>true</bool>
@@ -349,7 +349,7 @@
                </property>
                <property name="icon">
                 <iconset resource="resources.qrc">
-                 <normaloff>:/plugins/image_selection/flag-green</normaloff>:/plugins/image_selection/flag-green</iconset>
+                 <normaloff>:/plugins/selorecon/flag-green</normaloff>:/plugins/selorecon/flag-green</iconset>
                </property>
                <property name="checkable">
                 <bool>true</bool>
@@ -375,7 +375,7 @@
                </property>
                <property name="icon">
                 <iconset resource="resources.qrc">
-                 <normaloff>:/plugins/image_selection/flag-yellow</normaloff>:/plugins/image_selection/flag-yellow</iconset>
+                 <normaloff>:/plugins/selorecon/flag-yellow</normaloff>:/plugins/selorecon/flag-yellow</iconset>
                </property>
                <property name="checkable">
                 <bool>true</bool>
@@ -411,7 +411,7 @@
                </property>
                <property name="icon">
                 <iconset resource="resources.qrc">
-                 <normaloff>:/plugins/image_selection/selection</normaloff>:/plugins/image_selection/selection</iconset>
+                 <normaloff>:/plugins/selorecon/selection</normaloff>:/plugins/selorecon/selection</iconset>
                </property>
                <property name="checkable">
                 <bool>true</bool>
@@ -434,7 +434,7 @@
                </property>
                <property name="icon">
                 <iconset resource="resources.qrc">
-                 <normaloff>:/plugins/image_selection/tick</normaloff>:/plugins/image_selection/tick</iconset>
+                 <normaloff>:/plugins/selorecon/tick</normaloff>:/plugins/selorecon/tick</iconset>
                </property>
                <property name="checkable">
                 <bool>true</bool>
@@ -457,7 +457,7 @@
                </property>
                <property name="icon">
                 <iconset resource="resources.qrc">
-                 <normaloff>:/plugins/image_selection/cross</normaloff>:/plugins/image_selection/cross</iconset>
+                 <normaloff>:/plugins/selorecon/cross</normaloff>:/plugins/selorecon/cross</iconset>
                </property>
                <property name="checkable">
                 <bool>true</bool>
@@ -487,7 +487,7 @@
                </property>
                <property name="icon">
                 <iconset resource="resources.qrc">
-                 <normaloff>:/plugins/image_selection/freeze</normaloff>:/plugins/image_selection/freeze</iconset>
+                 <normaloff>:/plugins/selorecon/freeze</normaloff>:/plugins/selorecon/freeze</iconset>
                </property>
                <property name="checkable">
                 <bool>true</bool>
@@ -514,7 +514,7 @@
                </property>
                <property name="icon">
                 <iconset resource="resources.qrc">
-                 <normaloff>:/plugins/image_selection/image-export</normaloff>:/plugins/image_selection/image-export</iconset>
+                 <normaloff>:/plugins/selorecon/image-export</normaloff>:/plugins/selorecon/image-export</iconset>
                </property>
               </widget>
              </item>
@@ -556,7 +556,7 @@
                </property>
                <property name="icon">
                 <iconset resource="resources.qrc">
-                 <normaloff>:/plugins/image_selection/GEO</normaloff>:/plugins/image_selection/GEO</iconset>
+                 <normaloff>:/plugins/selorecon/GEO</normaloff>:/plugins/selorecon/GEO</iconset>
                </property>
                <property name="iconSize">
                 <size>
@@ -774,17 +774,17 @@
   <customwidget>
    <class>WebView</class>
    <extends>QWidget</extends>
-   <header>image_selection.web_view</header>
+   <header>selorecon.web_view</header>
   </customwidget>
   <customwidget>
    <class>MapView</class>
    <extends>QGraphicsView</extends>
-   <header>image_selection.map_view</header>
+   <header>selorecon.map_view</header>
   </customwidget>
   <customwidget>
    <class>AerialCombo</class>
    <extends>QComboBox</extends>
-   <header>image_selection.main_window</header>
+   <header>selorecon.main_window</header>
   </customwidget>
  </customwidgets>
  <resources>
@@ -794,7 +794,7 @@
   <connection>
    <sender>buttonBox</sender>
    <signal>accepted()</signal>
-   <receiver>ImageSelectionDialogBase</receiver>
+   <receiver>MainWindowBase</receiver>
    <slot>close()</slot>
    <hints>
     <hint type="sourcelabel">

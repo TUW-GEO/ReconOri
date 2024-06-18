@@ -9,9 +9,9 @@
 
 """
 /***************************************************************************
- ImageSelection
+ SelORecon
                                  A QGIS plugin
- Guided selection of images with implicit coarse geo-referencing.
+ Guided selection and orientation of aerial reconnaissance images.
                               -------------------
         copyright            : (C) 2021 by Photogrammetry @ GEO, TU Wien, Austria
         email                : wilfried.karel@geo.tuwien.ac.at
@@ -137,17 +137,17 @@ class PreviewWindow(FormBase):
 
         menu = QMenu(self)
         group = QActionGroup(menu)
-        arrowResize090 = QIcon(':/plugins/image_selection/arrow-resize-090')
+        arrowResize090 = QIcon(':/plugins/selorecon/arrow-resize-090')
         minMax = group.addAction(menu.addAction(arrowResize090, 'Stretch to minimum / maximum',
                                  self.__onContrastEnhancement))
         minMax.setData(ContrastEnhancement.minMax)
         minMax.setCheckable(True)
-        chart = QIcon(':/plugins/image_selection/chart')
+        chart = QIcon(':/plugins/selorecon/chart')
         histogram = group.addAction(menu.addAction(chart, 'Histogram equalization',
                                     self.__onContrastEnhancement))
         histogram.setData(ContrastEnhancement.histogram)
         histogram.setCheckable(True)
-        chartPlus = QIcon(':/plugins/image_selection/chart--plus')
+        chartPlus = QIcon(':/plugins/selorecon/chart--plus')
         if claheAvailable:
             clahe = group.addAction(menu.addAction(chartPlus, 'Contrast limited, adaptive histogram equalization',
                                     self.__onContrastEnhancement))

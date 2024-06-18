@@ -1,1 +1,1 @@
-start powershell.exe -Command "Get-content %~dp0/../image_selection.log -Tail 0 -Wait -Encoding utf8"
+start powershell.exe -Command "Get-content %~dp0/../selorecon.log -Tail 0 -Wait -Encoding utf8"

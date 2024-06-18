@@ -1,5 +1,5 @@
 <RCC>
-    <qresource prefix="/plugins/image_selection" >
+    <qresource prefix="/plugins/selorecon" >
         <file alias="bomb">resources/bomb.png</file>
         <file alias="rotate">resources/rotate.png</file>
         <file alias="eye">resources/eye.png</file>

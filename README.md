@@ -1,6 +1,6 @@
-# DoRIAH QGIS PlugIn for Integrated Image Selection and Orientation
+# QGIS PlugIn for the Selection and Orientation of Aerial Reconnaissance Images
 
-![Alt text](image_selection.png "Screen Shot")
+![Alt text](readme.png "Screen Shot")
 
 Load a spread sheet with meta data of eligible aerial images, and show them minimized at the given locations on top of a web map. Double-click onto one of them to load and show its image content, and to judge its quality. If the respective image file is missing, then no image content is displayed. In that case, however, a preview image may be available. Use the context menu to find it.
 
@@ -67,15 +67,15 @@ python -m pip install scikit-image
 
 ### PlugIn Itself
 
-Download the latest release of `image_selection.zip` from the [repository](https://github.com/TUW-GEO/ReconOri/releases). To make the PlugIn accessible in QGIS, use menu `PlugIns` → entry `Manage and install plugins` → tab `Install from ZIP`,  choose the path to the archive just downloaded, and hit `Install Plugin`.
+Download the latest release of `selorecon.zip` from the [repository](https://github.com/TUW-GEO/selorecon/releases). To make the PlugIn accessible in QGIS, use menu `PlugIns` → entry `Manage and install plugins` → tab `Install from ZIP`,  choose the path to the archive just downloaded, and hit `Install Plugin`.
 
-Afterwards, activate the PlugIn in the QGIS PlugIn manager: menu `PlugIns` → entry `Manage and install plugins` → tab `Installed` → Check `DoRIAH Image Selection`.
+Afterwards, activate the PlugIn in the QGIS PlugIn manager: menu `PlugIns` → entry `Manage and install plugins` → tab `Installed` → Check `SelORecon`.
 
 You should now see the PlugIn icon in the QGIS main window. If not: menu `View` → entry `Tool boxes` → check `PlugIn tool box`.
 
 ## Configuration
 
-Use `Settings` → `User profiles` → `Open active profile folder` and edit `python/plugins/image_selection/image_selection.cfg`, such that images and previews are found.
+Use `Settings` → `User profiles` → `Open active profile folder` and edit `python/plugins/selorecon/selorecon.cfg`, such that images and previews are found.
 
 ## Acknowledgement
 

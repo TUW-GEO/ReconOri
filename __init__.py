@@ -9,9 +9,9 @@
 
 """
 /***************************************************************************
- ImageSelection
+ SelORecon
                                  A QGIS plugin
- Guided selection of images with implicit coarse geo-referencing.
+ Guided selection and orientation of aerial reconnaissance images.
                               -------------------
         copyright            : (C) 2021 by Photogrammetry @ GEO, TU Wien, Austria
         email                : wilfried.karel@geo.tuwien.ac.at
@@ -92,22 +92,13 @@ class GdalPushLogHandler:
 def classFactory(iface: QgisInterface):
     #from osgeo import gdal
 
-    from .main import ImageSelection
+    from .main import SelORecon
 
     global _logger, _logFileHandler
 
     _logger = logging.getLogger(__name__)
     # Please note that without logging to a file by setting a filename the logging may be multithreaded which heavily slows down the output.
-
-    for parentDir in Path(__file__).parent, Path.home():
-        try:
-            _logFileHandler = logging.FileHandler(parentDir / 'image_selection.log', 'w')
-        except OSError as ex:
-            pass
-        else:
-            break
-    else:
-        raise ex
+    _logFileHandler = logging.FileHandler(Path(__file__).parent / 'selorecon.log', 'w')
 
     
     logFormatter = logging.Formatter('{asctime}.{msecs:03.0f} {levelname}: {name} - {message}',
@@ -145,4 +136,4 @@ def classFactory(iface: QgisInterface):
                 _logger.info(f'Debug adapter listening on port {port}.')
                 # debugpy.wait_for_client()  # blocks execution until client is attached
 
-    return ImageSelection(iface)
+    return SelORecon(iface)

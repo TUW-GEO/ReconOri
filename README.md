@@ -1,8 +1,8 @@
-# DoRIAH QGIS PlugIn for Image Selection
+# DoRIAH QGIS PlugIn for Integrated Image Selection and Orientation
 
 Load a spread sheet with meta data of eligible aerial images, and show them minimized at the given locations on top of a web map. Double-click onto one of them to load and show its image content, and to judge its quality. If the respective image file is missing, then no image content is displayed. In that case, however, a preview image may be available. Use the context menu to find it.
 
-Shift, rotate, and scale aerials with respect to the background map, or use the function for doing so automatically, in order to decide if they shall be considered for further processing. If so, mark them as *selected*, using the context menu.
+Shift, rotate, and scale aerials with respect to the background map manually or automatically, in order to decide if they shall be considered for further processing. If so, mark them as *selected*, using the context menu.
 
 For help on how to navigate the map or transform aerials, click the help button first, and then either on the map or on an aerial.
 
@@ -28,11 +28,9 @@ At any point, an aerial belongs to each of these categories:
 
 All states are indicated graphically. Use the buttons above the map view to control if aerials with the respective state shall be shown or not.
 
-Tested with QGIS 3.34 LTR on Windows, installed with the *standalone installer (MSI)*.
-
-Should work with newer releases.
-
 ## Installation on Windows
+
+Tested with QGIS 3.34 LTR on Windows, installed with the *standalone installer (MSI)*. Should work with newer releases.
 
 ### Optional Dependencies
 
@@ -67,7 +65,7 @@ python -m pip install scikit-image
 
 ### PlugIn Itself
 
-To make the PlugIn accessible in QGIS, use menu `PlugIns` → entry `Manage and install plugins` → tab `Install from ZIP`,  choose the path to the PlugIn's package archive (`.zip`), and hit `Install Plugin`.
+Download the latest release of `image_selection.zip` from the [repository](https://github.com/TUW-GEO/ReconOri/releases). To make the PlugIn accessible in QGIS, use menu `PlugIns` → entry `Manage and install plugins` → tab `Install from ZIP`,  choose the path to the archive just downloaded, and hit `Install Plugin`.
 
 Afterwards, activate the PlugIn in the QGIS PlugIn manager: menu `PlugIns` → entry `Manage and install plugins` → tab `Installed` → Check `DoRIAH Image Selection`.
 
@@ -75,7 +73,7 @@ You should now see the PlugIn icon in the QGIS main window. If not: menu `View` 
 
 ## Configuration
 
-Edit `image_selection/image_selection.cfg`, such that images and previews are found.
+Use `Settings` → `User profiles` → `Open active profile folder` and edit `python/plugins/image_selection/image_selection.cfg`, such that images and previews are found.
 
 ## Acknowledgement
 

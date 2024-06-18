@@ -105,7 +105,7 @@ Problems:
 Created with the QGIS PlugIn "Plugin Builder 3": 
 
 > Your plugin ImageSelection was created in:
->  E:\P\Projects\19_DoRIAH\ImageSelection\QGisPlugIn\image_selection 
+>  E:\P\Projects\19_DoRIAH\ImageSelection\QGisPlugIn\selorecon 
 > 
 > Your QGIS plugin directory is located at:
 >  C:/Users/wk/AppData/Roaming/QGIS/QGIS3/profiles/default/python/plugins 
@@ -116,9 +116,9 @@ Created with the QGIS PlugIn "Plugin Builder 3":
 > 2. Optionally, test the generated sources using make test (or run tests from your IDE) 
 > 3. Copy the entire directory containing your new plugin to the QGIS plugin directory (see Notes below) 
 > 4. Test the plugin by enabling it in the QGIS plugin manager 
-> 5. Customize it by editing the implementation file image_selection.py 
+> 5. Customize it by editing the implementation file selorecon.py 
 > 6. Create your own custom icon, replacing the default icon.png 
-> 7. Modify your user interface by opening image_selection_dialog_base.ui in Qt Designer 
+> 7. Modify your user interface by opening selorecon_dialog_base.ui in Qt Designer 
 > 
 > Notes: 
 > 
@@ -136,9 +136,9 @@ To make the PlugIn accessible to the QGIS PlugIn manager, either
 - create a symbolic directory link. [VS Code does not support this, as it opens the same file twice](https://github.com/microsoft/vscode/issues/100533).
   
   ```
-  %APPDATA%\QGIS\QGIS3\profiles\default\python\plugins\image_selection 
+  %APPDATA%\QGIS\QGIS3\profiles\default\python\plugins\selorecon 
   ->
-  E:\P\Projects\19_DoRIAH\ImageSelection\QGisPlugIn\image_selection
+  E:\P\Projects\19_DoRIAH\ImageSelection\QGisPlugIn\selorecon
   ```
 
 - `set QGIS_PLUGINPATH=E:\P\Projects\19_DoRIAH\ImageSelection\QGisPlugIn`
@@ -149,7 +149,7 @@ To make the PlugIn accessible to the QGIS PlugIn manager, either
 Only necessary when `resources.qrc` has changed. If so, call in OSGeo4W shell:
 
 ```
-... image_selection>pyrcc5 -o resources_rc.py resources.qrc
+... selorecon>pyrcc5 -o resources_rc.py resources.qrc
 ```
 
 ## IDE
@@ -181,7 +181,7 @@ Recommended!
 
 https://gist.github.com/AsgerPetersen/2000eb6f3e3307bd25190b19493dd9a3
 
-Install the Python extension for VS Code, open "image_selection" as workspace, and select `C:\Program Files\QGIS 3.22.8\bin\python-qgis-ltr.bat` as Python interpreter.
+Install the Python extension for VS Code, open "selorecon" as workspace, and select `C:\Program Files\QGIS 3.22.8\bin\python-qgis-ltr.bat` as Python interpreter.
 
 #### Static Type Checking
 
@@ -299,20 +299,20 @@ Like all QGraphicsItems, AerialImage may be transformed, see [Graphics View Fram
 Open the *OSGeo4W* shell that comes with QGIS, and compile the resources by calling *pyQt5*'s resource compiler:
 
 ```batch
-... image_selection>pyrcc5 -o resources_rc.py resources.qrc
+... selorecon>pyrcc5 -o resources_rc.py resources.qrc
 ```
 
 To create a package archive:
 
 ```batch
-... image_selection>python create_archive.py
+... selorecon>python create_archive.py
 ```
 
 ## Dvlp-Installation
 
 End-users shall install the PlugIn using a package archive created as above. Instead, developers may place/extract the PlugIn-folder somewhere on the file system.
 
-1. Put/extract the PlugIn-folder into the place where the QGIS PlugIn manager expects it: make the PlugIn-folder *image_selection* a sub-directory of `%USERPROFILE%\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins`
+1. Put/extract the PlugIn-folder into the place where the QGIS PlugIn manager expects it: make the PlugIn-folder *selorecon* a sub-directory of `%USERPROFILE%\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins`
    
    In case you use a non-default QGIS profile, replace `default` with that profile's name. You may make the PlugIn folder a sub-directory either as a copy, or as a symbolic link.
 

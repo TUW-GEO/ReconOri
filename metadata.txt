@@ -8,7 +8,7 @@ email=wilfried.karel@geo.tuwien.ac.at
 
 about=Given a project area, the respective query results of Luftbilddatenbank GmbH's data bases, and access to its folders of preview and already ordered images, help the user to select the cheapest image set sufficient to meet the required analysis quality. Saves the implicitly found geo-referencing of selected images, to be re-used during fine geo-referencing.
 
-repository=https://smithers.cvl.tuwien.ac.at/doriah/DoRIAH-GEO-QGIS-PLUGIN
+repository=https://github.com/TUW-GEO/ReconOri
 
 
 homepage=https://cvl.tuwien.ac.at/project/doriah/

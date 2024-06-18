@@ -1,0 +1,5 @@
+/.vscode/ export-ignore
+/dvlp/ export-ignore
+/resources/ export-ignore
+/.gitignore export-ignore
+/resources.qrc export-ignore

@@ -21,7 +21,7 @@
     ],
     // Test with: editor-context-menu -> format-selection
     // Look into the "OUTPUT" window -> "Python"
-    "python.formatting.autopep8Args": [
+    "autopep8.args": [
         "--max-line-length",
         "120"
     ]

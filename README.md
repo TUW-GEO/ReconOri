@@ -1,5 +1,7 @@
 # DoRIAH QGIS PlugIn for Integrated Image Selection and Orientation
 
+![Alt text](image_selection.png "Screen Shot")
+
 Load a spread sheet with meta data of eligible aerial images, and show them minimized at the given locations on top of a web map. Double-click onto one of them to load and show its image content, and to judge its quality. If the respective image file is missing, then no image content is displayed. In that case, however, a preview image may be available. Use the context menu to find it.
 
 Shift, rotate, and scale aerials with respect to the background map manually or automatically, in order to decide if they shall be considered for further processing. If so, mark them as *selected*, using the context menu.

@@ -1,4 +1,6 @@
 /image_selection.zip
+/image_selection.log
+*.ckpt
 Desktop.ini
 .DS_Store
 __pycache__/

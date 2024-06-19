@@ -23,7 +23,7 @@ At any point, an aerial belongs to each of these categories:
   - `selected`: the aerial shall be used in geo-referencing and image analysis. If only a preview is available, the image hence needs to be ordered.
 - `Transformation modification`:
   - `original`: the aerial's transformation is the one derived from the spread sheet.
-  - `changed`: the aerial's transformation has been adapted manually.
+  - `changed`: the aerial's transformation has been adapted.
 - `Transformation interaction`:
   - `Unlocked`: change the image orientation to your liking. Image is shown above locked ones.
   - `Locked`: the image transformation is fixed. Image is displayed below unlocked ones.
@@ -47,7 +47,7 @@ python -m pip install torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2 --index
 python -m pip install einops yacs kornia e2cnn pytorch-lightning opencv-python-headless
 ```
 
-Extract https://github.com/WKarel/se2-loftr/archive/camera-ready.zip into `%APPDATA%\Python\Python312\site-packages\`, and rename the folder `se2-loftr-camera-ready` to `se2_loftr`.
+Extract [se2-loftr](https://github.com/WKarel/se2-loftr/archive/camera-ready.zip) into `%APPDATA%\Python\Python312\site-packages\`, and rename the folder `se2-loftr-camera-ready` to `se2_loftr`.
 
 #### Excel 2010 files
 
@@ -65,17 +65,17 @@ To make Contrast Limited, Adaptive Histogram Equalization available as image enh
 python -m pip install scikit-image
 ```
 
-### PlugIn Itself
+### The PlugIn Itself
 
 Download the latest release of `selorecon.zip` from the [repository](https://github.com/TUW-GEO/selorecon/releases). To make the PlugIn accessible in QGIS, use menu `PlugIns` → entry `Manage and install plugins` → tab `Install from ZIP`,  choose the path to the archive just downloaded, and hit `Install Plugin`.
 
-Afterwards, activate the PlugIn in the QGIS PlugIn manager: menu `PlugIns` → entry `Manage and install plugins` → tab `Installed` → Check `SelORecon`.
+Make sure that the PlugIn is activated: menu `PlugIns` → entry `Manage and install plugins` → tab `Installed` → Check `SelORecon`.
 
 You should now see the PlugIn icon in the QGIS main window. If not: menu `View` → entry `Tool boxes` → check `PlugIn tool box`.
 
 ## Configuration
 
-Use `Settings` → `User profiles` → `Open active profile folder` and edit `python/plugins/selorecon/selorecon.cfg`, such that images and previews are found.
+By default, the PlugIn searches for full resolution images and previews in folders named `Images` and `Microfilm` next to the opened spread sheed. If your files are located elsewhere, use `Settings` → `User profiles` → `Open active profile folder`, and edit `python/plugins/selorecon/selorecon.cfg` in there accordingly.
 
 ## Acknowledgement
 

@@ -30,9 +30,9 @@ At any point, an aerial belongs to each of these categories:
 
 All states are indicated graphically. Use the buttons above the map view to control if aerials with the respective state shall be shown or not.
 
-## Installation on Windows
+## Installation
 
-Tested with QGIS 3.34 LTR on Windows, installed with the *standalone installer (MSI)*. Should work with newer releases.
+Tested with QGIS 3.34 LTR on Windows, installed with the *standalone installer (MSI)*. Should work with newer releases, and on other platforms.
 
 ### Optional Dependencies
 
